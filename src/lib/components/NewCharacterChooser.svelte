@@ -1,0 +1,163 @@
+<script lang="ts">
+  /** Der Einstieg zu „Neuer Charakter": selbst erstellen, aus einer Vorlage oder aus D&D Beyond. */
+  import Modal from './ui/Modal.svelte';
+  import { listCharacterTemplates, type CharacterTemplateRef } from '../services/templates/templates';
+
+  let { onwizard, onimport, ontemplate, oncancel }: {
+    onwizard: () => void;
+    onimport: () => void;
+    ontemplate: (id: string) => Promise<void>;
+    oncancel: () => void;
+  } = $props();
+
+  let templates = $state<CharacterTemplateRef[] | null>(null);
+  let showTemplates = $state(false);
+  let busy = $state('');
+  let error = $state('');
+
+  $effect(() => {
+    void listCharacterTemplates().then((t) => (templates = t)).catch(() => (templates = []));
+  });
+
+  const groups = $derived.by(() => {
+    const out = new Map<string, CharacterTemplateRef[]>();
+    for (const t of templates ?? []) out.set(t.campaign, [...(out.get(t.campaign) ?? []), t]);
+    return [...out];
+  });
+
+  async function pick(t: CharacterTemplateRef) {
+    busy = t.id;
+    error = '';
+    try {
+      await ontemplate(t.id);
+    } catch (e) {
+      error = `Vorlage konnte nicht angelegt werden: ${e instanceof Error ? e.message : e}`;
+    } finally {
+      busy = '';
+    }
+  }
+</script>
+
+<Modal title="Neuer Charakter" draggable={false} width="min(640px, 94vw)" onclose={oncancel}>
+  {#if !showTemplates}
+    <div class="options">
+      <button class="option" onclick={onwizard}>
+        <span class="title">Neuer Charakter</span>
+        <span class="sub">Schritt für Schritt zur Stufe 1</span>
+      </button>
+      <button class="option" disabled={!templates?.length} onclick={() => (showTemplates = true)}>
+        <span class="title">Aus Vorlage erstellen</span>
+        <span class="sub">
+          {#if templates === null}Vorlagen werden gesucht…
+          {:else if templates.length}Vorgefertigte Charaktere, etwa aus einem Abenteuer
+          {:else}Keine Vorlagen — sie kommen mit Inhaltspaketen wie „Hellfire Club"{/if}
+        </span>
+      </button>
+      <button class="option" onclick={onimport}>
+        <span class="title">Aus D&D Beyond importieren</span>
+        <span class="sub">Über den Link zu einem öffentlichen Charakter</span>
+      </button>
+    </div>
+  {:else}
+    <button class="back" onclick={() => (showTemplates = false)}>← Zurück</button>
+    {#each groups as [campaign, list] (campaign)}
+      <h3>{campaign || 'Weitere Vorlagen'}</h3>
+      <div class="grid">
+        {#each list as t (t.id)}
+          <button class="template" disabled={!!busy} onclick={() => pick(t)}>
+            {#if t.portraitSrc}
+              <img src={t.portraitSrc} alt="" />
+            {:else}
+              <span class="placeholder">{t.name.slice(0, 1)}</span>
+            {/if}
+            <span class="name">{busy === t.id ? 'Wird angelegt…' : t.name}</span>
+            <span class="meta">{[t.species, t.classLevel].filter(Boolean).join(' · ')}</span>
+          </button>
+        {/each}
+      </div>
+    {/each}
+  {/if}
+  {#if error}<p class="error" role="alert">{error}</p>{/if}
+</Modal>
+
+<style>
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .option,
+  .template {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.8rem 1rem;
+    text-align: left;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .option:hover:not(:disabled),
+  .template:hover:not(:disabled) {
+    border-color: var(--red);
+  }
+  .option:disabled,
+  .template:disabled {
+    cursor: default;
+    opacity: 0.55;
+  }
+  .title {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+  }
+  .sub,
+  .meta {
+    font-size: 0.8rem;
+    color: var(--ink-muted);
+  }
+  .back {
+    display: block;
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+  h3 {
+    margin: 0.9rem 0 0.5rem;
+    font-size: 0.95rem;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.6rem;
+  }
+  .template {
+    align-items: center;
+    text-align: center;
+    padding: 0.7rem;
+  }
+  .template img,
+  .placeholder {
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+  .placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-deep);
+    font-size: 2rem;
+  }
+  .name {
+    font-weight: 600;
+  }
+  .error {
+    margin: 0.8rem 0 0;
+    color: var(--danger);
+  }
+</style>

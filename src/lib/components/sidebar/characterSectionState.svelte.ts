@@ -11,6 +11,7 @@ import {
   readCharacterName,
 } from '../../services/characterDirectory';
 import type { Character } from '../../schemas/characterSchema';
+import { instantiateCharacterTemplate } from '../../services/templates/templates';
 
 export { CHARACTERS_PATH };
 
@@ -68,6 +69,7 @@ export class CharacterSectionState {
   meta: Record<string, { name: string; classes: CharClass[] }> = $state({});
   showNewInput = $state(false);
   newInput = $state('');
+  showChooser = $state(false);
   showWizard = $state(false);
   showImport = $state(false);
 
@@ -135,11 +137,21 @@ export class CharacterSectionState {
     if (!uid) return;
     this.showWizard = false;
     this.showImport = false;
+    await this.openCreated(uid);
+  }
+
+  async createFromTemplate(id: string): Promise<void> {
+    const uid = await instantiateCharacterTemplate(id);
+    this.showChooser = false;
+    await this.openCreated(uid);
+  }
+
+  private async openCreated(uid: string): Promise<void> {
     this.expanded = true;
     await this.load();
     await this.openCharacter({ name: uid, is_dir: true });
   }
 }
 
-/** Geteilt, damit die Startseite denselben Wizard öffnet wie das „+" der Seitenleiste. */
+/** Geteilt, damit die Startseite dieselbe Auswahl öffnet wie das „+" der Seitenleiste. */
 export const characterSection = new CharacterSectionState();

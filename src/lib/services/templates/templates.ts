@@ -6,6 +6,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { campaignTemplateSchema, type CampaignTemplate } from '../../schemas/template';
 import { CHARACTERS_PATH, freshCharacterUid } from '../characterDirectory';
 import { replaceFrontmatterCharacters } from '../../utils/frontmatter';
+import { characterAssetSrc } from '../characterSideFiles.svelte';
 
 const TEMPLATES_PATH = './vault/templates';
 const CAMPAIGN_TEMPLATES = `${TEMPLATES_PATH}/campaigns`;
@@ -44,6 +45,44 @@ export async function listCampaignTemplates(): Promise<CampaignTemplateRef[]> {
     }),
   );
   return refs.filter((r): r is CampaignTemplateRef => r !== null).sort((a, b) => a.name.localeCompare(b.name, 'de'));
+}
+
+export interface CharacterTemplateRef {
+  id: string;
+  name: string;
+  classLevel: string;
+  species: string;
+  /** Leer ohne Porträt. */
+  portraitSrc: string;
+  /** Titel der Kampagnen-Vorlage, die den Charakter mitbringt; leer für lose Vorlagen. */
+  campaign: string;
+}
+
+/** Sortiert nach Kampagne, dann Name; eine unlesbare Vorlage fehlt in der Liste. */
+export async function listCharacterTemplates(): Promise<CharacterTemplateRef[]> {
+  const campaignOf = new Map<string, string>();
+  for (const t of await listCampaignTemplates()) for (const id of t.characters) campaignOf.set(id, t.name);
+  const refs = await Promise.all(
+    (await subdirs(CHARACTER_TEMPLATES)).map(async (id): Promise<CharacterTemplateRef | null> => {
+      const dir = `${CHARACTER_TEMPLATES}/${id}`;
+      try {
+        const c = JSON.parse(await invoke<string>('read_file_content', { path: `${dir}/character.json` }));
+        return {
+          id,
+          name: String(c.name ?? id),
+          classLevel: String(c.classLevel ?? ''),
+          species: String(c.species?.name ?? c.race ?? ''),
+          portraitSrc: c.portraitFile ? await characterAssetSrc(dir, c.portraitFile) : '',
+          campaign: campaignOf.get(id) ?? '',
+        };
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return refs
+    .filter((r): r is CharacterTemplateRef => r !== null)
+    .sort((a, b) => a.campaign.localeCompare(b.campaign, 'de') || a.name.localeCompare(b.name, 'de'));
 }
 
 /** Kopiert eine Charakter-Vorlage in einen neuen UID-Ordner und liefert die UID. */

@@ -22,6 +22,8 @@ vi.mock('@tauri-apps/api/core', () => ({
       case 'delete_path':
         files.delete(args.path);
         return;
+      case 'get_absolute_path':
+        return `/abs/${args.path}`;
       case 'copy_dir':
         if (under(args.to).length) throw new Error('existiert bereits');
         for (const p of under(args.from)) files.set(args.to + p.slice(args.from.length), files.get(p)!);
@@ -30,9 +32,10 @@ vi.mock('@tauri-apps/api/core', () => ({
         throw new Error(`unerwartet: ${cmd}`);
     }
   },
+  convertFileSrc: (p: string) => `asset://${p}`,
 }));
 
-const { listCampaignTemplates, instantiateCampaignTemplate, freeName } = await import('$lib/services/templates/templates');
+const { listCampaignTemplates, listCharacterTemplates, instantiateCampaignTemplate, freeName } = await import('$lib/services/templates/templates');
 
 const T = './vault/templates';
 
@@ -42,9 +45,10 @@ beforeEach(() => {
   files.set(`${T}/campaigns/hfc/campaign.md`, '---\ncharacters: []\n---\n# Hellfire\n');
   files.set(`${T}/campaigns/hfc/maps/karte.json`, '{}');
   files.set(`${T}/campaigns/kaputt/campaign.md`, '# ohne Kopf\n');
-  files.set(`${T}/characters/hfc-will/character.json`, JSON.stringify({ name: 'Will', uid: '' }));
+  files.set(`${T}/characters/hfc-will/character.json`, JSON.stringify({ name: 'Will', uid: '', portraitFile: 'portrait.png' }));
   files.set(`${T}/characters/hfc-will/portrait.png`, 'png');
   files.set('./vault/campaigns/hfc/campaign.md', '# schon gespielt\n');
+  files.set(`${T}/characters/lose/character.json`, JSON.stringify({ name: 'Ada', classLevel: 'Magier 1' }));
 });
 
 describe('Kampagnen-Vorlagen', () => {
@@ -77,5 +81,14 @@ describe('Kampagnen-Vorlagen', () => {
   it('zählt den Ordnernamen hoch', () => {
     expect(freeName('a', new Set())).toBe('a');
     expect(freeName('a', new Set(['a', 'a-2']))).toBe('a-3');
+  });
+});
+
+describe('Charakter-Vorlagen', () => {
+  it('ordnet sie ihrer Kampagnen-Vorlage zu und zeigt das Porträt', async () => {
+    const list = await listCharacterTemplates();
+    expect(list.map((t) => [t.id, t.campaign])).toEqual([['lose', ''], ['hfc-will', 'Hellfire']]);
+    expect(list[1].portraitSrc).toMatch(/^asset:\/\/\/abs\/.*hfc-will\/portrait\.png/);
+    expect(list[0]).toMatchObject({ name: 'Ada', classLevel: 'Magier 1', portraitSrc: '' });
   });
 });

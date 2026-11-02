@@ -3,6 +3,7 @@
   import { activeFile, vaultVersion } from '../../stores/campaign';
   import CharacterWizard from '../CharacterWizard.svelte';
   import DdbImportWizard from '../ddbImport/DdbImportWizard.svelte';
+  import NewCharacterChooser from '../NewCharacterChooser.svelte';
   import SectionHeader from './SectionHeader.svelte';
   import { navigateTo } from '../../services/navigation';
   import { catalogEntry } from '../../services/catalog/catalogTypes';
@@ -36,10 +37,7 @@
     top
   >
     {#snippet actions()}
-      <button class="add-btn" title="Aus D&D Beyond importieren" onclick={() => (state.showImport = true)}>
-        ⇪
-      </button>
-      <button class="add-btn" title="Neuer Charakter" onclick={() => (state.showWizard = true)}>
+      <button class="add-btn" title="Neuer Charakter" onclick={() => (state.showChooser = true)}>
         +
       </button>
     {/snippet}
@@ -92,6 +90,15 @@
     </div>
   {/if}
 </div>
+
+{#if state.showChooser}
+  <NewCharacterChooser
+    onwizard={() => { state.showChooser = false; state.showWizard = true; }}
+    onimport={() => { state.showChooser = false; state.showImport = true; }}
+    ontemplate={(id) => state.createFromTemplate(id)}
+    oncancel={() => (state.showChooser = false)}
+  />
+{/if}
 
 {#if state.showWizard}
   <CharacterWizard onComplete={(c) => state.createFromWizard(c)} onCancel={() => (state.showWizard = false)} />

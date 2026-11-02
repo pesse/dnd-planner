@@ -49,9 +49,9 @@
       <img class="logo" src="/branding/logo.png" alt="DnD Planner" />
 
       <div class="primary">
-        <button class="start-card" onclick={() => (characterSection.showWizard = true)}>
+        <button class="start-card" onclick={() => (characterSection.showChooser = true)}>
           <span class="start-card-title">Charakter erstellen</span>
-          <span class="start-card-sub">Schritt für Schritt zur Stufe 1</span>
+          <span class="start-card-sub">Selbst, aus einer Vorlage oder aus D&D Beyond</span>
         </button>
         <CampaignStartCard />
       </div>
