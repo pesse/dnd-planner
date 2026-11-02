@@ -37,3 +37,5 @@ export function invalidateRulesCache(): void {
   library.invalidate();
   byKey.invalidate();
 }
+
+export const searchRuleDrafts = library.searchWithParser;

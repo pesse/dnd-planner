@@ -5,6 +5,7 @@ import BackgroundCard from './BackgroundCard.svelte';
 import ClassCard from './ClassCard.svelte';
 import EncounterCard from './EncounterCard.svelte';
 import FeatCard from './FeatCard.svelte';
+import RuleCard from './RuleCard.svelte';
 import ItemCard from './ItemCard.svelte';
 import MonsterCard from './MonsterCard.svelte';
 import NpcCard from './NpcCard.svelte';
@@ -33,6 +34,7 @@ export const CARD_REGISTRY = {
   species: card({ icon: '🧬', component: SpeciesCard }),
   feat: card({ icon: '✴', component: FeatCard }),
   background: card({ icon: '🎭', component: BackgroundCard }),
+  rule: card({ icon: '§', component: RuleCard }),
 } satisfies Partial<Record<FileEntryType, CardSpec>>;
 
 /** Fehlt ein Schlüssel in `CARD_REGISTRY` in `FileEntryType`, meldet `satisfies` oben den Fehler. */

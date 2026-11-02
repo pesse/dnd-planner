@@ -82,4 +82,5 @@ export const parseClass = (raw: unknown): ParseResult<ClassProgression> => parse
 export const parseSpecies = (raw: unknown): ParseResult<Species> => parse(speciesSchema, migrateSpeciesLegacy, raw);
 export const parseFeat = (raw: unknown): ParseResult<Feat> => parse(featSchema, migrateFeatLegacy, raw);
 export const parseBackground = (raw: unknown): ParseResult<Background> => parse(backgroundSchema, libraryEntry, raw);
+export const parseRule = (raw: unknown): ParseResult<Rule> => parse(ruleSchema, libraryEntry, raw);
 export const normalizeRule = (raw: unknown): Rule => normalize(ruleSchema, libraryEntry, raw);

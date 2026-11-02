@@ -11,11 +11,14 @@ import { blankFeat, featDraftName, searchFeatLibrary } from '../featCreate';
 import { getClasses, classDisplayName, searchClassDrafts } from '../../classLibrary';
 import { searchSpeciesDrafts } from '../../speciesLibrary';
 import { searchBackgroundDrafts } from '../../backgroundsLibrary';
+import { searchRuleDrafts } from '../../rulesLibrary';
+import type { Rule } from '../../schemas/rule';
+import { OWN_SOURCE } from '../../schemas/source';
 import {
   blankItem, displayName as itemDisplayName, getItemsByDir, loadedItemDirs, searchItems, toHomebrewCopy,
 } from '../../itemLibrary';
 import { blankSpell, getSpellLibrary, loadSpellByPath, searchSpells as searchSpellLib } from '../../spellLibrary';
-import { parseBackground, parseClass, parseSpecies, normalizeItem } from '../../utils/schemaValidation';
+import { parseBackground, parseClass, parseRule, parseSpecies, normalizeItem } from '../../utils/schemaValidation';
 import { searchMonsterLibrary } from '../../monsterLibrary';
 import { BACKGROUND_TEMPLATE, CLASS_TEMPLATE, MONSTER_TEMPLATE, SPECIES_TEMPLATE } from '../../types';
 import type { Background, ClassProgression, FileEntryType, Item, Monster, Species, Spell } from '../../types';
@@ -77,6 +80,11 @@ function blankBackground(name: string): Background {
 const searchClassLibrary = (q: string) => searchClassDrafts(q, parseClass, blankClass, 8);
 const searchSpeciesLibrary = (q: string) => searchSpeciesDrafts(q, parseSpecies, blankSpecies, 8);
 const searchBackgroundLibrary = (q: string) => searchBackgroundDrafts(q, parseBackground, blankBackground, 8);
+
+function blankRule(name: string): Rule {
+  return { key: '', source: OWN_SOURCE, name: name || 'Neue Regel', nameDe: name || 'Neue Regel', category: 'rule', desc: '' };
+}
+const searchRuleLibrary = (q: string) => searchRuleDrafts(q, parseRule, blankRule, 8);
 
 /** Bindet T an der Definitionsstelle; die Registry selbst ist typunabhängig. */
 const spec = <T>(s: CreateSpec<T>): CreateSpec<unknown> => s as CreateSpec<unknown>;
@@ -142,6 +150,13 @@ export const CREATE_SPECS = {
     searchLibrary: searchBackgroundLibrary,
     blank: blankBackground,
     nameOf: (b) => b.nameDe || b.name || 'Hintergrund',
+  }),
+  rule: spec<Rule>({
+    type: 'rule',
+    title: 'Neue Regel',
+    searchLibrary: searchRuleLibrary,
+    blank: blankRule,
+    nameOf: (r) => r.nameDe || r.name || 'Regel',
   }),
 } satisfies Partial<Record<FileEntryType, CreateSpec<unknown>>>;
 

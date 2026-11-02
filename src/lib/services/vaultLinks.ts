@@ -4,6 +4,7 @@
 import { navigateTo } from './navigation';
 import { characterLabel, readCharacterName } from './characterDirectory';
 import { getSpellLibrary, spellInfoByKey } from '../spellLibrary';
+import { getRuleByKey } from '../rulesLibrary';
 import type { FileEntry } from '../types';
 
 /**
@@ -12,7 +13,7 @@ import type { FileEntry } from '../types';
  */
 export const SPELL_REF_SCHEME = 'spell:';
 
-/** Regelbegriffe (`[Heldische Inspiration](rule:srd-2024_heroic-inspiration)`) sind nur Tooltip. */
+/** Regelbegriffe (`[Heldische Inspiration](rule:srd-2024_heroic-inspiration)`), ebenfalls über den Key. */
 export const RULE_REF_SCHEME = 'rule:';
 
 function isExternal(href: string): boolean {
@@ -55,6 +56,7 @@ export function inferFileType(path: string): FileEntry['type'] | null {
   if (/\/vault\/species\/[^/]+\.json$/i.test(path)) return 'species';
   if (/\/vault\/feats\/[^/]+\.json$/i.test(path)) return 'feat';
   if (/\/vault\/backgrounds\/[^/]+\.json$/i.test(path)) return 'background';
+  if (/\/vault\/rules\/[^/]+\.json$/i.test(path)) return 'rule';
   // Charaktere sind verzeichnisbasiert, tragen also kein Suffix.
   if (/\/vault\/characters\/[^/]+\/?$/i.test(path)) return 'character';
   if (/\.md$/i.test(path)) return 'notes';
@@ -89,6 +91,13 @@ export async function openSpellRef(key: string): Promise<boolean> {
   return true;
 }
 
+export async function openRuleRef(key: string): Promise<boolean> {
+  const rule = await getRuleByKey(key);
+  if (!rule?.path) return false;
+  await navigateTo({ name: displayName(rule.path, 'rule'), path: rule.path, type: 'rule' });
+  return true;
+}
+
 /**
  * @returns true = intern behandelt, auch wenn der Guard abbricht; false nur bei externen
  *          oder nicht auflösbaren Links, die der Aufrufer dann selbst öffnen darf.
@@ -100,7 +109,10 @@ export async function openVaultLink(href: string, fromFilePath: string): Promise
     await openSpellRef(spellKey);
     return true;
   }
-  if (href.startsWith(RULE_REF_SCHEME)) return true;
+  if (href.startsWith(RULE_REF_SCHEME)) {
+    await openRuleRef(href.slice(RULE_REF_SCHEME.length).trim());
+    return true;
+  }
   if (!href || !fromFilePath || isExternal(href)) return false;
 
   let decoded = href;

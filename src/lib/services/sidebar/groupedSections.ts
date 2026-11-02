@@ -1,6 +1,6 @@
 /**
  * Die gruppierten Bäume der Seitenleiste: Monster nach Typ, Zauber nach Schule
- * (zweite Gruppierung nach Grad), Gegenstände und Talente nach Kategorie.
+ * (zweite Gruppierung nach Grad), Gegenstände, Talente und Regeln nach Kategorie.
  */
 import { getItemsByDir, invalidateItemCache, listItemDirs } from '../../itemLibrary';
 import { rarityColor } from '../../itemLabels';
@@ -12,6 +12,8 @@ import {
 import { MONSTERS_PATH } from '../../monsterLibrary';
 import { FEAT_CATEGORY_DE, featDisplayName, getFeats, invalidateFeatsCache } from '../../featsLibrary';
 import { FEAT_CATEGORIES } from '../../schemas/vocabulary';
+import { getRules, invalidateRulesCache, ruleDisplayName } from '../../rulesLibrary';
+import { RULE_CATEGORIES, RULE_CATEGORY_DE } from '../../schemas/rule';
 import { crLabel } from '../monsterFormat';
 import { parseMonster } from '../../utils/schemaValidation';
 import { monsterTypeLabel, type FileEntry } from '../../types';
@@ -210,6 +212,24 @@ async function loadFeatGroups(): Promise<TreeGroup[]> {
     .filter((g) => g.leaves.length);
 }
 
+async function loadRuleGroups(): Promise<TreeGroup[]> {
+  const leaves = (await getRules()).map((rule) => {
+    const filename = rule.path.slice(rule.path.lastIndexOf('/') + 1);
+    return {
+      entryName: filename.replace('.json', ''),
+      path: rule.path,
+      suffix: `rules/${filename}`,
+      groupId: rule.category,
+      label: ruleDisplayName(rule),
+      nameEn: rule.name,
+    };
+  });
+  leaves.sort((a, b) => a.label.localeCompare(b.label, 'de'));
+  return RULE_CATEGORIES
+    .map((id) => ({ id, label: RULE_CATEGORY_DE[id], leaves: leaves.filter((l) => l.groupId === id) }))
+    .filter((g) => g.leaves.length);
+}
+
 export const GROUPED_SECTIONS: GroupedSection[] = [
   {
     kind: 'monster', type: 'monster', label: 'Monster', addTitle: 'Neues Monster',
@@ -243,3 +263,11 @@ export const GROUPED_SECTIONS: GroupedSection[] = [
     invalidate: invalidateFeatsCache,
   },
 ];
+
+/** Steht in der Seitenleiste hinter den flachen Bibliotheken, als letzte Sektion. */
+export const RULES_SECTION: GroupedSection = {
+  kind: 'rule', type: 'rule', label: 'Regeln', addTitle: 'Neue Regel',
+  emptyLabel: 'Keine Regeln', searchable: true,
+  loadGroups: loadRuleGroups,
+  invalidate: invalidateRulesCache,
+};
