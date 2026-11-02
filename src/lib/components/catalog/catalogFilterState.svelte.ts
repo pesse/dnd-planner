@@ -7,7 +7,7 @@ import type { CatalogFilters, CatalogKind, CatalogLayout } from '../../services/
 const lastUsed = new Map<CatalogKind, CatalogFilters>();
 
 export class CatalogFilterState {
-  facets = $state<Record<string, string>>({});
+  facets = $state<Record<string, string[]>>({});
   search = $state('');
   /** Überlebt den Gruppenwechsel, solange das neue Set die Spalte zeigt. */
   sortCol = $state('name');
@@ -48,10 +48,10 @@ export class CatalogFilterState {
     this.layout = next?.layout ?? defaultLayout;
   }
 
-  /** `null` hebt die Facette auf — `''` ist ein echter Wert („Ohne Angabe"). */
-  setFacet(id: string, value: string | null) {
-    if (value === null) delete this.facets[id];
-    else this.facets[id] = value;
+  /** Leer hebt die Facette auf — `''` ist ein echter Wert („Ohne Angabe"). */
+  setFacet(id: string, values: string[]) {
+    if (!values.length) delete this.facets[id];
+    else this.facets[id] = values;
   }
 
   /** `active` ist die tatsächlich angezeigte Sortierspalte, falls `sortCol` im Set fehlt. */

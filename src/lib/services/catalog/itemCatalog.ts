@@ -5,7 +5,7 @@ import {
 } from '../../itemLabels';
 import { formatCost, weaponDamageLine } from '../../itemFormat';
 import { itemInfoArtUrl } from '../../libraryArt';
-import { byLabel, sourceFacet, type CatalogCell, type CatalogFacetValue, type CatalogSpec } from './catalogTypes';
+import { byLabel, sourceFacet, SOURCE_FACET, type CatalogCell, type CatalogFacetValue, type CatalogSpec } from './catalogTypes';
 
 /** Legacy-Ordner (z.B. „wondrous-items") mit auflösen. */
 export const itemDirLabel = (dir: string): string => CATEGORY_LABELS[DIR_TO_CATEGORY[dir] ?? dir] ?? dir;
@@ -112,7 +112,7 @@ export const itemCatalog: CatalogSpec = {
     'adventuring-gear': MUNDANE, tools: MUNDANE, 'equipment-pack': MUNDANE, 'spellcasting-focus': MUNDANE,
     mount: MUNDANE, 'land-vehicle': MUNDANE, 'waterborne-vehicle': MUNDANE, 'airborne-vehicle': MUNDANE,
   },
-  facets: { magic: 'Magie', rarity: 'Seltenheit', source: 'Quelle' },
+  facets: { magic: { label: 'Magie' }, rarity: { label: 'Seltenheit' }, source: SOURCE_FACET },
   invalidate: () => invalidateItemCache(),
   async load() {
     const byDir = await getAllItemsByDir();

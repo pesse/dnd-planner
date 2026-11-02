@@ -5,7 +5,7 @@ import { presentEntryArt } from '../libraryEntryArt';
 import { monsterAlignmentLabel, monsterSizeLabel, monsterTypeLabel } from '../../types';
 import { MONSTER_SIZE_KEYS } from '../../schemas/vocabulary';
 import { crLabel } from '../monsterFormat';
-import { byLabel, sourceFacet, type CatalogSpec } from './catalogTypes';
+import { byLabel, sourceFacet, SOURCE_FACET, type CatalogSpec } from './catalogTypes';
 
 /** Der Typ ist der Filter; alle Typen teilen sich ein Spalten-Set. */
 export const monsterCatalog: CatalogSpec = {
@@ -21,7 +21,7 @@ export const monsterCatalog: CatalogSpec = {
     hp: { label: 'TP', numeric: true },
   },
   columnSets: { '': ['cr', 'size', 'alignment', 'ac', 'hp'] },
-  facets: { source: 'Quelle' },
+  facets: { source: SOURCE_FACET },
   invalidate: invalidateMonsterLibrary,
   async load() {
     const [hits, art] = await Promise.all([getMonsterLibrary(), availableArt()]);

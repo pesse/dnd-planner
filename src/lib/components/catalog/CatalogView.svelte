@@ -9,6 +9,7 @@
     type CatalogGroup, type CatalogKind, type CatalogLayout, type CatalogRow,
   } from '../../services/catalog/catalogTypes';
   import SegmentedToggle from '../ui/SegmentedToggle.svelte';
+  import MultiSelect from '../ui/MultiSelect.svelte';
   import CatalogTable from './CatalogTable.svelte';
   import CatalogGallery from './CatalogGallery.svelte';
   import '../toolbar.css';
@@ -58,14 +59,14 @@
   // Eine Facette mit nur einem Wert in dieser Gruppe filtert nichts und bleibt weg.
   let facets = $derived(
     Object.entries(spec.facets)
-      .map(([id, label]) => ({ id, label, options: facetOptions(groupRows, id) }))
+      .map(([id, def]) => ({ id, ...def, options: facetOptions(groupRows, id) }))
       .filter((f) => f.options.length > 1 || f.id in filt.facets),
   );
 
   let shown = $derived.by(() => {
     const q = filt.search.trim().toLowerCase();
     const filtered = groupRows.filter((r) =>
-      Object.entries(filt.facets).every(([id, value]) => facetValues(r, id).some((v) => v.id === value))
+      Object.entries(filt.facets).every(([id, chosen]) => facetValues(r, id).some((v) => chosen.includes(v.id)))
       && (!q || r.name.toLowerCase().includes(q) || !!r.altName?.toLowerCase().includes(q)));
     const key = (r: CatalogRow): string | number =>
       activeSort === 'name' ? r.name : (r.cells[activeSort].sort ?? r.cells[activeSort].text);
@@ -91,8 +92,8 @@
     const views = spec.views;
     const next = CATALOGS[target].views;
     if (!views || !next || target === kind) return;
-    const { [views.facet]: nextGroupId, ...facets } = filt.facets;
-    if (group) facets[next.facet] = group;
+    const { [views.facet]: [nextGroupId] = [], ...facets } = filt.facets;
+    if (group) facets[next.facet] = [group];
     const nextGroup = nextGroupId ? facetOptions(rows, views.facet).find((o) => o.id === nextGroupId) : undefined;
     void navigateTo(catalogEntry(target, CATALOGS[target].label, nextGroup), {
       state: { catalog: { ...filt.snapshot(), facets } },
@@ -126,13 +127,20 @@
       </label>
     {/if}
     {#each facets as f (f.id)}
-      <label class="filter">
-        {f.label}
-        <select value={filt.facets[f.id] ?? ALL} onchange={(e) => filt.setFacet(f.id, e.currentTarget.value === ALL ? null : e.currentTarget.value)}>
-          <option value={ALL}>Alle</option>
-          {#each f.options as o}<option value={o.id}>{o.label}</option>{/each}
-        </select>
-      </label>
+      {#if f.multi}
+        <span class="filter">
+          {f.label}
+          <MultiSelect options={f.options} selected={filt.facets[f.id] ?? []} onchange={(ids) => filt.setFacet(f.id, ids)} />
+        </span>
+      {:else}
+        <label class="filter">
+          {f.label}
+          <select value={filt.facets[f.id]?.[0] ?? ALL} onchange={(e) => filt.setFacet(f.id, e.currentTarget.value === ALL ? [] : [e.currentTarget.value])}>
+            <option value={ALL}>Alle</option>
+            {#each f.options as o}<option value={o.id}>{o.label}</option>{/each}
+          </select>
+        </label>
+      {/if}
     {/each}
     {#if filt.layout === 'gallery'}
       <label class="filter">

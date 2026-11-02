@@ -73,7 +73,7 @@ export const characterCatalog: CatalogSpec = {
     ac: { label: 'RK', numeric: true },
   },
   columnSets: { '': ['classLevel', 'level', 'species', 'background', 'player', 'hp', 'ac'] },
-  facets: { class: 'Klasse', species: 'Volk' },
+  facets: { class: { label: 'Klasse' }, species: { label: 'Volk' } },
   invalidate: () => {},
   async load() {
     const uids = await listCharacterDirs();

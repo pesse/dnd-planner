@@ -61,6 +61,11 @@ export interface CatalogFacetValue {
   order?: number;
 }
 
+export interface CatalogFacet {
+  label: string;
+  multi?: boolean;
+}
+
 export interface CatalogGroup {
   id: string;
   label: string;
@@ -77,8 +82,8 @@ export interface CatalogSpec {
   columns: Record<string, CatalogColumn>;
   /** `''` ist das Set ohne Filter und zugleich der Fallback jeder Gruppe ohne eigenes. */
   columnSets: { '': string[] } & Record<string, string[]>;
-  /** Zusatzfilter neben der Gruppe: id → Label. */
-  facets: Record<string, string>;
+  /** Zusatzfilter neben der Gruppe. */
+  facets: Record<string, CatalogFacet>;
   /**
    * Dieselben Zeilen nach anderen Achsen gruppiert, in Umschalter-Reihenfolge. `facet` ist in
    * jeder Ansicht die Facette, deren Werte die Gruppen der anderen sind — beim Wechsel tauschen
@@ -92,8 +97,8 @@ export interface CatalogSpec {
 
 /** Was die Tabelle über Gruppe und Ansicht hinaus einschränkt und ordnet. */
 export interface CatalogFilters {
-  /** Facette → gewählter Wert; fehlt der Schlüssel, filtert sie nicht. */
-  facets: Record<string, string>;
+  /** Facette → gewählte Werte, von denen einer passen muss; fehlt der Schlüssel, filtert sie nicht. */
+  facets: Record<string, string[]>;
   search: string;
   /** Spalten-ID oder `name`. */
   sortCol: string;
@@ -102,6 +107,8 @@ export interface CatalogFilters {
 }
 
 export const byLabel = (a: CatalogGroup, b: CatalogGroup) => a.label.localeCompare(b.label, 'de');
+
+export const SOURCE_FACET: CatalogFacet = { label: 'Quelle', multi: true };
 
 export const sourceFacet = (source: string | undefined): CatalogFacetValue =>
   ({ id: source ?? '', label: sourceLabel(source) || 'Ohne Angabe' });

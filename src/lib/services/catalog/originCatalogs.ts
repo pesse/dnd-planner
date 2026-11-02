@@ -7,7 +7,7 @@ import { BACKGROUNDS_PATH } from '../../backgroundsLibrary';
 import { featDisplayName, getFeats } from '../../featsLibrary';
 import { sourceLabel } from '../../schemas/source';
 import { scanJsonFolder, type FileContext } from '../library/createLibrary';
-import { byLabel, sourceFacet, type CatalogFacetValue, type CatalogRow, type CatalogSpec } from './catalogTypes';
+import { byLabel, sourceFacet, SOURCE_FACET, type CatalogFacetValue, type CatalogRow, type CatalogSpec } from './catalogTypes';
 
 type Raw = Record<string, any>;
 
@@ -54,7 +54,7 @@ export const classCatalog: CatalogSpec = {
     source: { label: 'Quelle' },
   },
   columnSets: { '': ['role', 'hitDie', 'source'] },
-  facets: { role: 'Art', source: 'Quelle' },
+  facets: { role: { label: 'Art' }, source: SOURCE_FACET },
   invalidate: () => {},
   async load() {
     const [entries, names, species] = await Promise.all([scan(CLASSES_PATH), availableArt(), artSpecies()]);

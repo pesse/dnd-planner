@@ -4,7 +4,7 @@ import { FEAT_CATEGORIES } from '../../schemas/vocabulary';
 import { ABILITY_ABBR_DE, ABILITY_KEYS, ABILITY_NAMES, abilityKeyOf, type AbilityKey } from '../../schemas/abilities';
 import { abilityIncreaseOptions } from '../declaration/abilityIncrease';
 import { featPrereqLevel } from '../featPrerequisites';
-import { sourceFacet, type CatalogCell, type CatalogSpec } from './catalogTypes';
+import { sourceFacet, SOURCE_FACET, type CatalogCell, type CatalogSpec } from './catalogTypes';
 
 /** Fest gewährt, zur Wahl gestellt oder an einer Zweigoption hängend — die Spalte fragt nur „welche überhaupt". */
 function increasedAbilities(feat: FeatEntry): Set<AbilityKey> {
@@ -39,7 +39,7 @@ export const featCatalog: CatalogSpec = {
     repeatable: { label: 'Wdh.', center: true },
   },
   columnSets: { '': ['level', 'prerequisite', 'abilities', 'repeatable'] },
-  facets: { source: 'Quelle' },
+  facets: { source: SOURCE_FACET },
   invalidate: invalidateFeatsCache,
   async load() {
     const feats = await getFeats();
