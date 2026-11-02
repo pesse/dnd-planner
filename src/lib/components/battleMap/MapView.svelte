@@ -1,3 +1,8 @@
+<script lang="ts" module>
+  /** Über das Schließen der Karte hinweg: wer mitten in der Session eine andere Seite ansieht, kommt im selben Tab zurück. */
+  let lastTab = $state<'prep' | 'play'>('prep');
+</script>
+
 <script lang="ts">
   /** SL-Ansicht einer Kampfkarte als Vollbild-Overlay. Speichert selbst — eine Karte im Spiel hat keinen Entwurf. */
   import { onDestroy } from 'svelte';
@@ -13,6 +18,7 @@
   import { openPlayerWindow } from '../../services/battleMap/playerWindow';
   import MapCanvas from './MapCanvas.svelte';
   import TokenPanel from './TokenPanel.svelte';
+  import TokenListPanel from './TokenListPanel.svelte';
   import MapSettingsPanel from './MapSettingsPanel.svelte';
   import InitiativePanel from './InitiativePanel.svelte';
   import DicePanel from './DicePanel.svelte';
@@ -145,10 +151,21 @@
       </div>
 
       <aside class="panel left" aria-label="Werkzeuge und Einstellungen">
-        <TokenPanel {editor} {center} />
-        <InitiativePanel {editor} campaignDir={campaignDirOf(editor.path)} />
-        <DicePanel />
-        <MapSettingsPanel {editor} />
+        <div class="tabs" role="tablist">
+          <button role="tab" aria-selected={lastTab === 'prep'} onclick={() => (lastTab = 'prep')}>Vorbereitung</button>
+          <button role="tab" aria-selected={lastTab === 'play'} onclick={() => (lastTab = 'play')}>Spiel</button>
+        </div>
+        <!-- Beide Tabs bleiben montiert: der Würfelverlauf überlebt so den Wechsel. -->
+        <div class="tab" role="tabpanel" hidden={lastTab !== 'prep'}>
+          <TokenPanel {editor} {center} />
+          <TokenListPanel {editor} />
+          <MapSettingsPanel {editor} />
+        </div>
+        <div class="tab" role="tabpanel" hidden={lastTab !== 'play'}>
+          <InitiativePanel {editor} campaignDir={campaignDirOf(editor.path)} />
+          <DicePanel />
+          <TokenListPanel {editor} />
+        </div>
       </aside>
 
       <MapCanvas bind:this={canvas} {editor} />
@@ -238,8 +255,35 @@
   }
   .left {
     width: 16rem;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
     border-right: 1px solid var(--surface);
+  }
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+  }
+  .tabs button {
+    flex: 1;
+    padding: 0.5rem 0;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--ink-muted);
+    font-family: var(--font-display);
+    cursor: pointer;
+  }
+  .tabs button[aria-selected='true'] {
+    color: var(--red);
+    border-bottom-color: var(--red);
+  }
+  .tab {
+    flex: 1;
+    overflow-y: auto;
+  }
+  .tab[hidden] {
+    display: none;
   }
   .right {
     width: clamp(20rem, 26vw, 28rem);
