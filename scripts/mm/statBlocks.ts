@@ -73,7 +73,7 @@ const SENSES = ['darkvision', 'blindsight', 'tremorsense', 'truesight'] as const
 /** „Poison, Psychic; Charmed, Exhaustion" — das Semikolon fehlt, wenn nur eine Seite besetzt ist. */
 function defenses(line: string): { damage: string[]; conditions: string[]; other: string[] } {
   const out = { damage: [] as string[], conditions: [] as string[], other: [] as string[] };
-  for (const name of line.split(/[,;](?![^(]*\))/).map((s) => s.trim()).filter(Boolean)) {
+  for (const name of line.split(/[,;](?![^(]*\))/).map((s) => s.trim().replace(/^and /, '')).filter(Boolean)) {
     // „Charmed (with Mind Blank)": der Zustand gehört in die Liste, die Einschränkung daneben.
     const bare = name.replace(/\s*\(.*\)$/, '');
     if (bare !== name) out.other.push(name);
@@ -168,7 +168,7 @@ const SECTION_TYPE: Record<string, string> = {
 interface Entry { name: string; desc: string; section: string }
 
 /**
- * Ein Eintrag beginnt an `<strong><em>Name.</em></strong>`. Ein Absatz ohne Marke setzt den
+ * Ein Eintrag beginnt an `<strong><em>Name.</em></strong>` (Abenteuer: `<em><strong>Name.</strong>`). Ein Absatz ohne Marke setzt den
  * vorigen fort; einer mit nur `<strong>` („At Will:", „Forbiddance.") und jedes `<li>` ist ein
  * Unterpunkt — im Vault als Liste `- **At Will:** …` wie bei den SRD-Monstern.
  */
@@ -186,7 +186,9 @@ function entries(paragraphs: { attrs: string; body: string; item: boolean }[], w
       legendaryIntro = plain(body);
       continue;
     }
-    const titled = body.match(/^\s*<strong>\s*(<em>[\s\S]*?)<\/strong>\s*([\s\S]*)$/);
+    const titled =
+      body.match(/^\s*<strong>\s*(<em>[\s\S]*?)<\/strong>\s*([\s\S]*)$/) ??
+      body.match(/^\s*<em>\s*<strong>([\s\S]*?)<\/strong>\s*([\s\S]*)$/);
     const sub = titled ? null : body.match(/^\s*<strong>(.*?)<\/strong>\s*([\s\S]*)$/);
     const last = out[out.length - 1];
     if (titled) {
@@ -231,21 +233,21 @@ export function parseStatBlock(html: string): StatBlock {
   const lines = new Map<string, string>();
   while (paragraphs.length && !paragraphs[0].attrs.includes('monster-header')) {
     const p = paragraphs.shift()!;
-    const label = p.body.match(/^\s*<strong>([^<]+)<\/strong>/);
+    const label = p.body.match(/^\s*<strong>(?:<em>)?([^<]+)(?:<\/em>)?<\/strong>/);
     if (!label) {
       warnings.push(`Kopfzeile ohne Marke: ${plain(p.body).slice(0, 60)}`);
       continue;
     }
     for (const part of p.body.split(/(?=<strong>)/)) {
-      const m = part.match(/^<strong>([^<]+)<\/strong>([\s\S]*)$/);
-      if (m) lines.set(m[1].trim(), plain(m[2]));
+      const m = part.match(/^<strong>(?:<em>)?([^<]+)(?:<\/em>)?<\/strong>([\s\S]*)$/);
+      if (m) lines.set(m[1].trim().replace(/:$/, ''), plain(m[2]));
     }
   }
 
   const type = typeLine.match(/^(Tiny|Small|Medium|Large|Huge|Gargantuan)(?: or \w+)? (?:Swarm of \w+ )?(\w+?)s?(?: or \w+)?(?: \(([^)]*)\))?, (.+)$/);
   if (!type) warnings.push(`Typzeile unlesbar: ${typeLine}`);
   const hp = header(lines, 'HP').match(/^(\d+) \(([^)]+)\)/);
-  const cr = header(lines, 'CR').match(/^([\d/]+) \(XP ([\d,]+)/);
+  const cr = header(lines, 'CR').match(/^([\d/]+) \((?:XP ([\d,]+)|([\d,]+) XP)/);
   const { scores, saves } = abilities(html, warnings);
   const senses = header(lines, 'Senses');
   const languages = header(lines, 'Languages');
@@ -294,7 +296,7 @@ export function parseStatBlock(html: string): StatBlock {
     type: { key: (type?.[2] ?? '').toLowerCase().replace(/^monstrositie$/, 'monstrosity') },
     alignment: (type?.[4] ?? '').toLowerCase(),
     challenge_rating: challenge(cr?.[1] ?? '0'),
-    experience_points: num(cr?.[2]),
+    experience_points: num(cr?.[2] ?? cr?.[3]),
     armor_class: num(header(lines, 'AC').match(/^(\d+)/)?.[1]),
     armor_detail: '',
     hit_points: num(hp?.[1]),

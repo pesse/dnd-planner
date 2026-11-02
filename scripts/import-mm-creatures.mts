@@ -1,11 +1,12 @@
 /**
- * Importiert die Statblöcke des Monster Manual 2024 aus gespeicherten D&D-Beyond-Seiten. Was das
- * SRD schon führt (`srd-2024`, Match über `name_en`), wird nicht angelegt, sondern nur verglichen;
- * alles andere landet als `mm-2024` in `vault/monsters/`. Gepflegtes Deutsch bleibt beim Re-Import.
+ * Importiert Statblöcke aus gespeicherten D&D-Beyond-Seiten (Monster Manual 2024, Abenteuer). Was
+ * das SRD schon führt (`srd-2024`, Match über `name_en`), wird nicht angelegt, sondern nur verglichen;
+ * ebenso übersprungen wird, was ein anderes Buch schon führt. Alles andere landet mit `--source`
+ * (Default `mm-2024`) in `vault/monsters/`. Gepflegtes Deutsch bleibt beim Re-Import.
  *
  *   npx esbuild --bundle --platform=node --format=esm --alias:\$lib=./src/lib \
  *     scripts/import-mm-creatures.mts --outfile=/tmp/import-mm.mjs \
- *   && node /tmp/import-mm.mjs <html-ordner> [--dry-run] [--fix-srd] [--report <srd-abgleich.json>]
+ *   && node /tmp/import-mm.mjs <html-ordner> [--source <key>] [--dry-run] [--fix-srd] [--report <srd-abgleich.json>]
  *
  * `--fix-srd` zieht die englische Seite der SRD-Monster auf den MM-Statblock nach (`mm/fixSrd.ts`).
  */
@@ -19,13 +20,14 @@ import { parseStatBlock, statBlockHtml } from './mm/statBlocks';
 import { compareWithSrd } from './mm/compareSrd';
 import { fixSrdFromMm } from './mm/fixSrd';
 
-const SOURCE = 'mm-2024';
 const VAULT_MONSTERS = 'vault/monsters';
 const args = process.argv.slice(2);
+const option = (name: string): string => (args.includes(name) ? args[args.indexOf(name) + 1] : '');
+const SOURCE = option('--source') || 'mm-2024';
 const DRY_RUN = args.includes('--dry-run');
 const FIX_SRD = args.includes('--fix-srd');
-const REPORT = args.includes('--report') ? args[args.indexOf('--report') + 1] : '';
-const HTML_DIR = args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--report');
+const REPORT = option('--report');
+const HTML_DIR = args.find((a, i) => !a.startsWith('--') && !['--report', '--source'].includes(args[i - 1]));
 
 const slugify = (s: string): string => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
@@ -68,6 +70,10 @@ function main(): void {
   if (!HTML_DIR) throw new Error('Aufruf: import-mm.mjs <html-ordner> [--dry-run] [--report <datei>]');
   const existing = walkJson(VAULT_MONSTERS).map((path) => ({ path, data: JSON.parse(readFileSync(path, 'utf8')) as Monster }));
   const byNameEn = new Map(existing.map((e) => [`${e.data.source}:${e.data.name_en.toLowerCase()}`, e]));
+  // Eigenes Material darf denselben Namen tragen, es ersetzt keinen Buch-Statblock.
+  const inOtherBook = (nameEn: string) =>
+    existing.find((e) => ![SOURCE, 'srd-2024', 'homebrew-sam'].includes(e.data.source) && e.data.name_en.toLowerCase() === nameEn);
+  const reprints: string[] = [];
   const fileNames = new Map(existing.map((e) => [e.path.split('/').pop()!, e]));
 
   const pages = readdirSync(HTML_DIR).filter((f) => f.endsWith('.html')).sort();
@@ -96,6 +102,12 @@ function main(): void {
       continue;
     }
 
+    const other = inOtherBook(monster.name_en.toLowerCase());
+    if (other) {
+      reprints.push(`${monster.name_en} (${other.data.source})`);
+      continue;
+    }
+
     const parsed = parseMonster(monster);
     if (!parsed.ok) throw new Error(`Ungültig: ${monster.name_en}\n  ${parsed.errors.join('\n  ')}`);
 
@@ -117,7 +129,8 @@ function main(): void {
 
   const matched = new Set(srdPairs.map(([, s]) => s.name_en));
   const unmatched = existing.filter((e) => e.data.source === 'srd-2024' && !matched.has(e.data.name_en));
-  console.log(`SRD: ${srdPairs.length} zugeordnet, ${unmatched.length} SRD-Monster ohne MM-Statblock: ${unmatched.map((e) => e.data.name_en).join(', ')}`);
+  if (SOURCE === 'mm-2024') console.log(`SRD: ${srdPairs.length} zugeordnet, ${unmatched.length} SRD-Monster ohne MM-Statblock: ${unmatched.map((e) => e.data.name_en).join(', ')}`);
+  if (reprints.length) console.log(`Schon in einem anderen Buch: ${reprints.join(', ')}`);
   console.log(`${SOURCE}: ${created} neu, ${updated} aktualisiert${DRY_RUN ? ' (dry-run)' : ''}.`);
   if (REPORT) {
     const diffs = srdPairs.map(([mm, srd]) => ({ name_en: srd.name_en, diffs: compareWithSrd(mm, srd) })).filter((d) => d.diffs.length);
