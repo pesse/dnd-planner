@@ -1,6 +1,8 @@
 <script lang="ts">
-  /** Tokens einsetzen (Gruppe, Encounter, Monster, Markierung) und verwalten. */
+  /** Tokens einsetzen (Gruppe, Charakter, Encounter, Monster, Markierung) und verwalten. */
+  import { onMount } from 'svelte';
   import { activeCampaign } from '../../stores/campaign';
+  import { characterLabel, listCharacterRefs, type CharacterRef } from '../../services/characterDirectory';
   import { campaignCharacterData, encounterSummaries, monsterLibrary } from '../../stores/context';
   import type { MapEditor } from '../../services/battleMap/mapEditor.svelte';
   import { pxToCell, type Point } from '../../services/battleMap/geometry';
@@ -21,6 +23,8 @@
     { value: 4, label: 'Gigantisch' },
   ];
 
+  let characters = $state<CharacterRef[]>([]);
+  let characterUid = $state('');
   let encounterKey = $state('');
   let monsterQuery = $state('');
   let markerName = $state('');
@@ -39,6 +43,17 @@
     } finally {
       busy = false;
     }
+  }
+
+  onMount(() => {
+    void listCharacterRefs().then((refs) => (characters = refs));
+  });
+
+  function addCharacter() {
+    const ref = characters.find((c) => c.uid === characterUid);
+    if (!ref) return;
+    editor.addTokens([characterDraft(ref.uid, characterLabel(ref))], originCell());
+    characterUid = '';
   }
 
   const addParty = () =>
@@ -76,9 +91,19 @@
 
 <section>
   <h3>Einsetzen</h3>
-  <button class="wide" disabled={!$campaignCharacterData.length} onclick={addParty} title="Alle Charaktere der Kampagne">
-    Gruppe ({$campaignCharacterData.length})
+  <button class="wide" disabled={!$campaignCharacterData.length} onclick={addParty} title="Alle Charaktere, die in der Kampagne eingetragen sind">
+    Gruppe der Kampagne ({$campaignCharacterData.length})
   </button>
+
+  <div class="row">
+    <select bind:value={characterUid} aria-label="Charakter">
+      <option value="">Charakter wählen…</option>
+      {#each characters as c (c.uid)}
+        <option value={c.uid}>{characterLabel(c)}{c.classLevel ? ` (${c.classLevel})` : ''}</option>
+      {/each}
+    </select>
+    <button disabled={!characterUid} onclick={addCharacter}>+</button>
+  </div>
 
   <div class="row">
     <select bind:value={encounterKey} aria-label="Encounter">

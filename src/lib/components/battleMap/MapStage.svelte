@@ -157,6 +157,7 @@
     height: 100%;
     border-radius: 50%;
     object-fit: cover;
+    object-position: 50% 15%;
     pointer-events: none;
   }
   .initials {
