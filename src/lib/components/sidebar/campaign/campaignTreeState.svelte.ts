@@ -50,8 +50,7 @@ export const sectionEntryPath = (campaignPath: string, section: CampaignSection,
 
 export class CampaignTreeState {
   campaigns = $state<Campaign[]>([]);
-  showNewCampaignInput = $state(false);
-  newCampaignInput = $state('');
+  showChooser = $state(false);
 
   expanded: Record<string, boolean> = $state({});
   sectionFiles: Record<string, string[]> = $state({});
@@ -73,13 +72,6 @@ export class CampaignTreeState {
     } catch {
       this.campaigns = [];
     }
-  }
-
-  async createCampaign(e: KeyboardEvent | MouseEvent): Promise<void> {
-    if (e instanceof KeyboardEvent && e.key !== 'Enter') return;
-    if (!(await this.createNamedCampaign(this.newCampaignInput))) return;
-    this.showNewCampaignInput = false;
-    this.newCampaignInput = '';
   }
 
   /** @returns false, wenn der Name leer ist oder das Schreiben scheitert. */
@@ -114,16 +106,13 @@ export class CampaignTreeState {
   }
 
   private async openCreated(slug: string): Promise<void> {
+    this.showChooser = false;
     await this.loadCampaigns();
     const newCampaign = this.campaigns.find((c) => c.path === slug);
     if (newCampaign) {
       activeCampaign.set(newCampaign);
       await navigateTo({ name: 'campaign', path: `${VAULT_BASE}/${slug}/campaign.md`, type: 'campaign' });
     }
-  }
-
-  cancelNewCampaign(e: KeyboardEvent): void {
-    if (e.key === 'Escape') { this.showNewCampaignInput = false; this.newCampaignInput = ''; }
   }
 
   async loadEncountersForAct(campaignPath: string, actDirName: string): Promise<void> {

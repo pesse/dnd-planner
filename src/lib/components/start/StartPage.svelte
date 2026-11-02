@@ -1,7 +1,7 @@
 <script lang="ts">
   import StartArtCanvas from './StartArtCanvas.svelte';
   import { characterSection } from '../sidebar/characterSectionState.svelte';
-  import CampaignStartCard from './CampaignStartCard.svelte';
+  import { campaignTree } from '../sidebar/campaign/campaignTreeState.svelte';
   import './startCard.css';
   import { GROUPED_SECTIONS } from '$lib/services/sidebar/groupedSections';
   import { LIBRARY_SECTIONS } from '$lib/services/sidebar/librarySections';
@@ -53,7 +53,10 @@
           <span class="start-card-title">Charakter erstellen</span>
           <span class="start-card-sub">Selbst, aus einer Vorlage oder aus D&D Beyond</span>
         </button>
-        <CampaignStartCard />
+        <button class="start-card" onclick={() => (campaignTree.showChooser = true)}>
+          <span class="start-card-title">Kampagne erstellen</span>
+          <span class="start-card-sub">Leer oder aus einer Vorlage wie „Hellfire Club"</span>
+        </button>
       </div>
 
       <h2>Bibliotheken</h2>

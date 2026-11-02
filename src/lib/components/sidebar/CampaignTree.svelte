@@ -4,7 +4,7 @@
   import { loadActSummaries, loadEncounterContext, loadCampaignContent } from '../../stores/context';
   import { campaignTree as tree, sectionKeyOf, VAULT_BASE, SECTIONS } from './campaign/campaignTreeState.svelte';
   import CampaignRow from './campaign/CampaignRow.svelte';
-  import NewEntryRow from './campaign/NewEntryRow.svelte';
+  import NewCampaignChooser from '../NewCampaignChooser.svelte';
   import './tree.css';
 
 
@@ -58,16 +58,14 @@
 
 <div class="section-row campaigns-header">
   <span class="campaigns-label">Kampagnen</span>
-  <button class="add-btn" style="opacity:1" title="Neue Kampagne" onclick={() => { tree.showNewCampaignInput = true; tree.newCampaignInput = ''; }}>+</button>
+  <button class="add-btn" style="opacity:1" title="Neue Kampagne" onclick={() => (tree.showChooser = true)}>+</button>
 </div>
 
-{#if tree.showNewCampaignInput}
-  <NewEntryRow
-    bind:value={tree.newCampaignInput}
-    placeholder="Kampagnenname…"
-    rowStyle="padding-left: 1rem"
-    onkeydown={(e) => { tree.createCampaign(e); tree.cancelNewCampaign(e); }}
-    onconfirm={(e) => tree.createCampaign(e)}
+{#if tree.showChooser}
+  <NewCampaignChooser
+    oncreate={(name) => tree.createNamedCampaign(name)}
+    ontemplate={(t, withCharacters) => tree.createFromTemplate(t, withCharacters)}
+    oncancel={() => (tree.showChooser = false)}
   />
 {/if}
 
