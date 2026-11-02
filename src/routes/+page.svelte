@@ -5,6 +5,7 @@
   import CardHost from '$lib/components/CardHost.svelte';
   import CatalogView from '$lib/components/catalog/CatalogView.svelte';
   import StartPage from '$lib/components/start/StartPage.svelte';
+  import MapView from '$lib/components/battleMap/MapView.svelte';
   import { parseCatalogPath } from '$lib/services/catalog/catalogTypes';
   import CharacterBadgeBar from '$lib/components/CharacterBadgeBar.svelte';
   import FileTitle from '$lib/components/FileTitle.svelte';
@@ -136,6 +137,8 @@
       <CharacterSheet dirPath={$activeFile!.dirPath!} />
     {:else if catalog}
       <CatalogView kind={catalog.kind} group={catalog.group} />
+    {:else if $activeFile?.type === 'map'}
+      <MapView />
     {:else if cardType}
       <CardHost type={cardType} />
     {:else if !$activeFile}

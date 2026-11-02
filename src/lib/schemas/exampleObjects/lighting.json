@@ -1,0 +1,12 @@
+{
+  "darkness": 0,
+  "lights": [
+    {
+      "id": "string",
+      "x": 0,
+      "y": 0,
+      "radius": 4,
+      "color": "#ffb347"
+    }
+  ]
+}

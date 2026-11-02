@@ -1,0 +1,48 @@
+/** Kartendatei lesen/schreiben und das Kartenbild neben sie in den Vault kopieren. */
+import { convertFileSrc, invoke } from '@tauri-apps/api/core';
+import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
+import { battleMapSchema, type BattleMap } from '../../schemas/battleMap';
+import { isTauri } from '../httpFetch';
+
+export const MAP_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'avif'];
+
+const dirOf = (path: string): string => path.slice(0, path.lastIndexOf('/'));
+const baseNameOf = (path: string): string => path.slice(path.lastIndexOf('/') + 1).replace(/\.json$/, '');
+
+export const newBattleMap = (name: string): BattleMap => battleMapSchema.parse({ name });
+
+export async function loadBattleMap(path: string): Promise<BattleMap> {
+  const raw = await invoke<string>('read_file_content', { path });
+  return battleMapSchema.parse(JSON.parse(raw));
+}
+
+export const serializeBattleMap = (map: BattleMap): string => JSON.stringify(map, null, 2);
+
+/** `?v=` erzwingt frische Bytes, wenn ein Bild unter demselben Namen ersetzt wurde. */
+export async function vaultFileUrl(path: string): Promise<string> {
+  if (!isTauri()) return '';
+  try {
+    const abs = await invoke<string>('get_absolute_path', { path });
+    return `${convertFileSrc(abs)}?v=${Date.now()}`;
+  } catch {
+    return '';
+  }
+}
+
+export const mapImageUrl = (mapPath: string, map: BattleMap): Promise<string> =>
+  map.image ? vaultFileUrl(`${dirOf(mapPath)}/${map.image}`) : Promise.resolve('');
+
+/**
+ * Fragt nach einer Bilddatei und legt sie als `<kartenname>.<endung>` neben die Karte.
+ * @returns der Dateiname für `map.image`, oder null bei Abbruch.
+ */
+export async function pickMapImage(mapPath: string): Promise<string | null> {
+  const selected = await openFileDialog({ multiple: false, filters: [{ name: 'Bilder', extensions: MAP_IMAGE_EXTENSIONS }] });
+  const src = Array.isArray(selected) ? selected[0] : selected;
+  if (!src) return null;
+  const ext = (src.split('.').pop() ?? 'png').toLowerCase();
+  const file = `${baseNameOf(mapPath)}.${ext}`;
+  const data = await invoke<string>('read_file_base64', { path: src });
+  await invoke('write_file_base64', { path: `${dirOf(mapPath)}/${file}`, data });
+  return file;
+}

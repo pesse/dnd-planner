@@ -1,6 +1,6 @@
 /**
  * Lade-, Anlage- und Navigationszustand des Kampagnenbaums: Kampagnen, ihre
- * Akt/Sessions/NPC/Welt/Notizen-Sektionen und die Encounter je Akt.
+ * Akt/Sessions/NPC/Welt/Notizen/Karten-Sektionen und die Encounter je Akt.
  */
 import { invoke } from '@tauri-apps/api/core';
 import { activeCampaign } from '../../../stores/campaign';
@@ -13,6 +13,7 @@ import type { Campaign, FileEntry } from '../../../types';
 import { slugKeepUmlauts, slugToName } from '../../../utils/text';
 import { npcSchema } from '../../../schemas/npc';
 import { DOCUMENT_TEMPLATES } from '../../../templates';
+import { newBattleMap, serializeBattleMap } from '../../../services/battleMap/mapFiles';
 
 interface EntryInfo { name: string; is_dir: boolean; }
 
@@ -26,7 +27,11 @@ export const SECTIONS: CampaignSection[] = [
   { label: 'NPCs', subdir: 'npcs', type: 'npc' },
   { label: 'Welt', subdir: 'world', type: 'world' },
   { label: 'Notizen', subdir: 'notes', type: 'notes' },
+  { label: 'Karten', subdir: 'maps', type: 'map' },
 ];
+
+/** Sektionen, deren Einträge JSON-Dateien mit einem `name` sind. */
+const JSON_SECTION_TYPES = new Set<FileEntry['type']>(['npc', 'map']);
 
 export const sectionKeyOf = (campaignPath: string, section: CampaignSection): string => `${campaignPath}/${section.subdir}`;
 export const actKeyOf = (campaignPath: string, actDirName: string): string => `${campaignPath}/${actDirName}`;
@@ -189,7 +194,7 @@ export class CampaignTreeState {
       } catch {
         this.sectionFiles[key] = [];
       }
-    } else if (section.type === 'npc') {
+    } else if (JSON_SECTION_TYPES.has(section.type)) {
       try {
         const files = await invoke<string[]>('list_json_files', { path: `${VAULT_BASE}/${campaignPath}/${section.subdir}` });
         this.sectionFiles[key] = files;
@@ -278,18 +283,19 @@ export class CampaignTreeState {
     const slug = slugKeepUmlauts(raw);
     const title = raw.charAt(0).toUpperCase() + raw.slice(1);
 
-    const isNpc = section.type === 'npc';
+    const isJson = JSON_SECTION_TYPES.has(section.type);
     const isAct = section.type === 'act';
     // Ein Akt heißt wie sein Verzeichnis, die index.md steckt darin — so listet
     // `loadSection` ihn auch, und `openFile` erwartet genau diesen Namen.
-    const entryName = isAct ? slug : `${slug}${isNpc ? '.json' : '.md'}`;
+    const entryName = isAct ? slug : `${slug}${isJson ? '.json' : '.md'}`;
     const fullPath = isAct
       ? actIndexPath(campaignPath, slug)
       : `${VAULT_BASE}/${campaignPath}/${section.subdir}/${entryName}`;
 
     try {
-      const sectionTemplate = isNpc
-        ? JSON.stringify(npcSchema.parse({ name: title }), null, 2)
+      const sectionTemplate =
+        section.type === 'npc' ? JSON.stringify(npcSchema.parse({ name: title }), null, 2)
+        : section.type === 'map' ? serializeBattleMap(newBattleMap(title))
         : `# ${title}\n\n` + (DOCUMENT_TEMPLATES[section.type] ?? '');
       await invoke('write_file_content', { path: fullPath, content: sectionTemplate });
       this.showNewFileInput[key] = false;

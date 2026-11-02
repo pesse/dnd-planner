@@ -1,0 +1,67 @@
+{
+  "name": "string",
+  "image": "string",
+  "grid": {
+    "size": 70,
+    "offsetX": 0,
+    "offsetY": 0,
+    "visible": true,
+    "opacity": 0.35,
+    "metersPerCell": 1.5
+  },
+  "tokens": [
+    {
+      "id": "string",
+      "name": "string",
+      "kind": "marker",
+      "ref": "string",
+      "art": "string",
+      "x": 0,
+      "y": 0,
+      "size": 1,
+      "hidden": false,
+      "color": "#8a2012"
+    }
+  ],
+  "fog": {
+    "enabled": true,
+    "ops": [
+      {
+        "shape": "rect",
+        "mode": "reveal",
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0
+      },
+      {
+        "shape": "brush",
+        "mode": "reveal",
+        "r": 1,
+        "points": [
+          [
+            null
+          ]
+        ]
+      }
+    ]
+  },
+  "lighting": {
+    "darkness": 0,
+    "lights": [
+      {
+        "id": "string",
+        "x": 0,
+        "y": 0,
+        "radius": 4,
+        "color": "#ffb347"
+      }
+    ]
+  },
+  "playerView": {
+    "x": 0,
+    "y": 0,
+    "w": 1,
+    "h": 1
+  }
+}
