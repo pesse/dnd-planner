@@ -10,7 +10,7 @@ import {
   visibleRect,
   zoomAt,
 } from '../../src/lib/services/battleMap/geometry';
-import { toPlayerState } from '../../src/lib/services/battleMap/playerState';
+import { clampToView, toPlayerState } from '../../src/lib/services/battleMap/playerState';
 import { markerDraft, numberedNames, occupiedCells, placeDrafts } from '../../src/lib/services/battleMap/tokenSources';
 
 const grid = battleMapSchema.parse({ name: 'x' }).grid;
@@ -64,11 +64,20 @@ describe('Spieleransicht', () => {
       tokens: [
         { id: 'a', name: 'Goblin', kind: 'monster', ref: 'goblin', art: 'monsters/goblin', x: 1, y: 1, hidden: true },
         { id: 'b', name: 'Ada', kind: 'character', ref: 'abc', x: 2, y: 2 },
+        { id: 'c', name: 'Falltür', kind: 'marker', x: 3, y: 3 },
       ],
     });
     const state = toPlayerState(map, 'map.png', { b: 'ada.png' });
-    expect(state.tokens).toEqual([{ id: 'b', name: 'Ada', x: 2, y: 2, size: 1, color: '#8a2012', imageUrl: 'ada.png' }]);
+    expect(state.tokens[0]).toEqual({ id: 'b', name: 'Ada', x: 2, y: 2, size: 1, color: '#8a2012', imageUrl: 'ada.png', movable: true });
+    expect(state.tokens[1].movable).toBe(false);
     expect(JSON.stringify(state)).not.toContain('goblin');
+  });
+
+  it('hält ein gezogenes Token im Ausschnitt', () => {
+    const grid = battleMapSchema.parse({ name: 'x' }).grid;
+    const view = { x: 70, y: 70, w: 700, h: 350 };
+    expect(clampToView(grid, view, 1, { x: -3, y: 4.5 })).toEqual({ x: 1, y: 4.5 });
+    expect(clampToView(grid, view, 2, { x: 20, y: 9 })).toEqual({ x: 9, y: 4 });
   });
 });
 

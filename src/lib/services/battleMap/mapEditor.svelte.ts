@@ -5,8 +5,8 @@
 import type { BattleMap, FogOp, Light, Token, ViewRect } from '../../schemas/battleMap';
 import { AutosaveFile } from '../../utils/autosaveFile.svelte';
 import { newUid } from '../../utils/uid';
-import { onPlayerMessage, sendToPlayer } from './channel';
-import { gridFromCell, type Point } from './geometry';
+import { onPlayerMessage, sendToPlayer, type ToGm } from './channel';
+import { gridFromCell, snapCell, type Point } from './geometry';
 import { loadBattleMap, mapImageUrl, pickMapImage, serializeBattleMap } from './mapFiles';
 import { toPlayerState } from './playerState';
 import { occupiedCells, placeDrafts, resolveTokenImage, type TokenDraft } from './tokenSources';
@@ -31,10 +31,12 @@ export class MapEditor {
   #redo: string[] = [];
   #frame = 0;
   #unlisten: (() => void) | null = null;
+  #playerDrag: string | null = null;
 
   constructor() {
     this.#unlisten = onPlayerMessage((msg) => {
       if (msg.type === 'hello') this.#broadcastNow();
+      else if (msg.type === 'move') this.#playerMove(msg);
     });
   }
 
@@ -112,6 +114,17 @@ export class MapEditor {
     this.saver.schedule(this.path, serializeBattleMap($state.snapshot(this.map) as BattleMap));
     cancelAnimationFrame(this.#frame);
     this.#frame = requestAnimationFrame(() => this.#broadcastNow());
+  }
+
+  // Dieselben Regeln wie beim Senden: nur sichtbare Charaktere — das Fenster könnte veraltet sein.
+  #playerMove(msg: Extract<ToGm, { type: 'move' }>): void {
+    const t = this.map?.tokens.find((x) => x.id === msg.id);
+    if (!t || t.kind !== 'character' || t.hidden) return;
+    if (this.#playerDrag !== t.id) this.checkpoint();
+    this.#playerDrag = msg.done ? null : t.id;
+    const x = msg.done ? snapCell(msg.x, t.size) : msg.x;
+    const y = msg.done ? snapCell(msg.y, t.size) : msg.y;
+    this.updateToken(t.id, { x, y });
   }
 
   #broadcastNow(): void {

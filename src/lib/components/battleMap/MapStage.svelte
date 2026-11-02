@@ -15,6 +15,7 @@
     color: string;
     imageUrl: string;
     hidden?: boolean;
+    movable?: boolean;
   }
 
   let {
@@ -93,6 +94,7 @@
       class="token"
       class:hidden-token={t.hidden}
       class:selected={t.id === selectedId}
+      class:grab={mode === 'gm' || t.movable}
       data-token-id={t.id}
       style="left: {grid.offsetX + t.x * grid.size}px; top: {grid.offsetY + t.y * grid.size}px; width: {px}px; height: {px}px; --tc: {t.color}; --tb: {Math.max(2, px / 22)}px;"
       title={t.name}
@@ -147,10 +149,12 @@
     border: var(--tb) solid var(--tc);
     background: var(--tc);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
-    cursor: grab;
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+  .token.grab {
+    cursor: grab;
   }
   .token img {
     width: 100%;
