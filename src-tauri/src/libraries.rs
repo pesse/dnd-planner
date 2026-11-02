@@ -45,7 +45,7 @@ const RELEASE_BASE: &str =
 /// Verzeichnisse, in die ein Pack schreiben darf. Muss mit `roots` in
 /// `vault/libraries.yaml` übereinstimmen.
 const ALLOWED_ROOTS: &[&str] = &[
-    "spells", "classes", "species", "feats", "backgrounds", "items", "monsters", "monster-lore", "rules", "templates", "art",
+    "spells", "classes", "species", "feats", "backgrounds", "items", "monsters", "monster-lore", "rules", "templates", "art", "sources",
 ];
 
 const MAGIC: &[u8; 6] = b"DNDLIB";
@@ -940,6 +940,7 @@ mod tests {
     fn erlaubt_nur_bibliotheksverzeichnisse() {
         assert!(is_allowed_entry("spells/hervorrufung/aetzkugel.json"));
         assert!(is_allowed_entry("templates/monster.json"));
+        assert!(is_allowed_entry("sources/hellfire-club.json"));
         assert!(is_allowed_entry("art/figures/elf-feminine/subclasses/battle-master.avif"));
         assert!(is_allowed_entry("LICENSE-SRD.md"));
 

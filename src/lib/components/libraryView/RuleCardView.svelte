@@ -1,7 +1,7 @@
 <script lang="ts">
   import { ruleText } from '$lib/rulesLibrary';
   import { RULE_CATEGORY_DE, type Rule } from '$lib/schemas/rule';
-  import { sourceLabel } from '$lib/schemas/source';
+  import { sourceLabel } from '$lib/services/sourceRegistry';
   import LibraryCardFrame from '../ui/LibraryCardFrame.svelte';
   import Markdown from '../Markdown.svelte';
 

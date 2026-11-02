@@ -1,7 +1,8 @@
 /**
  * Herkunft eines Bibliotheks-Artefakts. Der Wert steuert, in welchen verteilbaren Pack
  * eine Datei fällt (vault/libraries.yaml, fail-closed), ist der `document.key` der
- * Open5e-Artefakte und das Präfix jedes Main-Keys — ein anderer bricht den Pack-Build ab.
+ * Open5e-Artefakte und das Präfix jedes Main-Keys. Herkünfte jenseits dieser Liste
+ * deklariert ihr Pack selbst unter `vault/sources/` (`services/sourceRegistry.ts`).
  */
 import { z } from 'zod';
 
@@ -11,8 +12,6 @@ export const SOURCE_KEYS = [
   'efa-2025',
   'mm-2024',
   'dmg-2024',
-  // Stranger Things: Welcome to the Hellfire Club (Abenteuer)
-  'hellfire-club',
   'homebrew-sam',
   // Fremd-/Legacy-Herkünfte: Zauber, die Open5e-2024 nicht führt. `dndapi-2014` ist
   // Altbestand aus dem früheren dnd5eapi-Import, `deepm` Kobold Press, `a5e-ag` Level Up.
@@ -28,7 +27,10 @@ type FixedSourceKey = (typeof SOURCE_KEYS)[number];
  * lokalen Vault: `build_packs.py` überspringt die ganze Familie, sie wird nie gepackt.
  */
 export type ImportSourceKey = `${string}-import`;
-export type SourceKey = FixedSourceKey | ImportSourceKey;
+/** Fest, importiert oder von einem Pack deklariert — letzteres kennt erst die Laufzeit. */
+export type SourceKey = FixedSourceKey | ImportSourceKey | (string & {});
+
+export const SOURCE_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export const IMPORT_SOURCE_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*-import$/;
 export const isImportSource = (s: string): s is ImportSourceKey => IMPORT_SOURCE_RE.test(s);
@@ -53,7 +55,6 @@ export const SOURCE_LABELS: Record<FixedSourceKey, string> = {
   'efa-2025': 'Eberron 2025',
   'mm-2024': 'MM 2024',
   'dmg-2024': 'DMG 2024',
-  'hellfire-club': 'Hellfire Club',
   'homebrew-sam': 'Eigen',
   'dndapi-2014': 'D&D API 2014',
   'srd-2014': 'SRD 5.1',
@@ -61,8 +62,8 @@ export const SOURCE_LABELS: Record<FixedSourceKey, string> = {
   'a5e-ag': 'Level Up A5E',
 };
 
-/** Unbekannte Werte (Fremdimport) unverändert durchreichen. */
-export function sourceLabel(source: string | undefined): string {
+/** Ohne Pack-Deklaration — die Beschriftung deklarierter Herkünfte kennt `sourceRegistry`. */
+export function staticSourceLabel(source: string | undefined): string {
   if (source && isImportSource(source)) {
     const name = source.slice(0, -'-import'.length).split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
     return `${name} (Import)`;
@@ -71,13 +72,13 @@ export function sourceLabel(source: string | undefined): string {
 }
 
 /**
- * Geschlossen statt Freitext: ein falsch gepflegter Editor fällt im Parse-Gate auf statt erst
- * im Pack-Build. Erfindet ein LLM eine `*-import`-Herkunft, landet sie nur nie im Pack — die
- * sichere Richtung. Altbestand fängt `migrateSourceLegacy` ab, das vor jedem Parse läuft.
+ * Nur die Form ist hier geschlossen: welche Herkünfte es gibt, entscheidet ein installierter
+ * Pack, also erst die Laufzeit. Im Vault-Repo hält `tests/integration/sourceDeclarations`
+ * jede Herkunft an eine Deklaration, und der Pack-Build weist Unbekanntes ab.
  */
 export const sourceField = () =>
-  z.union([z.enum(SOURCE_KEYS), z.string().regex(IMPORT_SOURCE_RE) as unknown as z.ZodType<ImportSourceKey>])
-    .default(OWN_SOURCE).describe('Herkunft: SRD 5.2, PHB 2024 oder eigenes Material.');
+  z.string().regex(SOURCE_SLUG_RE).default(OWN_SOURCE)
+    .describe('Herkunft: srd-2024, phb-2024, ein Buch-Kürzel oder homebrew-sam für eigenes Material.');
 
 // Altbestand: `source` führte eine eigene, uneinheitliche Liste neben `document.key`.
 const LEGACY_SOURCES: Record<string, SourceKey> = {
@@ -90,14 +91,13 @@ const LEGACY_SOURCES: Record<string, SourceKey> = {
 };
 
 /**
- * Unbekanntes fällt auf `OWN_SOURCE`: die sichere Richtung, weil dieser Pack codiert
- * ist und das Material so nie ungeprüft in einer offenen Library landet.
+ * Was keine Herkunft sein kann, fällt auf `OWN_SOURCE`: die sichere Richtung, weil dieser
+ * Pack codiert ist und das Material so nie ungeprüft in einer offenen Library landet.
  */
 export function toSourceKey(raw: string | undefined | null): SourceKey {
   const s = raw ?? '';
   if (LEGACY_SOURCES[s]) return LEGACY_SOURCES[s];
-  if (isImportSource(s)) return s;
-  return (SOURCE_KEYS as readonly string[]).includes(s) ? (s as SourceKey) : OWN_SOURCE;
+  return SOURCE_SLUG_RE.test(s) ? s : OWN_SOURCE;
 }
 
 /** Fehlt `source` ganz, springt `document.key` ein; sonst gilt der Default. */

@@ -6,8 +6,8 @@ import { ddbCharacterJsonSchema } from '../../src/lib/schemas/ddbCharacterJson';
 import { parseDdbJson } from '../../src/lib/services/ddbImport/parseJson';
 import { ddbCharacterId, fetchDdbCharacter } from '../../src/lib/services/ddbImport/fetchCharacter';
 import { BOOK_SOURCE_ID, ddbGnomeWizardJson } from '../fixtures/ddbCharacterJson';
-import { importSourceFromTitle, isImportSource, sourceLabel, toSourceKey } from '../../src/lib/schemas/source';
-import { bookLabel, buildSourceCatalog, suggestedImportSource } from '../../src/lib/services/ddbImport/sources';
+import { importSourceFromTitle, isImportSource, staticSourceLabel, toSourceKey } from '../../src/lib/schemas/source';
+import { bookLabel, buildSourceCatalog, isCreatableSource, suggestedSource, withDeclarations } from '../../src/lib/services/ddbImport/sources';
 
 const sheetOf = (raw = ddbGnomeWizardJson()) => parseDdbJson(ddbCharacterJsonSchema.parse(raw));
 
@@ -80,7 +80,7 @@ describe('Herkunft importierter Buchinhalte', () => {
     expect(importSourceFromTitle('Northlands Worldbook')).toBe('northlands-worldbook-import');
     expect(isImportSource('crooked-moon-import')).toBe(true);
     expect(isImportSource('homebrew-sam')).toBe(false);
-    expect(sourceLabel('crooked-moon-import')).toBe('Crooked Moon (Import)');
+    expect(staticSourceLabel('crooked-moon-import')).toBe('Crooked Moon (Import)');
     expect(toSourceKey('crooked-moon-import')).toBe('crooked-moon-import');
   });
 
@@ -91,8 +91,18 @@ describe('Herkunft importierter Buchinhalte', () => {
     ] });
     expect(catalog.get(2)).toMatchObject({ title: 'Player’s Handbook (2014)', legacy: true });
     expect(bookLabel(catalog, BOOK_SOURCE_ID)).toBe('The Inkwell Codex: Player Options');
-    expect(suggestedImportSource(catalog, BOOK_SOURCE_ID)).toBe('inkwell-codex-import');
+    expect(suggestedSource(catalog, BOOK_SOURCE_ID)).toBe('inkwell-codex-import');
     expect(bookLabel(catalog, 42)).toBe('D&D-Beyond-Quelle 42');
+  });
+
+  it('legt das Buch eines installierten Packs unter dessen Herkunft an, auch ohne Katalog', () => {
+    const declared = { source: 'inkwell-codex', label: 'Inkwell', title: 'The Inkwell Codex', ddbSourceIds: [BOOK_SOURCE_ID] };
+    const catalog = withDeclarations(new Map(), [declared]);
+    expect(bookLabel(catalog, BOOK_SOURCE_ID)).toBe('The Inkwell Codex');
+    expect(suggestedSource(catalog, BOOK_SOURCE_ID)).toBe('inkwell-codex');
+    expect(isCreatableSource(catalog, 'inkwell-codex')).toBe(true);
+    expect(isCreatableSource(catalog, 'phb-2024')).toBe(false);
+    expect(isCreatableSource(catalog, 'homebrew-sam')).toBe(true);
   });
 });
 

@@ -1,6 +1,6 @@
 /** Hinweistexte und Voreinstellungen je Befund — aus Buchquelle, Homebrew-Flag und Art. */
 import type { ImportFinding, Resolution, ResolutionAction } from '../../services/ddbImport/findings';
-import { bookLabel, suggestedImportSource, type DdbSourceCatalog } from '../../services/ddbImport/sources';
+import { bookLabel, suggestedSource, type DdbSourceCatalog } from '../../services/ddbImport/sources';
 import { OWN_SOURCE, type SourceKey } from '../../schemas/source';
 
 export const ACTION_LABELS: Record<ResolutionAction, string> = {
@@ -29,6 +29,8 @@ export function findingHints(f: ImportFinding, catalog: DdbSourceCatalog): Findi
   }
   if (f.origin?.homebrew) {
     out.push({ tone: 'info', text: 'Homebrew aus D&D Beyond. Anlegen speichert ihn als eigenes Material („Eigen").' });
+  } else if (book?.declared) {
+    out.push({ tone: 'info', text: `Aus „${book.title}", fehlt aber im Inhaltspaket „${book.declared.label}". Anlegen ergänzt ihn dort.` });
   } else if (book?.legacy) {
     out.push({ tone: 'warn', text: `Regeln von 2014 (${book.title}). Die Bibliothek führt die Fassung von 2024 — am besten mit dem neuen Gegenstück verknüpfen.` });
   } else if (book?.core2024) {
@@ -43,7 +45,7 @@ export function findingHints(f: ImportFinding, catalog: DdbSourceCatalog): Findi
 }
 
 export function defaultCreateSource(f: ImportFinding, catalog: DdbSourceCatalog): SourceKey {
-  return f.origin?.homebrew || f.origin?.sourceId == null ? OWN_SOURCE : suggestedImportSource(catalog, f.origin.sourceId);
+  return f.origin?.homebrew || f.origin?.sourceId == null ? OWN_SOURCE : suggestedSource(catalog, f.origin.sourceId);
 }
 
 /** Mehrdeutiges ist mit dem ersten Kandidaten vorbelegt, alles andere bleibt Freitext. */

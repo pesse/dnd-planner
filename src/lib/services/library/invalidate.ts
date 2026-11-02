@@ -16,6 +16,7 @@ import { invalidateMonsterLore } from '../../monsterLoreLibrary';
 import { invalidateMonsterPaths } from '../contextLoad';
 import { invalidateVault } from '../../stores/campaign';
 import { invalidateArtProbes } from '../wizard/originArt';
+import { invalidateSourceDeclarations } from '../sourceRegistry';
 
 /** `invalidateVault` weckt zusätzlich die Sidebar-Listen. */
 export function invalidateLibraryCaches(): void {
@@ -29,5 +30,6 @@ export function invalidateLibraryCaches(): void {
   invalidateMonsterLore();
   invalidateMonsterPaths();
   invalidateArtProbes();
+  invalidateSourceDeclarations();
   invalidateVault();
 }

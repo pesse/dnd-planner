@@ -1,8 +1,9 @@
 <script lang="ts">
   /** Ein Befund des D&D-Beyond-Imports: Hinweise, Beschreibung und die Entscheidung des Spielers. */
   import { RESOLUTION_ACTIONS, type ImportFinding, type LibraryOption, type Resolution } from '../../services/ddbImport/findings';
-  import type { DdbSourceCatalog } from '../../services/ddbImport/sources';
-  import { isImportSource, OWN_SOURCE, sourceLabel, type SourceKey } from '../../schemas/source';
+  import { isCreatableSource, type DdbSourceCatalog } from '../../services/ddbImport/sources';
+  import { sourceLabel } from '../../services/sourceRegistry';
+  import type { SourceKey } from '../../schemas/source';
   import { ACTION_LABELS, KIND_LABELS, defaultCreateSource, findingHints } from './findingHints';
 
   let { finding, catalog, resolution, search, onchange }: {
@@ -26,7 +27,7 @@
 
   let createSource = $state('');
   $effect.pre(() => { createSource = defaultCreateSource(finding, catalog); });
-  const sourceValid = $derived(createSource === OWN_SOURCE || isImportSource(createSource));
+  const sourceValid = $derived(isCreatableSource(catalog, createSource));
 
   function choose(action: Resolution['action']) {
     if (action === 'link') onchange({ action, key: resolution.action === 'link' ? resolution.key : hits[0]?.key ?? '' });

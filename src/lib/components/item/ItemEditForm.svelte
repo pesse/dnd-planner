@@ -2,7 +2,7 @@
   import type { Item } from '$lib/types';
   import { dirOf, structuralType, isMagicItem } from '$lib/itemLibrary';
   import { CATEGORY_LABELS, rarityColor } from '$lib/itemLabels';
-  import { SOURCE_KEYS, SOURCE_LABELS } from '$lib/schemas/source';
+  import { selectableSources } from '$lib/services/sourceRegistry';
   import MagicFacetFields from './MagicFacetFields.svelte';
   import WeaponFields from './WeaponFields.svelte';
   import ArmorFields from './ArmorFields.svelte';
@@ -62,8 +62,8 @@
           {/each}
         </select>
         <select class="edit-select" bind:value={draft.source}>
-          {#each SOURCE_KEYS as key}
-            <option value={key}>{SOURCE_LABELS[key]}</option>
+          {#each selectableSources(draft.source) as s}
+            <option value={s.key}>{s.label}</option>
           {/each}
         </select>
       </div>

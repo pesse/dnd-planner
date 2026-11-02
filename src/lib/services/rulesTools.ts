@@ -6,7 +6,7 @@
 import type { AgentToolset } from './vaultTools';
 import { lookupRule, searchRules } from './rulesReference';
 import { ruleDisplayName, ruleText } from '$lib/rulesLibrary';
-import { sourceLabel } from '$lib/schemas/source';
+import { sourceLabel } from '$lib/services/sourceRegistry';
 import { toolDefsToAnthropic, toolDefsToOpenAi, type ToolDef } from './toolDef';
 
 const TOOL_LIST: ToolDef[] = [

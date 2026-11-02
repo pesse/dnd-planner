@@ -5,7 +5,7 @@ import { CLASSES_PATH } from '../../classLibrary';
 import { SPECIES_PATH } from '../../speciesLibrary';
 import { BACKGROUNDS_PATH } from '../../backgroundsLibrary';
 import { featDisplayName, getFeats } from '../../featsLibrary';
-import { sourceLabel } from '../../schemas/source';
+import { sourceLabel } from '../sourceRegistry';
 import { scanJsonFolder, type FileContext } from '../library/createLibrary';
 import { byLabel, sourceFacet, SOURCE_FACET, type CatalogFacetValue, type CatalogRow, type CatalogSpec } from './catalogTypes';
 

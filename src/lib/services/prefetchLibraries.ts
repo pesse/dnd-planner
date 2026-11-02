@@ -9,6 +9,7 @@ import { getSpeciesList } from '$lib/speciesLibrary';
 import { getBackgroundsList } from '$lib/backgroundsLibrary';
 import { getFeats } from '$lib/featsLibrary';
 import { getRules } from '$lib/rulesLibrary';
+import { getSourceDeclarations } from '$lib/services/sourceRegistry';
 import {
   parseCharacter,
   parseItem,
@@ -52,6 +53,7 @@ function drain(jobs: Job[]): void {
  */
 export function prefetchLibraries(): void {
   const jobs: Job[] = [
+    getSourceDeclarations,
     warmSchemas,
     getSpellLibrary,
     getClasses,

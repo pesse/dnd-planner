@@ -141,7 +141,9 @@ coming one would lock development out of its own content.
 
 `vault/` is a separate content repo with its own `CLAUDE.md` — read it before touching vault data.
 It owns the provenance rules (`source`: `srd-2024` | `phb-2024` | `homebrew-sam`); the app-side
-vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/source.ts`.
+vocabulary is `SOURCE_KEYS` / `sourceField()` in `schemas/source.ts`. A book beyond those is
+**declared by its pack** (`vault/sources/<source>.json`, read by `services/sourceRegistry.ts`) —
+no app change; labels go through `sourceLabel` there, never a table of their own.
 
 ## Never build a second mechanism
 

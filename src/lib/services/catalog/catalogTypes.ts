@@ -1,6 +1,6 @@
 /** Tabellen-Übersicht einer Bibliothek: Zeilen, Spalten und der Gruppenfilter aus der Seitenleiste. */
 import type { FileEntry } from '../../types';
-import { sourceLabel } from '../../schemas/source';
+import { sourceLabel } from '../sourceRegistry';
 
 export const CATALOG_KINDS = [
   'monster', 'item', 'feat', 'spell-school', 'spell-level', 'character', 'class', 'species', 'background',

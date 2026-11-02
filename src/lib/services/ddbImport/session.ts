@@ -9,7 +9,8 @@ import { buildDdbCharacter, type DdbImportResult } from './assemble';
 import { fetchDdbCharacter } from './fetchCharacter';
 import { parseDdbJson } from './parseJson';
 import { loadDdbImportLibraries } from './loadLibraries';
-import { loadSourceCatalog, type DdbSourceCatalog } from './sources';
+import { loadSourceCatalog, withDeclarations, type DdbSourceCatalog } from './sources';
+import { getSourceDeclarations } from '../sourceRegistry';
 import { featFromDdb, itemFromDdb, writeImportedFeat, writeImportedItem } from './createEntries';
 import type { DdbImportLibraries } from './linkEntities';
 import { findingId, type ImportFinding, type LibraryOption, type Resolutions } from './findings';
@@ -23,8 +24,11 @@ export interface DdbAnalysis {
 }
 
 export async function analyzeDdbCharacter(id: string): Promise<DdbAnalysis> {
-  const [json, catalog, libs] = await Promise.all([fetchDdbCharacter(id), loadSourceCatalog(), loadDdbImportLibraries()]);
+  const [json, ddbCatalog, declarations, libs] = await Promise.all([
+    fetchDdbCharacter(id), loadSourceCatalog(), getSourceDeclarations(), loadDdbImportLibraries(),
+  ]);
   const sheet = parseDdbJson(json);
+  const catalog = withDeclarations(ddbCatalog, declarations);
   return { sheet, catalog, libs, draft: await buildDdbCharacter(sheet, libs) };
 }
 

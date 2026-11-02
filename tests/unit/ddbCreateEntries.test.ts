@@ -42,8 +42,8 @@ describe('Vault-Einträge aus D&D Beyond', () => {
     });
   });
 
-  it('weist eine erfundene Herkunft außerhalb der Import-Familie ab', () => {
-    expect(() => featSchema.parse({ name: 'X', source: 'crooked-moon' })).toThrow();
+  it('nimmt als Herkunft nur ein Kürzel, keinen Buchtitel', () => {
+    expect(() => featSchema.parse({ name: 'X', source: 'The Crooked Moon' })).toThrow();
     expect(featSchema.parse({ name: 'X', source: 'crooked-moon-import' }).source).toBe('crooked-moon-import');
   });
 });

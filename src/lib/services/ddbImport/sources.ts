@@ -1,6 +1,7 @@
 /** Quellenkatalog von D&D Beyond: Buch-ID → Kürzel und Titel, für die Hinweise des Wizards. */
 import { z } from 'zod';
-import { importSourceFromTitle, type ImportSourceKey } from '$lib/schemas/source';
+import { importSourceFromTitle, isImportSource, OWN_SOURCE, type SourceKey } from '$lib/schemas/source';
+import type { SourceDeclaration } from '$lib/schemas/sourceDeclaration';
 import { httpFetch } from '../httpFetch';
 import { htmlText } from './htmlText';
 
@@ -27,6 +28,8 @@ export interface DdbSourceBook {
   title: string;
   legacy: boolean;
   core2024: boolean;
+  /** Ein installierter Pack führt dieses Buch. */
+  declared?: SourceDeclaration;
 }
 
 export type DdbSourceCatalog = Map<number, DdbSourceBook>;
@@ -68,7 +71,24 @@ export function bookLabel(catalog: DdbSourceCatalog, sourceId: number | null): s
   return book ? book.title : `D&D-Beyond-Quelle ${sourceId}`;
 }
 
-export function suggestedImportSource(catalog: DdbSourceCatalog, sourceId: number | null): ImportSourceKey {
+/** Auch ohne erreichbaren Katalog kennt der Import die Bücher, die ein Pack deklariert. */
+export function withDeclarations(catalog: DdbSourceCatalog, declarations: SourceDeclaration[]): DdbSourceCatalog {
+  const out: DdbSourceCatalog = new Map(catalog);
+  for (const declared of declarations) {
+    for (const id of declared.ddbSourceIds) {
+      const book = out.get(id) ?? { id, code: '', title: declared.title, legacy: false, core2024: false };
+      out.set(id, { ...book, declared });
+    }
+  }
+  return out;
+}
+
+/** Das Buch eines installierten Packs behält dessen Herkunft — sonst wird es ein lokaler Import. */
+export function suggestedSource(catalog: DdbSourceCatalog, sourceId: number | null): SourceKey {
   const book = sourceId === null ? undefined : catalog.get(sourceId);
-  return importSourceFromTitle(book?.title || book?.code || 'dndbeyond');
+  return book?.declared?.source ?? importSourceFromTitle(book?.title || book?.code || 'dndbeyond');
+}
+
+export function isCreatableSource(catalog: DdbSourceCatalog, source: string): boolean {
+  return source === OWN_SOURCE || isImportSource(source) || [...catalog.values()].some((b) => b.declared?.source === source);
 }

@@ -3,7 +3,7 @@
   import { dirOf, structuralType } from '$lib/itemLibrary';
   import { CATEGORY_LABELS, DAMAGE_TYPE_LABELS, PROPERTY_LABELS, MASTERY_INFO, masteryLabel, WEAPON_CATEGORY_LABELS, WEAPON_RANGE_LABELS, ARMOR_CATEGORY_LABELS } from '$lib/itemLabels';
   import { formatCost, formatRarity, formatDamageDice, ftToM, magicBonusText, attunementText } from '$lib/itemFormat';
-  import { sourceLabel } from '$lib/schemas/source';
+  import { sourceLabel } from '$lib/services/sourceRegistry';
   import Markdown from '../Markdown.svelte';
   import { textTip } from '../textTip.svelte';
   import { itemArtUrl } from '$lib/libraryArt';

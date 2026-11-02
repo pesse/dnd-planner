@@ -1,7 +1,7 @@
 /** Regelverweise (`[Liegend](rule:srd-2024_prone)`) im Regeltext: Tooltip und Sprung zur Karte. */
 import { getRuleByKey, ruleDisplayName, ruleText, type RuleInfo } from '../rulesLibrary';
 import { RULE_CATEGORY_DE } from '../schemas/rule';
-import { sourceLabel } from '../schemas/source';
+import { sourceLabel } from '../services/sourceRegistry';
 import { RULE_REF_SCHEME, openRuleRef } from '../services/vaultLinks';
 import { createRefLinks } from './refLinks.svelte';
 
