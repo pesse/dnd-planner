@@ -11,7 +11,7 @@
     removeImageMark,
     updateImageMark,
   } from '$lib/stores/imageMarks';
-  import { IMAGE_MARK_STATUSES, type ImageMarkStatus } from '$lib/schemas/imageMark';
+  import { IMAGE_MARK_STATUSES, type ImageMark, type ImageMarkStatus } from '$lib/schemas/imageMark';
   import { confirmAction } from '$lib/stores/confirmDialog';
   import { pushError, pushNotice } from '$lib/stores/toasts';
 
@@ -32,10 +32,10 @@
 
   onMount(() => void recheck());
 
-  async function copyAll() {
+  async function copy(list: ImageMark[]) {
     try {
-      await navigator.clipboard.writeText(imageMarksText($imageMarks));
-      pushNotice(`${$imageMarks.length} Markierung(en) in die Zwischenablage kopiert.`);
+      await navigator.clipboard.writeText(imageMarksText(list));
+      pushNotice(`${list.length} Markierung(en) in die Zwischenablage kopiert.`);
     } catch (e) {
       pushError(`Kopieren fehlgeschlagen: ${e}`);
     }
@@ -60,7 +60,7 @@
     <button onclick={recheck} disabled={checking} title="Prüft, ob sich markierte Bilder geändert haben">
       {checking ? 'Prüfe…' : 'Auf Änderungen prüfen'}
     </button>
-    <button onclick={copyAll} disabled={!$imageMarks.length}>Alle kopieren</button>
+    <button onclick={() => copy($imageMarks)} disabled={!$imageMarks.length}>Alle kopieren</button>
     <button class="danger" onclick={removeAll} disabled={!$imageMarks.length}>Alle entfernen</button>
   </div>
 
@@ -101,7 +101,10 @@
             >
               {#each IMAGE_MARK_STATUSES as s (s)}<option value={s}>{STATUS_LABELS[s]}</option>{/each}
             </select>
-            <button class="danger" onclick={() => removeImageMark(mark.id)}>Entfernen</button>
+            <span class="actions">
+              <button onclick={() => copy([mark])}>Kopieren</button>
+              <button class="danger" onclick={() => removeImageMark(mark.id)}>Entfernen</button>
+            </span>
           </div>
         </div>
       </li>
@@ -151,5 +154,6 @@
   }
   .meta { font-size: 0.72rem; color: var(--ink-muted); overflow-wrap: anywhere; }
   textarea { width: 100%; box-sizing: border-box; font-family: inherit; font-size: 0.82rem; resize: vertical; }
-  .row { display: flex; justify-content: space-between; gap: 0.4rem; }
+  .row, .actions { display: flex; gap: 0.4rem; }
+  .row { justify-content: space-between; }
 </style>
