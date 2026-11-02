@@ -1,9 +1,11 @@
 <script lang="ts">
-  /** SL-Ansicht einer Kampfkarte. Speichert selbst — eine Karte im Spiel hat keinen Entwurf. */
+  /** SL-Ansicht einer Kampfkarte als Vollbild-Overlay. Speichert selbst — eine Karte im Spiel hat keinen Entwurf. */
   import { onDestroy } from 'svelte';
   import { activeFile } from '../../stores/campaign';
   import FileTitle from '../FileTitle.svelte';
   import { deleteActiveEntry } from '../../services/deleteEntry';
+  import { navigateBack, navigateHome } from '../../services/navigation';
+  import { navHistoryState } from '../../stores/navigationHistory';
   import { MapEditor, type MapTool } from '../../services/battleMap/mapEditor.svelte';
   import { openPlayerWindow } from '../../services/battleMap/playerWindow';
   import MapCanvas from './MapCanvas.svelte';
@@ -53,6 +55,12 @@
     await deleteActiveEntry(editor.map?.name ?? 'Karte');
   }
 
+  async function close() {
+    await editor.saver.flush();
+    if ($navHistoryState.canBack) await navigateBack();
+    else await navigateHome();
+  }
+
   function onkeydown(e: KeyboardEvent) {
     const el = e.target as HTMLElement;
     if (el.closest('input, select, textarea, [contenteditable]')) return;
@@ -85,52 +93,65 @@
 
 <svelte:window {onkeydown} />
 
-<div class="toolbar">
-  <FileTitle label={editor.map?.name ?? $activeFile?.name ?? ''} />
-  <div class="toolbar-sep"></div>
-  <span class="save-state">{SAVE_LABEL[editor.saver.status]}</span>
-  <button onclick={openPlayer} title="Spielerfenster öffnen — auf Beamer oder Zweitmonitor ziehen">📺 Spielerfenster</button>
-  <button
-    disabled={!editor.map}
-    onclick={() => editor.setPlayerView(canvas?.visible() ?? null)}
-    title="Die Spieler sehen genau meinen aktuellen Ausschnitt — fein einstellen mit dem Werkzeug 📺 (S)"
-  >Meine Ansicht senden</button>
-  <button disabled={!editor.map} onclick={() => editor.setPlayerView(null)} title="Die Spieler sehen die ganze Karte">Ganze Karte</button>
-  <button class="delete-entry" onclick={remove}>🗑 Löschen</button>
+<!-- `main`: dort hängen die Werkzeugleisten-Regeln aus toolbar.css. -->
+<div class="main map-overlay" role="dialog" aria-modal="true" aria-label="Kampfkarte">
+  <div class="toolbar">
+    <FileTitle label={editor.map?.name ?? $activeFile?.name ?? ''} />
+    <div class="toolbar-sep"></div>
+    <span class="save-state">{SAVE_LABEL[editor.saver.status]}</span>
+    <button onclick={openPlayer} title="Spielerfenster öffnen — auf Beamer oder Zweitmonitor ziehen">📺 Spielerfenster</button>
+    <button
+      disabled={!editor.map}
+      onclick={() => editor.setPlayerView(canvas?.visible() ?? null)}
+      title="Die Spieler sehen genau meinen aktuellen Ausschnitt — fein einstellen mit dem Werkzeug 📺 (S)"
+    >Meine Ansicht senden</button>
+    <button disabled={!editor.map} onclick={() => editor.setPlayerView(null)} title="Die Spieler sehen die ganze Karte">Ganze Karte</button>
+    <button class="delete-entry" onclick={remove}>🗑 Löschen</button>
+    <button onclick={close} title="Karte schließen">✕</button>
+  </div>
+
+  {#if editor.error}
+    <div class="error" role="alert">
+      {editor.error}
+      <button onclick={() => (editor.error = '')}>✕</button>
+    </div>
+  {/if}
+
+  {#if editor.map}
+    <div class="body">
+      <div class="tools" role="toolbar" aria-label="Werkzeuge">
+        {#each TOOLS as t}
+          <button class:active={editor.tool === t.id} title="{t.label} ({t.key.toUpperCase()})" onclick={() => (editor.tool = t.id)}>{t.icon}</button>
+        {/each}
+        <div class="sep"></div>
+        <button title="Alles aufdecken" onclick={() => editor.setFogAll(true)}>☀</button>
+        <button title="Alles zudecken" onclick={() => editor.setFogAll(false)}>☾</button>
+        <div class="sep"></div>
+        <button title="Rückgängig (Strg+Z)" onclick={() => editor.undo()}>↩</button>
+        <button title="Wiederherstellen (Strg+Y)" onclick={() => editor.redo()}>↪</button>
+        <button title="Ganze Karte zeigen" onclick={() => canvas?.fit()}>⤢</button>
+      </div>
+
+      <MapCanvas bind:this={canvas} {editor} />
+
+      <aside class="panel">
+        <TokenPanel {editor} {center} />
+        <MapSettingsPanel {editor} />
+      </aside>
+    </div>
+  {/if}
 </div>
 
-{#if editor.error}
-  <div class="error" role="alert">
-    {editor.error}
-    <button onclick={() => (editor.error = '')}>✕</button>
-  </div>
-{/if}
-
-{#if editor.map}
-  <div class="body">
-    <div class="tools" role="toolbar" aria-label="Werkzeuge">
-      {#each TOOLS as t}
-        <button class:active={editor.tool === t.id} title="{t.label} ({t.key.toUpperCase()})" onclick={() => (editor.tool = t.id)}>{t.icon}</button>
-      {/each}
-      <div class="sep"></div>
-      <button title="Alles aufdecken" onclick={() => editor.setFogAll(true)}>☀</button>
-      <button title="Alles zudecken" onclick={() => editor.setFogAll(false)}>☾</button>
-      <div class="sep"></div>
-      <button title="Rückgängig (Strg+Z)" onclick={() => editor.undo()}>↩</button>
-      <button title="Wiederherstellen (Strg+Y)" onclick={() => editor.redo()}>↪</button>
-      <button title="Ganze Karte zeigen" onclick={() => canvas?.fit()}>⤢</button>
-    </div>
-
-    <MapCanvas bind:this={canvas} {editor} />
-
-    <aside class="panel">
-      <TokenPanel {editor} {center} />
-      <MapSettingsPanel {editor} />
-    </aside>
-  </div>
-{/if}
-
 <style>
+  .map-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 900;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    color: var(--ink);
+  }
   .save-state {
     align-self: center;
     font-size: 0.75rem;
