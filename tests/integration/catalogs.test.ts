@@ -151,12 +151,10 @@ describe('Herkunfts-Kataloge', () => {
     expect(fighter.find((r) => r.altName === 'Champion')?.cells.role.text).toBe('Unterklasse');
   });
 
-  it('Spezies und Hintergründe tragen ihre Einleitung für die Galerie', async () => {
+  it('Spezies und Hintergründe: deutscher Name, Herkunftstalent', async () => {
     const species = (await CATALOGS.species.load()).rows.find((r) => r.altName === 'Dwarf');
     const background = (await CATALOGS.background.load()).rows.find((r) => r.altName === 'Soldier');
     expect(species?.name).toBe('Zwerg');
-    expect(species?.blurb).toMatch(/^Zähe, ausdauernde/);
-    expect(background?.blurb).toMatch(/Armee/);
     expect(background?.cells.feat.text).not.toBe('');
   });
 });

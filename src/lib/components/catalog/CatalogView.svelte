@@ -151,7 +151,7 @@
   </div>
 
   {#if filt.layout === 'gallery'}
-    <CatalogGallery {spec} rows={shown} {columnIds} showGroup={!group} {groupLabel} {loading} onopen={open} />
+    <CatalogGallery {spec} rows={shown} showGroup={!group} {groupLabel} {loading} {entryOf} onopen={open} />
   {:else}
     <CatalogTable
       {spec}

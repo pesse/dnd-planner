@@ -8,15 +8,14 @@
 
 <script lang="ts">
   import { fade } from 'svelte/transition';
-  import Markdown from '../Markdown.svelte';
-  import { facetValues, type CatalogRow, type CatalogSpec } from '../../services/catalog/catalogTypes';
+  import EntryCard from '../ui/EntryCard.svelte';
+  import type { CatalogRow } from '../../services/catalog/catalogTypes';
+  import type { FileEntry } from '../../types';
 
-  let { spec, row, image, columnIds, group, position, origin, onclose, onstep, onopen }: {
-    spec: CatalogSpec;
+  let { row, entry, image, position, origin, onclose, onstep, onopen }: {
     row: CatalogRow;
+    entry: FileEntry;
     image: GalleryImage | null;
-    columnIds: string[];
-    group: string;
     /** „12 / 340" */
     position: string;
     /** Rahmen der Kachel, aus der das Bild herauswächst; `null` beim Blättern. */
@@ -27,17 +26,6 @@
   } = $props();
 
   let figure = $state<HTMLElement>();
-
-  /** Spalten mit Wert, dann die Facetten, die keine Spalte schon zeigt. */
-  let facts = $derived([
-    ...columnIds
-      .filter((id) => row.cells[id]?.text)
-      .map((id) => ({ label: spec.columns[id].title ?? spec.columns[id].label, text: row.cells[id].text, color: row.cells[id].color })),
-    ...Object.entries(spec.facets)
-      .filter(([id]) => !columnIds.includes(id))
-      .map(([id, label]) => ({ label, text: facetValues(row, id).map((v) => v.label).join(', '), color: undefined }))
-      .filter((f) => f.text),
-  ]);
 
   // Nur beim Öffnen: das Bild wächst aus seiner Kachel. Danach blendet `{#key}` beim Blättern über.
   $effect(() => {
@@ -80,24 +68,9 @@
     {/key}
 
     <aside class="info">
-      <header>
-        <h2>{row.name}</h2>
-        {#if row.altName && row.altName !== row.name}<span class="alt">{row.altName}</span>{/if}
-        {#if group}<span class="chip">{group}</span>{/if}
-      </header>
-
-      {#if facts.length}
-        <dl>
-          {#each facts as f}
-            <dt>{f.label}</dt>
-            <dd style:color={f.color}>{f.text}</dd>
-          {/each}
-        </dl>
-      {/if}
-
-      {#if row.blurb}
-        <div class="blurb"><Markdown source={row.blurb} /></div>
-      {/if}
+      <div class="card">
+        {#key entry.path}<EntryCard {entry} />{/key}
+      </div>
 
       <footer>
         <button type="button" class="open" onclick={onopen}>Öffnen ↵</button>
@@ -173,51 +146,24 @@
   .info {
     display: flex;
     flex-direction: column;
-    gap: 0.9rem;
-    width: 22rem;
-    max-height: min(78vh, 900px);
-    padding: 1.1rem 1.2rem;
+    gap: 0.6rem;
+    width: min(34rem, 40vw);
+    height: min(78vh, 900px);
+    padding: 0.6rem;
     background: var(--bg-raised);
     border: 1px solid var(--border);
     border-radius: 8px;
     box-shadow: 0 10px 30px color-mix(in srgb, var(--ink) 18%, transparent);
   }
 
-  header { display: flex; flex-direction: column; gap: 0.25rem; align-items: flex-start; }
-  h2 {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: 1.35rem;
-    color: var(--ink);
-  }
-  .alt { font-size: 0.8rem; font-style: italic; color: var(--ink-muted); }
-  .chip {
-    font-size: 0.72rem;
-    padding: 0.05rem 0.5rem;
-    border-radius: 999px;
-    background: var(--surface);
-    color: var(--ink-soft);
-  }
-
-  dl {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 0.25rem 0.9rem;
-    margin: 0;
-    font-size: 0.83rem;
-  }
-  dt { color: var(--ink-muted); }
-  dd { margin: 0; color: var(--ink); }
-
-  .blurb {
+  .card {
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
-    font-size: 0.84rem;
-    color: var(--ink-soft);
-    border-top: 1px solid var(--surface);
-    padding-top: 0.6rem;
+    border-radius: 6px;
+    background: var(--bg);
   }
+  .card > :global(*) { max-width: none; }
 
   footer { display: flex; align-items: center; justify-content: space-between; }
   .open {

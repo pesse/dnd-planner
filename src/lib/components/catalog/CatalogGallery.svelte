@@ -3,15 +3,16 @@
   import { activeFile } from '../../stores/campaign';
   import { historyScroll } from '../../utils/historyScroll';
   import type { CatalogRow, CatalogSpec } from '../../services/catalog/catalogTypes';
+  import type { FileEntry } from '../../types';
   import GallerySpotlight, { type GalleryImage } from './GallerySpotlight.svelte';
 
-  let { spec, rows, columnIds, showGroup, groupLabel, loading, onopen }: {
+  let { spec, rows, showGroup, groupLabel, loading, entryOf, onopen }: {
     spec: CatalogSpec;
     rows: CatalogRow[];
-    columnIds: string[];
     showGroup: boolean;
     groupLabel: (id: string) => string;
     loading: boolean;
+    entryOf: (row: CatalogRow) => FileEntry;
     onopen: (row: CatalogRow) => void;
   } = $props();
 
@@ -116,11 +117,9 @@
 
 {#if index >= 0}
   <GallerySpotlight
-    {spec}
     row={rows[index]}
+    entry={entryOf(rows[index])}
     image={imageOf(rows[index])}
-    {columnIds}
-    group={groupLabel(rows[index].group)}
     position={`${index + 1} / ${rows.length}`}
     {origin}
     onclose={close}

@@ -1,4 +1,4 @@
-/** Klassen, Spezies und Hintergründe als Kataloge: wenige Spalten, dafür Stimmungsbild und Einleitung. */
+/** Klassen, Spezies und Hintergründe als Kataloge: wenige Spalten, dafür ein Stimmungsbild. */
 import { artUrl, availableArt } from '../../artUrl';
 import { CLASSES_PATH } from '../../classLibrary';
 import { SPECIES_PATH } from '../../speciesLibrary';
@@ -6,7 +6,6 @@ import { BACKGROUNDS_PATH } from '../../backgroundsLibrary';
 import { featDisplayName, getFeats } from '../../featsLibrary';
 import { PRESENTATIONS } from '../../schemas/characterSchema';
 import { sourceLabel } from '../../schemas/source';
-import { ruleText } from '../../utils/markdown';
 import { scanJsonFolder, type FileContext } from '../library/createLibrary';
 import { slugOf } from '../wizard/originArt';
 import { byLabel, sourceFacet, type CatalogFacetValue, type CatalogRow, type CatalogSpec } from './catalogTypes';
@@ -82,7 +81,6 @@ export const classCatalog: CatalogSpec = {
         ...baseRow(e, 'var(--gold)'),
         group: parent ?? e.data.key ?? '',
         art: firstArt(names, art),
-        blurb: e.data.introDe,
         cells: {
           role: { text: parent ? SUBCLASS_ROLE.label : CLASS_ROLE.label, sort: parent ? 1 : 0 },
           hitDie: hitDie ? { text: `W${hitDie}`, sort: hitDie } : { text: '', sort: 0 },
@@ -113,7 +111,6 @@ export const speciesCatalog: CatalogSpec = {
       ...baseRow(e, 'var(--gold)'),
       group: sourceFacet(e.data.source).id,
       art: firstArt(names, PRESENTATIONS.map((p) => `figures/${slug(e)}-${p}/species`)),
-      blurb: e.data.introDe,
       cells: { source: sourceCell(e.data) },
       facets: {},
     }));
@@ -142,7 +139,6 @@ export const backgroundCatalog: CatalogSpec = {
       ...baseRow(e, 'var(--gold)'),
       group: sourceFacet(e.data.source).id,
       art: firstArt(names, [`backgrounds/${slugOf(e.data.key ?? '')}`]),
-      blurb: ruleText(e.data.descDe || e.data.desc),
       cells: { feat: { text: featName.get(e.data.featKey) ?? '' }, source: sourceCell(e.data) },
       facets: {},
     }));
