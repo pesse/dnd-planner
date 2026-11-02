@@ -15,6 +15,8 @@
 
   const SPAWN_GAP = 450;
   const FIRST_GAP = 220;
+  const SPRING = 0.012;
+  const DAMPING = 0.78;
 
   async function load(url: string): Promise<Loaded | null> {
     const img = new Image();
@@ -38,7 +40,7 @@
     const sprites: Sprite[] = [];
     let loading = false;
     const recent: string[] = [];
-    const pointer = { x: 0, y: 0, tx: 0, ty: 0 };
+    const pointer = { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0 };
     let view: Rect = { x: 0, y: 0, w: 0, h: 0 };
     let lastSpawn = -Infinity;
     let spawned = 0;
@@ -89,8 +91,11 @@
         lastSpawn = now;
         void request();
       }
-      pointer.x += (pointer.tx - pointer.x) * 0.04;
-      pointer.y += (pointer.ty - pointer.y) * 0.04;
+      // Gedämpft knapp ohne Überschwingen: hält die Maus an, läuft die Szene mit Ease-out nach.
+      pointer.vx = (pointer.vx + (pointer.tx - pointer.x) * SPRING) * DAMPING;
+      pointer.vy = (pointer.vy + (pointer.ty - pointer.y) * SPRING) * DAMPING;
+      pointer.x += pointer.vx;
+      pointer.y += pointer.vy;
       g.clearRect(0, 0, view.w, view.h);
       const p = still ? { x: 0, y: 0 } : pointer;
       for (const s of [...sprites].sort((a, b) => a.depth - b.depth)) drawSprite(g, s, now, p);

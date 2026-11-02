@@ -79,7 +79,7 @@ export function spawnSprite(source: CanvasImageSource, aspect: number, ctx: Spaw
     rot0: (rand() - 0.5) * 0.08,
     drot: (rand() - 0.5) * 0.1,
     bob: rand() * Math.PI * 2,
-    maxAlpha: 0.4 + depth * 0.35,
+    maxAlpha: Math.min(1, 0.35 + depth * 0.8),
   };
 }
 
@@ -89,7 +89,7 @@ export function drawSprite(g: CanvasRenderingContext2D, s: Sprite, now: number, 
   if (alpha <= 0.002) return;
   const t = Math.min(1, (now - s.born) / s.life);
   const ease = smooth(t);
-  const parallax = 24 * s.depth;
+  const parallax = 110 * s.depth;
   const float = Math.sin(now / 1700 + s.bob) * 7 * s.depth;
   const grow = smooth(Math.min(1, (now - s.born) / FADE_IN));
   const scale = 0.92 + 0.08 * grow + 0.06 * ease;
