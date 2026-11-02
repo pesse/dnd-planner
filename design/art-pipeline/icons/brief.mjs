@@ -3,8 +3,11 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 const [serie, W, N, B] = process.argv.slice(2);
 const here = new URL('.', import.meta.url).pathname, art = `${here}../../art/`;
 const s = JSON.parse(readFileSync(here + 'series.json', 'utf8'))[serie];
+// Ein Klon ohne Roh-PNGs (`design/art/` ist ungetrackt) malte sonst die ganze Serie neu.
+const published = (dir) => { const d = `${here}../../../vault/art/${dir}`; return existsSync(d) ? readdirSync(d).map((f) => f.replace(/\.avif$/, '')) : []; };
 const have = new Set([serie, `${serie}-w${W}`].filter((d) => existsSync(art + d))
-  .flatMap((d) => readdirSync(art + d)).map((f) => f.replace(/\.png$/, '')));
+  .flatMap((d) => readdirSync(art + d)).map((f) => f.replace(/\.png$/, ''))
+  .concat(published(serie)));
 const open = readFileSync(`${here}motifs/${serie}.tsv`, 'utf8').trim().split('\n').map((l) => l.split('\t'))
   .filter((_, i) => i % +N === +W).filter(([slug]) => !have.has(slug)).slice(0, +B);
 if (!open.length) process.exit(3);
