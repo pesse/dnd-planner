@@ -111,7 +111,7 @@
 >
   {#snippet karte()}
     {#if ed.draft}
-      <ArtStage candidates={[monsterSceneUrl(ed.draft)].filter((u) => u !== null)}>
+      <ArtStage whole candidates={[monsterSceneUrl(ed.draft)].filter((u) => u !== null)}>
         <MonsterStatBlock monster={ed.draft} />
       </ArtStage>
     {:else}

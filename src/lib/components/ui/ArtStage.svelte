@@ -4,7 +4,12 @@
   import { isMirroredArt, resolveOriginArt } from '../../services/wizard/originArt';
 
   /** Karte links, das erste vorhandene Stimmungsbild aus `candidates` rechts darüber hinaus. */
-  let { candidates, children }: { candidates: string[]; children: Snippet } = $props();
+  let { candidates, whole = false, children }: {
+    candidates: string[];
+    /** Das ganze Bild statt eines Ausschnitts: die Karte gibt Breite ab. Für Szenen ohne Figur am Rand. */
+    whole?: boolean;
+    children: Snippet;
+  } = $props();
 
   let art = $state<string | null>(null);
   $effect(() => {
@@ -15,7 +20,7 @@
   });
 </script>
 
-<div class="stage" class:with-art={!!art}>
+<div class="stage" class:with-art={!!art} class:whole>
   {#if art}
     {#key art}
       <figure class="art" out:fade={{ duration: 350 }}>
@@ -54,6 +59,13 @@
     mask-composite: intersect;
   }
   .art img { width: 100%; height: 100%; object-fit: cover; object-position: 62% center; }
+  .whole.with-art { grid-template-columns: minmax(24rem, 1fr) auto; }
+  .whole .art {
+    width: auto; aspect-ratio: 2 / 3; margin: 0;
+    mask-image: linear-gradient(to right, transparent 0%, #000 8%, #000 94%, transparent 100%),
+      linear-gradient(to bottom, transparent 0%, #000 4%, #000 92%, transparent 100%);
+  }
+  .whole .art img { object-fit: contain; object-position: center; }
   .art img.mirrored { transform: scaleX(-1); object-position: 38% center; }
   @media (max-width: 1100px) {
     .art { display: none; }
