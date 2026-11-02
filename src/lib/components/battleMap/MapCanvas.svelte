@@ -16,6 +16,17 @@
     type Camera,
     type Point,
   } from '../../services/battleMap/geometry';
+  import {
+    CORNERS,
+    FRAME_CURSOR,
+    cornerPoint,
+    frameFromDrag,
+    hitFrame,
+    moveFrame,
+    resizeFrame,
+    scaleFrame,
+    type FrameHit,
+  } from '../../services/battleMap/viewFrame';
   import MapStage from './MapStage.svelte';
 
   let { editor }: { editor: MapEditor } = $props();
@@ -26,7 +37,8 @@
     | { kind: 'light'; id: string }
     | { kind: 'rect'; a: Point; b: Point }
     | { kind: 'brush'; op: Extract<FogOp, { shape: 'brush' }> }
-    | { kind: 'ruler'; a: Point; b: Point };
+    | { kind: 'ruler'; a: Point; b: Point }
+    | { kind: 'frame'; hit: FrameHit | 'new'; start: ViewRect | null; from: Point };
 
   let viewport = $state<HTMLDivElement>();
   let vw = $state(0);
@@ -110,6 +122,11 @@
       drag = { kind: 'brush', op: map.fog.ops[map.fog.ops.length - 1] as typeof op };
       return;
     }
+    if (tool === 'view') {
+      const hit = playerFrame ? hitFrame(playerFrame, p, handleTol) : null;
+      drag = { kind: 'frame', hit: hit ?? 'new', start: playerFrame, from: p };
+      return;
+    }
     if (tool === 'ruler') drag = { kind: 'ruler', a: p, b: p };
     else drag = { kind: 'rect', a: p, b: p };
   }
@@ -129,6 +146,8 @@
       const l = map.lighting.lights.find((x) => x.id === (drag as { id: string }).id);
       if (l) Object.assign(l, { x: p.x, y: p.y });
       editor.changed();
+    } else if (drag.kind === 'frame') {
+      editor.setPlayerView(draggedFrame(drag, p));
     } else if (drag.kind === 'brush') {
       const last = drag.op.points[drag.op.points.length - 1];
       // Dünnt den Strich aus, sonst wächst die Datei mit jedem Mauspixel.
@@ -148,6 +167,10 @@
     if (d.kind === 'token') {
       const t = map.tokens.find((x) => x.id === d.id);
       if (t) editor.updateToken(t.id, { x: snapCell(t.x, t.size), y: snapCell(t.y, t.size) });
+    } else if (d.kind === 'frame') {
+      const r = editor.map?.playerView;
+      // Ein bloßer Klick daneben soll den bisherigen Ausschnitt nicht zu einem Punkt schrumpfen.
+      if (d.hit === 'new' && r && r.w * camera.zoom < 20) editor.setPlayerView(d.start);
     } else if (d.kind === 'rect') {
       const r = normalizeRect(d.a, d.b);
       if (editor.tool === 'grid') editor.calibrateGrid(r);
@@ -158,18 +181,37 @@
     }
   }
 
+  function draggedFrame(d: Extract<Drag, { kind: 'frame' }>, p: Point): ViewRect {
+    if (d.hit === 'new' || !d.start) return frameFromDrag(d.from, p, frameAspect);
+    if (d.hit === 'move') return moveFrame(d.start, d.from, p);
+    return resizeFrame(d.start, d.hit, p, frameAspect);
+  }
+
   function onwheel(e: WheelEvent) {
     e.preventDefault();
-    camera = zoomAt(camera, local(e), Math.exp(-e.deltaY * 0.0015));
+    const factor = Math.exp(-e.deltaY * 0.0015);
+    const p = imagePoint(e);
+    if (editor.tool === 'view' && playerFrame && hitFrame(playerFrame, p, handleTol)) {
+      editor.setPlayerView(scaleFrame(playerFrame, 1 / factor, map.grid.size * 2));
+      return;
+    }
+    camera = zoomAt(camera, local(e), factor);
   }
 
   const svgRect = (r: ViewRect) => ({ x: r.x, y: r.y, width: r.w, height: r.h });
 
   const rect = $derived(drag?.kind === 'rect' ? normalizeRect(drag.a, drag.b) : null);
   const ruler = $derived(drag?.kind === 'ruler' ? drag : null);
-  const playerFrame = $derived(
-    map.playerView ? expandToAspect(map.playerView, editor.playerAspect ?? map.playerView.w / map.playerView.h) : null,
+  const frameAspect = $derived(
+    editor.playerAspect ?? (map.playerView ? map.playerView.w / map.playerView.h : 16 / 9),
   );
+  const playerFrame = $derived(map.playerView ? expandToAspect(map.playerView, frameAspect) : null);
+  const handleTol = $derived(12 / camera.zoom);
+  const frameCursor = $derived.by(() => {
+    if (editor.tool !== 'view' || !hover || !playerFrame) return '';
+    const hit = hitFrame(playerFrame, hover, handleTol);
+    return hit ? FRAME_CURSOR[hit] : '';
+  });
   const stroke = $derived(2 / camera.zoom);
   const brushPreview = $derived(
     hover && (editor.tool === 'reveal-brush' || editor.tool === 'cover-brush') ? hover : null,
@@ -178,6 +220,7 @@
 
 <div
   class="viewport tool-{editor.tool}"
+  style:cursor={frameCursor || null}
   bind:this={viewport}
   bind:clientWidth={vw}
   bind:clientHeight={vh}
@@ -206,6 +249,13 @@
         {#if playerFrame}
           <rect {...svgRect(playerFrame)} class="player-frame" stroke-width={stroke * 1.5} stroke-dasharray="{stroke * 8} {stroke * 5}" />
           <text x={playerFrame.x + 6 / camera.zoom} y={playerFrame.y + 18 / camera.zoom} font-size={14 / camera.zoom} class="frame-label">Spieleransicht</text>
+          {#if editor.tool === 'view'}
+            <rect {...svgRect(playerFrame)} class="frame-fill" />
+            {#each CORNERS as c}
+              {@const q = cornerPoint(playerFrame, c)}
+              <rect x={q.x - handleTol / 2} y={q.y - handleTol / 2} width={handleTol} height={handleTol} class="frame-handle" stroke-width={stroke} />
+            {/each}
+          {/if}
         {/if}
         {#each map.lighting.lights as l (l.id)}
           <circle cx={l.x} cy={l.y} r={l.radius * map.grid.size} class="light-range" stroke-width={stroke} />
@@ -256,6 +306,13 @@
   }
   .player-frame {
     fill: none;
+    stroke: #6fc3ff;
+  }
+  .frame-fill {
+    fill: rgba(111, 195, 255, 0.08);
+  }
+  .frame-handle {
+    fill: #fff;
     stroke: #6fc3ff;
   }
   .frame-label {

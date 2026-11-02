@@ -12,6 +12,14 @@
   let vw = $state(0);
   let vh = $state(0);
   let img = $state({ w: 0, h: 0 });
+  let idle = $state(false);
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function wake() {
+    idle = false;
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => (idle = true), 2000);
+  }
 
   const camera = $derived.by((): Camera => {
     if (!shown || !img.w || !vw) return { zoom: 1, tx: 0, ty: 0 };
@@ -36,6 +44,7 @@
     return () => {
       unlisten();
       bye();
+      clearTimeout(idleTimer);
       window.removeEventListener('beforeunload', bye);
     };
   });
@@ -54,7 +63,7 @@
 
 <svelte:head><title>Spieleransicht</title></svelte:head>
 
-<div class="player" bind:clientWidth={vw} bind:clientHeight={vh} ondblclick={toggleFullscreen} role="presentation">
+<div class="player" class:idle onpointermove={wake} bind:clientWidth={vw} bind:clientHeight={vh} ondblclick={toggleFullscreen} role="presentation">
   {#if shown?.imageUrl}
     <MapStage
       mode="player"
@@ -81,6 +90,8 @@
     inset: 0;
     overflow: hidden;
     background: #000;
+  }
+  .player.idle {
     cursor: none;
   }
   .waiting {
@@ -93,6 +104,5 @@
     color: #8a7a5a;
     font-family: var(--font-display);
     font-size: 1.5rem;
-    cursor: default;
   }
 </style>

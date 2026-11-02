@@ -15,6 +15,7 @@
 
   const TOOLS: { id: MapTool; icon: string; label: string; key: string }[] = [
     { id: 'select', icon: '✋', label: 'Auswählen & verschieben', key: 'v' },
+    { id: 'view', icon: '📺', label: 'Spieler-Ausschnitt: aufziehen, verschieben, an den Ecken oder mit dem Mausrad skalieren', key: 's' },
     { id: 'reveal-rect', icon: '▢', label: 'Aufdecken (Rechteck)', key: 'a' },
     { id: 'reveal-brush', icon: '🖌', label: 'Aufdecken (Pinsel)', key: 'p' },
     { id: 'cover-rect', icon: '▣', label: 'Zudecken (Rechteck)', key: 'z' },
@@ -92,8 +93,8 @@
   <button
     disabled={!editor.map}
     onclick={() => editor.setPlayerView(canvas?.visible() ?? null)}
-    title="Die Spieler sehen genau meinen aktuellen Ausschnitt"
-  >Ausschnitt senden</button>
+    title="Die Spieler sehen genau meinen aktuellen Ausschnitt — fein einstellen mit dem Werkzeug 📺 (S)"
+  >Meine Ansicht senden</button>
   <button disabled={!editor.map} onclick={() => editor.setPlayerView(null)} title="Die Spieler sehen die ganze Karte">Ganze Karte</button>
   <button class="delete-entry" onclick={remove}>🗑 Löschen</button>
 </div>

@@ -11,7 +11,7 @@ import { loadBattleMap, mapImageUrl, pickMapImage, serializeBattleMap } from './
 import { toPlayerState } from './playerState';
 import { occupiedCells, placeDrafts, resolveTokenImage, type TokenDraft } from './tokenSources';
 
-export type MapTool = 'select' | 'reveal-rect' | 'reveal-brush' | 'cover-rect' | 'cover-brush' | 'light' | 'ruler' | 'grid';
+export type MapTool = 'select' | 'view' | 'reveal-rect' | 'reveal-brush' | 'cover-rect' | 'cover-brush' | 'light' | 'ruler' | 'grid';
 
 const UNDO_LIMIT = 50;
 
