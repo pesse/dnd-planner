@@ -12,16 +12,10 @@
     libraryMonsterDraft,
     markerDraft,
   } from '../../services/battleMap/tokenSources';
+  import { encounterPath } from '../../services/battleMap/tokenDetails';
+  import PanelSection from './PanelSection.svelte';
 
   let { editor, center }: { editor: MapEditor; center: () => Point } = $props();
-
-  const SIZES = [
-    { value: 0.5, label: 'Winzig' },
-    { value: 1, label: 'Klein/Mittel' },
-    { value: 2, label: 'Groß' },
-    { value: 3, label: 'Riesig' },
-    { value: 4, label: 'Gigantisch' },
-  ];
 
   let characters = $state<CharacterRef[]>([]);
   let characterUid = $state('');
@@ -63,8 +57,9 @@
     run(async () => {
       const enc = $encounterSummaries.find((e) => `${e.actSlug}/${e.slug}` === encounterKey);
       if (!enc || !$activeCampaign) return;
-      const path = `./vault/campaigns/${$activeCampaign.path}/acts/${enc.actSlug}/encounters/${enc.slug}.json`;
-      editor.addTokens(await encounterDrafts(path), originCell());
+      const key = `${enc.actSlug}/${enc.slug}`;
+      editor.addTokens(await encounterDrafts(encounterPath(`./vault/campaigns/${$activeCampaign.path}`, key), key), originCell());
+      editor.details.show({ kind: 'encounter', key });
     });
 
   const addMonster = () =>
@@ -89,8 +84,7 @@
   }
 </script>
 
-<section>
-  <h3>Einsetzen</h3>
+<PanelSection title="Einsetzen">
   <button class="wide" disabled={!$campaignCharacterData.length} onclick={addParty} title="Alle Charaktere, die in der Kampagne eingetragen sind">
     Gruppe der Kampagne ({$campaignCharacterData.length})
   </button>
@@ -129,16 +123,13 @@
     <input bind:value={markerName} placeholder="Markierung / NSC…" onkeydown={(e) => e.key === 'Enter' && addMarker()} />
     <button onclick={addMarker}>+</button>
   </div>
-</section>
+</PanelSection>
 
-<section>
-  <h3>
-    Tokens
-    <span class="bulk">
-      <button title="Alle Monster verstecken" onclick={() => editor.setAllHidden('monster', true)}>🙈</button>
-      <button title="Alle Monster zeigen" onclick={() => editor.setAllHidden('monster', false)}>👁</button>
-    </span>
-  </h3>
+<PanelSection title="Tokens ({map.tokens.length})">
+  {#snippet actions()}
+    <button title="Alle Monster verstecken" onclick={() => editor.setAllHidden('monster', true)}>🙈</button>
+    <button title="Alle Monster zeigen" onclick={() => editor.setAllHidden('monster', false)}>👁</button>
+  {/snippet}
   {#if !map.tokens.length}
     <p class="hint">Noch keine Tokens.</p>
   {/if}
@@ -153,47 +144,9 @@
       </li>
     {/each}
   </ul>
-</section>
-
-{#if editor.selected}
-  {@const t = editor.selected}
-  <section>
-    <h3>Ausgewählt</h3>
-    <label>Name <input value={t.name} onchange={(e) => { editor.checkpoint(); editor.updateToken(t.id, { name: e.currentTarget.value }); }} /></label>
-    <label>
-      Größe
-      <select value={t.size} onchange={(e) => { editor.checkpoint(); editor.updateToken(t.id, { size: Number(e.currentTarget.value) }); }}>
-        {#each SIZES as s}
-          <option value={s.value}>{s.label}</option>
-        {/each}
-      </select>
-    </label>
-    <label>Farbe <input type="color" value={t.color} onchange={(e) => { editor.checkpoint(); editor.updateToken(t.id, { color: e.currentTarget.value }); }} /></label>
-  </section>
-{/if}
+</PanelSection>
 
 <style>
-  section {
-    padding: 0.6rem 0.75rem;
-    border-bottom: 1px solid var(--surface);
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-  h3 {
-    margin: 0 0 0.2rem;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--ink-muted);
-    display: flex;
-    align-items: center;
-  }
-  .bulk {
-    margin-left: auto;
-    display: flex;
-    gap: 0.2rem;
-  }
   .row {
     display: flex;
     gap: 0.3rem;
@@ -201,18 +154,6 @@
   .row > :first-child {
     flex: 1;
     min-width: 0;
-  }
-  label {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    font-size: 0.8rem;
-    color: var(--ink-soft);
-  }
-  label input:not([type='color']),
-  label select {
-    width: 60%;
   }
   ul {
     list-style: none;

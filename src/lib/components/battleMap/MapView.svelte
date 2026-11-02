@@ -4,13 +4,17 @@
   import { activeFile } from '../../stores/campaign';
   import FileTitle from '../FileTitle.svelte';
   import { deleteActiveEntry } from '../../services/deleteEntry';
-  import { navigateBack, navigateHome } from '../../services/navigation';
+  import { navigateBack, navigateHome, navigateTo } from '../../services/navigation';
+  import { interceptNavigation } from '../../services/entryPeek';
+  import { campaignDirOf } from '../../services/battleMap/tokenDetails';
+  import type { FileEntry } from '../../types';
   import { navHistoryState } from '../../stores/navigationHistory';
   import { MapEditor, type MapTool } from '../../services/battleMap/mapEditor.svelte';
   import { openPlayerWindow } from '../../services/battleMap/playerWindow';
   import MapCanvas from './MapCanvas.svelte';
   import TokenPanel from './TokenPanel.svelte';
   import MapSettingsPanel from './MapSettingsPanel.svelte';
+  import MapDetailsPanel from './details/MapDetailsPanel.svelte';
 
   const editor = new MapEditor();
   let canvas = $state<MapCanvas>();
@@ -33,6 +37,7 @@
   });
 
   onDestroy(() => void editor.destroy());
+  onDestroy(interceptNavigation((entry) => editor.details.show({ kind: 'entry', entry })));
 
   const SAVE_LABEL = { saved: 'Gespeichert', saving: 'Speichert…', unsaved: 'Ungespeichert' } as const;
 
@@ -53,6 +58,11 @@
   async function remove() {
     await editor.saver.flush();
     await deleteActiveEntry(editor.map?.name ?? 'Karte');
+  }
+
+  async function leaveTo(entry: FileEntry) {
+    await editor.saver.flush();
+    await navigateTo(entry, { leavePeek: true });
   }
 
   async function close() {
@@ -82,7 +92,7 @@
       editor.checkpoint();
       editor.updateToken(sel.id, { hidden: !sel.hidden });
     } else if (e.key === 'Escape') {
-      editor.selectedId = null;
+      if (editor.tool === 'select') editor.selectedId = null;
       editor.tool = 'select';
     } else {
       const tool = TOOLS.find((t) => t.key === e.key.toLowerCase());
@@ -132,11 +142,15 @@
         <button title="Ganze Karte zeigen" onclick={() => canvas?.fit()}>⤢</button>
       </div>
 
-      <MapCanvas bind:this={canvas} {editor} />
-
-      <aside class="panel">
+      <aside class="panel left" aria-label="Werkzeuge und Einstellungen">
         <TokenPanel {editor} {center} />
         <MapSettingsPanel {editor} />
+      </aside>
+
+      <MapCanvas bind:this={canvas} {editor} />
+
+      <aside class="panel right" aria-label="Details">
+        <MapDetailsPanel {editor} campaignDir={campaignDirOf(editor.path)} {center} onleave={leaveTo} />
       </aside>
     </div>
   {/if}
@@ -215,10 +229,19 @@
     background: var(--border);
   }
   .panel {
-    width: 17rem;
     flex-shrink: 0;
-    overflow-y: auto;
     background: var(--bg-panel);
+  }
+  .left {
+    width: 16rem;
+    overflow-y: auto;
+    border-right: 1px solid var(--surface);
+  }
+  .right {
+    width: clamp(20rem, 26vw, 28rem);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
     border-left: 1px solid var(--surface);
   }
 </style>

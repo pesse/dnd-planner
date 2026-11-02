@@ -30,7 +30,7 @@
   let { editor }: { editor: MapEditor } = $props();
 
   type Drag =
-    | { kind: 'pan'; start: Point; cam: Camera }
+    | { kind: 'pan'; start: Point; cam: Camera; deselect?: boolean }
     | { kind: 'token'; id: string; grab: Point; moved: boolean }
     | { kind: 'light'; id: string }
     | { kind: 'rect'; a: Point; b: Point }
@@ -106,8 +106,7 @@
         editor.addLight(p);
         return;
       }
-      editor.selectedId = null;
-      drag = { kind: 'pan', start: local(e), cam: { ...camera } };
+      drag = { kind: 'pan', start: local(e), cam: { ...camera }, deselect: true };
       return;
     }
     if (tool === 'reveal-brush' || tool === 'cover-brush') {
@@ -137,6 +136,7 @@
     if (!drag) return;
     if (drag.kind === 'pan') {
       const s = local(e);
+      if (Math.hypot(s.x - drag.start.x, s.y - drag.start.y) > 4) drag.deselect = false;
       camera = { ...drag.cam, tx: drag.cam.tx + s.x - drag.start.x, ty: drag.cam.ty + s.y - drag.start.y };
     } else if (drag.kind === 'token') {
       const cell = pxToCell(map.grid, p);
@@ -164,7 +164,8 @@
     const d = drag;
     drag = null;
     if (!d) return;
-    if (d.kind === 'token') {
+    if (d.kind === 'pan' && d.deselect) editor.selectedId = null;
+    else if (d.kind === 'token') {
       const t = map.tokens.find((x) => x.id === d.id);
       if (t) editor.updateToken(t.id, { x: snapCell(t.x, t.size), y: snapCell(t.y, t.size) });
     } else if (d.kind === 'frame') {

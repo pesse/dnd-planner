@@ -20,7 +20,9 @@
       "y": 0,
       "size": 1,
       "hidden": false,
-      "color": "#8a2012"
+      "color": "#8a2012",
+      "note": "string",
+      "encounter": "string"
     }
   ],
   "fog": {

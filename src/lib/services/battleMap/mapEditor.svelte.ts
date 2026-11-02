@@ -6,6 +6,7 @@ import type { BattleMap, FogOp, Light, Token, ViewRect } from '../../schemas/bat
 import { AutosaveFile } from '../../utils/autosaveFile.svelte';
 import { newUid } from '../../utils/uid';
 import { onPlayerMessage, sendToPlayer, type ToGm } from './channel';
+import { DetailHistory } from './detailHistory.svelte';
 import { gridFromCell, snapCell, type Point } from './geometry';
 import { loadBattleMap, mapImageUrl, pickMapImage, serializeBattleMap } from './mapFiles';
 import { toPlayerState } from './playerState';
@@ -21,7 +22,7 @@ export class MapEditor {
   imageUrl = $state('');
   imageSize = $state({ w: 0, h: 0 });
   tokenImages = $state<Record<string, string>>({});
-  selectedId = $state<string | null>(null);
+  readonly details = new DetailHistory();
   tool = $state<MapTool>('select');
   brushRadius = $state(40);
   error = $state('');
@@ -40,6 +41,15 @@ export class MapEditor {
     });
   }
 
+  get selectedId(): string | null {
+    const d = this.details.current;
+    return d.kind === 'token' ? d.id : null;
+  }
+
+  set selectedId(id: string | null) {
+    this.details.show(id ? { kind: 'token', id } : { kind: 'overview' });
+  }
+
   get selected(): Token | null {
     return this.map?.tokens.find((t) => t.id === this.selectedId) ?? null;
   }
@@ -50,6 +60,7 @@ export class MapEditor {
     this.error = '';
     this.#undo = [];
     this.#redo = [];
+    this.details.reset();
     try {
       const map = await loadBattleMap(path);
       if (this.path !== path) return;
@@ -103,7 +114,7 @@ export class MapEditor {
     if (!prev || !this.map) return;
     to.push(serializeBattleMap($state.snapshot(this.map) as BattleMap));
     this.map = JSON.parse(prev) as BattleMap;
-    if (this.selectedId && !this.map.tokens.some((t) => t.id === this.selectedId)) this.selectedId = null;
+    for (const id of this.details.tokenIds()) if (!this.map.tokens.some((t) => t.id === id)) this.details.forget(id);
     void this.#refreshImages();
     this.changed();
   }
@@ -149,7 +160,7 @@ export class MapEditor {
     this.checkpoint();
     const tokens = placeDrafts(drafts, originCell, occupiedCells(this.map.tokens));
     this.map.tokens.push(...tokens);
-    this.selectedId = tokens.length === 1 ? tokens[0].id : this.selectedId;
+    if (tokens.length === 1) this.selectedId = tokens[0].id;
     this.changed();
     void Promise.all(tokens.map((t) => this.#resolveToken(t))).then(() => this.changed());
   }
@@ -165,7 +176,7 @@ export class MapEditor {
     if (!this.map) return;
     this.checkpoint();
     this.map.tokens = this.map.tokens.filter((t) => t.id !== id);
-    if (this.selectedId === id) this.selectedId = null;
+    this.details.forget(id);
     this.changed();
   }
 
@@ -173,6 +184,13 @@ export class MapEditor {
     if (!this.map) return;
     this.checkpoint();
     for (const t of this.map.tokens) if (t.kind === kind) t.hidden = hidden;
+    this.changed();
+  }
+
+  setEncounterHidden(encounter: string, hidden: boolean): void {
+    if (!this.map) return;
+    this.checkpoint();
+    for (const t of this.map.tokens) if (t.encounter === encounter) t.hidden = hidden;
     this.changed();
   }
 

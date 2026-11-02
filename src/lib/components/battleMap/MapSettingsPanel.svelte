@@ -1,6 +1,7 @@
 <script lang="ts">
   /** Kartenbild, Raster, Nebel-Pinsel und Licht. */
   import type { MapEditor } from '../../services/battleMap/mapEditor.svelte';
+  import PanelSection from './PanelSection.svelte';
 
   let { editor }: { editor: MapEditor } = $props();
 
@@ -11,8 +12,7 @@
   }
 </script>
 
-<section>
-  <h3>Karte</h3>
+<PanelSection title="Karte">
   <button onclick={() => editor.chooseImage()}>{map.image ? 'Bild ersetzen…' : 'Kartenbild wählen…'}</button>
   <label>
     <span>Nebel aktiv</span>
@@ -24,10 +24,9 @@
       <input type="range" min="10" max={Math.max(200, map.grid.size * 6)} bind:value={editor.brushRadius} />
     </label>
   {/if}
-</section>
+</PanelSection>
 
-<section>
-  <h3>Raster</h3>
+<PanelSection title="Raster" open={false}>
   <label>
     <span>Sichtbar</span>
     <input type="checkbox" checked={map.grid.visible} onchange={(e) => { map.grid.visible = e.currentTarget.checked; editor.changed(); }} />
@@ -52,10 +51,9 @@
     <input type="number" min="0.5" step="0.5" value={map.grid.metersPerCell} oninput={(e) => { if (num(e) > 0) { map.grid.metersPerCell = num(e); editor.changed(); } }} />
   </label>
   <p class="hint">Werkzeug „Raster“: genau ein Feld der Karte aufziehen.</p>
-</section>
+</PanelSection>
 
-<section>
-  <h3>Licht</h3>
+<PanelSection title="Licht">
   <label>
     <span>Dunkelheit</span>
     <input type="range" min="0" max="1" step="0.05" value={map.lighting.darkness} onpointerdown={() => editor.checkpoint()} oninput={(e) => { map.lighting.darkness = num(e); editor.changed(); }} />
@@ -70,23 +68,9 @@
   {:else}
     <p class="hint">Werkzeug „Licht“: auf die Karte klicken. Lichter sind reine Optik.</p>
   {/each}
-</section>
+</PanelSection>
 
 <style>
-  section {
-    padding: 0.6rem 0.75rem;
-    border-bottom: 1px solid var(--surface);
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-  h3 {
-    margin: 0 0 0.2rem;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--ink-muted);
-  }
   label {
     display: flex;
     align-items: center;

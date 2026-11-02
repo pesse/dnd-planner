@@ -20,6 +20,8 @@ export interface TokenDraft {
   size: number;
   hidden: boolean;
   color: string;
+  note: string;
+  encounter: string;
 }
 
 export const KIND_COLOR: Record<TokenKind, string> = {
@@ -68,7 +70,7 @@ export function numberedNames(name: string, count: number): string[] {
   return count <= 1 ? [name] : Array.from({ length: count }, (_, i) => `${name} ${i + 1}`);
 }
 
-export const monsterDraft = (monster: Monster, ref: string, name = monster.name): TokenDraft => ({
+export const monsterDraft = (monster: Monster, ref: string, name = monster.name, encounter = ''): TokenDraft => ({
   name,
   kind: 'monster',
   ref,
@@ -76,6 +78,8 @@ export const monsterDraft = (monster: Monster, ref: string, name = monster.name)
   size: cellsForCreatureSize(monster.size),
   hidden: true,
   color: KIND_COLOR.monster,
+  note: '',
+  encounter,
 });
 
 export const characterDraft = (uid: string, name: string): TokenDraft => ({
@@ -86,6 +90,8 @@ export const characterDraft = (uid: string, name: string): TokenDraft => ({
   size: 1,
   hidden: false,
   color: KIND_COLOR.character,
+  note: '',
+  encounter: '',
 });
 
 export const markerDraft = (name: string): TokenDraft => ({
@@ -96,10 +102,12 @@ export const markerDraft = (name: string): TokenDraft => ({
   size: 1,
   hidden: false,
   color: KIND_COLOR.marker,
+  note: '',
+  encounter: '',
 });
 
 /** Monster sind zunächst versteckt — die SL deckt sie auf, wenn sie auftauchen. */
-export async function encounterDrafts(encounterPath: string): Promise<TokenDraft[]> {
+export async function encounterDrafts(encounterPath: string, key: string): Promise<TokenDraft[]> {
   const raw = await invoke<string>('read_file_content', { path: encounterPath });
   const encounter = encounterSchema.parse(JSON.parse(raw));
   const drafts: TokenDraft[] = [];
@@ -107,7 +115,7 @@ export async function encounterDrafts(encounterPath: string): Promise<TokenDraft
     // Einzeln aufgelöst: `fetchEncounterMonsters` lässt Unauflösbare weg, die Zuordnung zum Eintrag ginge verloren.
     const [monster] = await fetchEncounterMonsters(JSON.stringify({ monsters: [entry] }), encounterPath);
     if (!monster) continue;
-    for (const name of numberedNames(monster.name, entry.count)) drafts.push(monsterDraft(monster, entry.slug, name));
+    for (const name of numberedNames(monster.name, entry.count)) drafts.push(monsterDraft(monster, entry.slug, name, key));
   }
   return drafts;
 }

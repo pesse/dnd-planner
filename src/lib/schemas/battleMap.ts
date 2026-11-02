@@ -23,6 +23,8 @@ export const tokenSchema = z.object({
   size: z.number().positive().default(1).describe('Kantenlänge in Feldern (Groß = 2).'),
   hidden: z.boolean().default(false).describe('Für Spieler unsichtbar.'),
   color: z.string().default('#8a2012'),
+  note: z.string().default('').describe('Nur für die SL.'),
+  encounter: z.string().default('').describe('`<akt>/<encounter>` innerhalb der Kampagne; leer ohne Encounter.'),
 });
 
 const point = z.tuple([z.number(), z.number()]);
