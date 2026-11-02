@@ -45,6 +45,11 @@
     ><img src="/branding/icons/library.png" alt="" /></button>
     <button class="header-btn" title="Vault importieren / exportieren" onclick={onTransferClick}><img src="/branding/icons/transfer.png" alt="" /></button>
     <button
+      class="header-btn"
+      title="Fehlerprotokoll im Explorer zeigen"
+      onclick={() => revealLogDir().catch((e) => pushError(`Log-Ordner nicht gefunden: ${e}`))}
+    ><img src="/branding/icons/log.png" alt="" /></button>
+    <button
       class="header-btn marks-btn"
       class:has-marks={openMarks > 0}
       title={openMarks > 0
@@ -52,11 +57,6 @@
         : 'Bild-Fehlermarkierungen — setzen mit Shift+M'}
       onclick={() => imageMarksOpen.set(true)}
     ><img src="/branding/icons/marks.png" alt="" />{#if openMarks > 0}<span class="marks-count">{openMarks}</span>{/if}</button>
-    <button
-      class="header-btn"
-      title="Fehlerprotokoll im Explorer zeigen"
-      onclick={() => revealLogDir().catch((e) => pushError(`Log-Ordner nicht gefunden: ${e}`))}
-    ><img src="/branding/icons/log.png" alt="" /></button>
   </div>
   {#each running as lib (lib.id)}
     <button class="install-row" title="Bibliotheken öffnen" onclick={() => libraryManagerOpen.set(true)}>
