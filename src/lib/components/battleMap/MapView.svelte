@@ -1,6 +1,7 @@
 <script lang="ts" module>
   /** Über das Schließen der Karte hinweg: wer mitten in der Session eine andere Seite ansieht, kommt im selben Tab zurück. */
   let lastTab = $state<'prep' | 'play'>('prep');
+  let diceOpen = $state(false);
 </script>
 
 <script lang="ts">
@@ -21,7 +22,7 @@
   import TokenListPanel from './TokenListPanel.svelte';
   import MapSettingsPanel from './MapSettingsPanel.svelte';
   import InitiativePanel from './InitiativePanel.svelte';
-  import DicePanel from './DicePanel.svelte';
+  import DiceTray from './DiceTray.svelte';
   import MapDetailsPanel from './details/MapDetailsPanel.svelte';
 
   const editor = new MapEditor();
@@ -99,6 +100,8 @@
     else if (sel && e.key.toLowerCase() === 'h') {
       editor.checkpoint();
       editor.updateToken(sel.id, { hidden: !sel.hidden });
+    } else if (e.key.toLowerCase() === 'w') {
+      diceOpen = !diceOpen;
     } else if (e.key === 'Escape') {
       if (editor.tool === 'select') editor.selectedId = null;
       editor.tool = 'select';
@@ -148,6 +151,8 @@
         <button title="Rückgängig (Strg+Z)" onclick={() => editor.undo()}>↩</button>
         <button title="Wiederherstellen (Strg+Y)" onclick={() => editor.redo()}>↪</button>
         <button title="Ganze Karte zeigen" onclick={() => canvas?.fit()}>⤢</button>
+        <div class="sep"></div>
+        <button class:active={diceOpen} title="Würfel (W)" onclick={() => (diceOpen = !diceOpen)}>🎲</button>
       </div>
 
       <aside class="panel left" aria-label="Werkzeuge und Einstellungen">
@@ -155,7 +160,6 @@
           <button role="tab" aria-selected={lastTab === 'prep'} onclick={() => (lastTab = 'prep')}>Vorbereitung</button>
           <button role="tab" aria-selected={lastTab === 'play'} onclick={() => (lastTab = 'play')}>Spiel</button>
         </div>
-        <!-- Beide Tabs bleiben montiert: der Würfelverlauf überlebt so den Wechsel. -->
         <div class="tab" role="tabpanel" hidden={lastTab !== 'prep'}>
           <TokenPanel {editor} {center} />
           <TokenListPanel {editor} />
@@ -163,12 +167,13 @@
         </div>
         <div class="tab" role="tabpanel" hidden={lastTab !== 'play'}>
           <InitiativePanel {editor} campaignDir={campaignDirOf(editor.path)} />
-          <DicePanel />
           <TokenListPanel {editor} />
         </div>
       </aside>
 
       <MapCanvas bind:this={canvas} {editor} />
+
+      {#if diceOpen}<DiceTray onclose={() => (diceOpen = false)} />{/if}
 
       <aside class="panel right" aria-label="Details">
         <MapDetailsPanel {editor} campaignDir={campaignDirOf(editor.path)} {center} onleave={leaveTo} />
