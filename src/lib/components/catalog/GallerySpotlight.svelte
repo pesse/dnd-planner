@@ -29,6 +29,7 @@
   let figure = $state<HTMLElement>();
   let shown = $state(0);
   let wrapped = $state(false);
+  let col = $state<HTMLElement>();
   /** Nach einem Bildwechsel blendet `{#key}` über, statt erneut aus der Kachel zu wachsen. */
   let switched = $state(false);
   $effect.pre(() => {
@@ -66,10 +67,10 @@
   <button type="button" class="nav prev" title="Vorheriges (←)" onclick={() => onstep(-1)}>‹</button>
 
   <div class="stage">
-    <div class="figure-col">
+    <div class="figure-col" bind:this={col}>
       {#if images.length > 1}
         <div class="picker" class:overlay={wrapped}>
-          <ArtPicker count={images.length} index={current} onpick={pick} bind:wrapped />
+          <ArtPicker count={images.length} index={current} onpick={pick} area={col} bind:wrapped />
         </div>
       {/if}
       {#key `${row.path}|${image?.url}`}

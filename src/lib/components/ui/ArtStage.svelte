@@ -27,6 +27,7 @@
 
   let shown = $state(0);
   let wrapped = $state(false);
+  let col = $state<HTMLElement>();
   $effect.pre(() => {
     void images;
     shown = 0;
@@ -36,10 +37,10 @@
 
 <div class="stage" class:with-art={!!art} class:whole>
   {#if art}
-    <div class="art-col" class:picking={images && images.length > 1} class:overlay={wrapped}>
+    <div class="art-col" bind:this={col} class:picking={images && images.length > 1} class:overlay={wrapped}>
       {#if images && images.length > 1}
         <div class="picker">
-          <ArtPicker count={images.length} index={shown} onpick={(i) => (shown = i)} bind:wrapped />
+          <ArtPicker count={images.length} index={shown} onpick={(i) => (shown = i)} area={col} bind:wrapped />
         </div>
       {/if}
       {#key art}
