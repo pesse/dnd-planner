@@ -3,6 +3,7 @@ import { SPELLS_PATH } from '../../spellLibrary';
 import { spellArtUrl } from '../../libraryArt';
 import { SPELL_CLASS_LABELS, spellComponents, type Spell } from '../../types';
 import { parseSpell } from '../../utils/schemaValidation';
+import { ruleText } from '../../utils/markdown';
 import { listSubdirs, scanJsonFolder } from '../library/createLibrary';
 import { memoOnce } from '../library/memo';
 import {
@@ -148,6 +149,7 @@ function spellCatalog(axis: Axis): CatalogSpec {
         group: group(s).id,
         icon: spellArtUrl(s.spell),
         iconColor: schoolDirColor(s.dir),
+        blurb: ruleText(s.spell.desc_de ?? s.spell.desc),
         cells: spellCells(s),
         facets: {
           [other]: AXES[other].group(s),

@@ -28,6 +28,7 @@ export function characterRow(uid: string, c: Character, portrait: string | null 
     name: characterLabel({ uid, name: c.name.trim() }),
     group: primary.id,
     icon: portrait,
+    art: portrait,
     iconColor: 'var(--gold)',
     cells: {
       classLevel: { text: formatClassLevel(c.classes) || c.classLevel },

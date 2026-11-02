@@ -4,6 +4,7 @@
   import CampaignStartCard from './CampaignStartCard.svelte';
   import './startCard.css';
   import { GROUPED_SECTIONS } from '$lib/services/sidebar/groupedSections';
+  import { LIBRARY_SECTIONS } from '$lib/services/sidebar/librarySections';
   import { catalogEntry } from '$lib/services/catalog/catalogTypes';
   import { navigateTo } from '$lib/services/navigation';
   import { libraryManagerOpen } from '$lib/stores/libraries';
@@ -16,6 +17,7 @@
   const catalogs = [
     catalogEntry('character', 'Charaktere'),
     ...GROUPED_SECTIONS.flatMap((s) => (s.catalog ? [catalogEntry(s.catalog, s.label)] : [])),
+    ...LIBRARY_SECTIONS.map((s) => catalogEntry(s.catalog, s.label)),
   ];
 
   const MINIMIZED_KEY = 'start-minimized';

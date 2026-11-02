@@ -53,6 +53,7 @@ export const featCatalog: CatalogSpec = {
         group: f.category ?? 'General',
         icon: featArtUrl(f),
         iconColor: 'var(--arcane)',
+        blurb: f.descDe || f.desc,
         cells: {
           level: level ? { text: String(level), sort: level } : { text: '', sort: 0 },
           prerequisite: { text: featPrereq(f) },

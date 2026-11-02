@@ -2,8 +2,12 @@
 import type { FileEntry } from '../../types';
 import { sourceLabel } from '../../schemas/source';
 
-export const CATALOG_KINDS = ['monster', 'item', 'feat', 'spell-school', 'spell-level', 'character'] as const;
+export const CATALOG_KINDS = [
+  'monster', 'item', 'feat', 'spell-school', 'spell-level', 'character', 'class', 'species', 'background',
+] as const;
 export type CatalogKind = (typeof CATALOG_KINDS)[number];
+
+export type CatalogLayout = 'table' | 'gallery';
 
 export interface CatalogCell {
   text: string;
@@ -39,6 +43,10 @@ export interface CatalogRow {
   group: string;
   icon: string | null;
   iconColor: string;
+  /** Stimmungsbild oder Porträt; die Galerie zieht es `icon` vor und füllt damit die Kachel. */
+  art?: string | null;
+  /** Markdown für die Infospalte der Galerie. */
+  blurb?: string;
   /** Alle Spalten des Katalogs, auch die das aktuelle Set nicht zeigt. */
   cells: Record<string, CatalogCell>;
   /**
@@ -79,6 +87,7 @@ export interface CatalogSpec {
    * Gruppe und Facette die Rollen.
    */
   views?: { kinds: CatalogKind[]; facet: string };
+  defaultLayout?: CatalogLayout;
   load: () => Promise<{ rows: CatalogRow[]; groups: CatalogGroup[] }>;
   invalidate: () => void;
 }
@@ -91,6 +100,7 @@ export interface CatalogFilters {
   /** Spalten-ID oder `name`. */
   sortCol: string;
   sortAsc: boolean;
+  layout: CatalogLayout;
 }
 
 export const byLabel = (a: CatalogGroup, b: CatalogGroup) => a.label.localeCompare(b.label, 'de');
