@@ -1,6 +1,6 @@
-/** Den Spieler-Ausschnitt als Rahmen aufziehen, verschieben und skalieren — immer im Seitenverhältnis des Spielerfensters. */
+/** Den Spieler-Ausschnitt als Rahmen verschieben und skalieren. */
 import type { ViewRect } from '../../schemas/battleMap';
-import type { Point } from './geometry';
+import { normalizeRect, type Point } from './geometry';
 
 export type Corner = 'nw' | 'ne' | 'sw' | 'se';
 export type FrameHit = Corner | 'move';
@@ -13,18 +13,9 @@ export function cornerPoint(r: ViewRect, c: Corner): Point {
 
 const OPPOSITE: Record<Corner, Corner> = { nw: 'se', ne: 'sw', sw: 'ne', se: 'nw' };
 
-/** Rechteck von `anchor` Richtung `p`; die längere Kante bestimmt die Größe. */
-export function frameFromDrag(anchor: Point, p: Point, aspect: number): ViewRect {
-  const dx = p.x - anchor.x;
-  const dy = p.y - anchor.y;
-  const w = Math.max(Math.abs(dx), Math.abs(dy) * aspect);
-  const h = w / aspect;
-  return { x: dx < 0 ? anchor.x - w : anchor.x, y: dy < 0 ? anchor.y - h : anchor.y, w, h };
-}
-
 /** Die gegenüberliegende Ecke bleibt stehen. */
-export const resizeFrame = (start: ViewRect, corner: Corner, p: Point, aspect: number): ViewRect =>
-  frameFromDrag(cornerPoint(start, OPPOSITE[corner]), p, aspect);
+export const resizeFrame = (start: ViewRect, corner: Corner, p: Point): ViewRect =>
+  normalizeRect(cornerPoint(start, OPPOSITE[corner]), p);
 
 export const moveFrame = (start: ViewRect, from: Point, to: Point): ViewRect => ({
   ...start,

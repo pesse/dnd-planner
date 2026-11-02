@@ -3,7 +3,6 @@ import { battleMapSchema } from '../../src/lib/schemas/battleMap';
 import {
   cellsForCreatureSize,
   distanceCells,
-  expandToAspect,
   fitRect,
   gridFromCell,
   pxToCell,
@@ -50,10 +49,6 @@ describe('Geometrie', () => {
     const rect = { x: 100, y: 50, w: 400, h: 200 };
     const cam = fitRect(rect, 800, 400);
     expect(visibleRect(cam, 800, 400)).toEqual(rect);
-  });
-
-  it('erweitert einen Ausschnitt auf das Seitenverhältnis des Spielerfensters', () => {
-    expect(expandToAspect({ x: 0, y: 0, w: 100, h: 100 }, 2)).toEqual({ x: -50, y: 0, w: 200, h: 100 });
   });
 
   it('zoomt um den Mauspunkt', () => {

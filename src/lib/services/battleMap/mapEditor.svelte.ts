@@ -25,8 +25,6 @@ export class MapEditor {
   tool = $state<MapTool>('select');
   brushRadius = $state(40);
   error = $state('');
-  /** Seitenverhältnis des Spielerfensters, sobald es sich gemeldet hat. */
-  playerAspect = $state<number | null>(null);
 
   readonly saver = new AutosaveFile(800);
   #undo: string[] = [];
@@ -37,8 +35,6 @@ export class MapEditor {
   constructor() {
     this.#unlisten = onPlayerMessage((msg) => {
       if (msg.type === 'hello') this.#broadcastNow();
-      else if (msg.type === 'viewport') this.playerAspect = msg.h > 0 ? msg.w / msg.h : null;
-      else if (msg.type === 'bye') this.playerAspect = null;
     });
   }
 

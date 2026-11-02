@@ -1,13 +1,13 @@
 /**
  * Draht zwischen SL- und Spielerfenster: Tauri-Events in der App, `BroadcastChannel` im
- * Browser-Dev. Die SL sendet Zustand, das Spielerfenster meldet sich und seine Größe.
+ * Browser-Dev. Die SL sendet Zustand, ein neues Spielerfenster fragt ihn mit `hello` an.
  */
 import { emit, listen } from '@tauri-apps/api/event';
 import { isTauri } from '../httpFetch';
 import type { PlayerState } from './playerState';
 
 export type ToPlayer = { type: 'state'; state: PlayerState };
-export type ToGm = { type: 'hello' } | { type: 'viewport'; w: number; h: number } | { type: 'bye' };
+export type ToGm = { type: 'hello' };
 
 const TO_PLAYER = 'battlemap-to-player';
 const TO_GM = 'battlemap-to-gm';

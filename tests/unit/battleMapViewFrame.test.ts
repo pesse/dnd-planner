@@ -1,20 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { frameFromDrag, hitFrame, moveFrame, resizeFrame, scaleFrame } from '../../src/lib/services/battleMap/viewFrame';
+import { hitFrame, moveFrame, resizeFrame, scaleFrame } from '../../src/lib/services/battleMap/viewFrame';
 
 const r = { x: 100, y: 100, w: 160, h: 90 };
 
 describe('Spieler-Ausschnitt', () => {
-  it('zieht einen Rahmen in jede Richtung im Seitenverhältnis auf', () => {
-    expect(frameFromDrag({ x: 0, y: 0 }, { x: 160, y: 10 }, 16 / 9)).toEqual({ x: 0, y: 0, w: 160, h: 90 });
-    expect(frameFromDrag({ x: 0, y: 0 }, { x: -10, y: -90 }, 16 / 9)).toEqual({ x: -160, y: -90, w: 160, h: 90 });
-  });
-
   it('hält beim Skalieren an einer Ecke die gegenüberliegende fest', () => {
-    const out = resizeFrame(r, 'se', { x: 420, y: 150 }, 16 / 9);
-    expect(out).toEqual({ x: 100, y: 100, w: 320, h: 180 });
-    const nw = resizeFrame(r, 'nw', { x: 180, y: 180 }, 16 / 9);
-    expect(nw.x + nw.w).toBe(260);
-    expect(nw.y + nw.h).toBe(190);
+    expect(resizeFrame(r, 'se', { x: 420, y: 150 })).toEqual({ x: 100, y: 100, w: 320, h: 50 });
+    expect(resizeFrame(r, 'nw', { x: 180, y: 180 })).toEqual({ x: 180, y: 180, w: 80, h: 10 });
+    expect(resizeFrame(r, 'ne', { x: 50, y: 300 })).toEqual({ x: 50, y: 190, w: 50, h: 110 });
   });
 
   it('verschiebt und skaliert um die Mitte mit Mindestbreite', () => {

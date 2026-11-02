@@ -67,16 +67,6 @@ export function fitRect(rect: ViewRect, w: number, h: number): Camera {
   };
 }
 
-/** Was ein Fenster mit Seitenverhältnis `aspect` von `rect` tatsächlich zeigt (eingepasst, nicht beschnitten). */
-export function expandToAspect(rect: ViewRect, aspect: number): ViewRect {
-  if (!(aspect > 0)) return rect;
-  const cx = rect.x + rect.w / 2;
-  const cy = rect.y + rect.h / 2;
-  const w = Math.max(rect.w, rect.h * aspect);
-  const h = w / aspect;
-  return { x: cx - w / 2, y: cy - h / 2, w, h };
-}
-
 /** Der sichtbare Bildausschnitt einer Kamera in einem Bereich `w`×`h`. */
 export function visibleRect(cam: Camera, w: number, h: number): ViewRect {
   const tl = toImage(cam, { x: 0, y: 0 });

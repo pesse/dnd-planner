@@ -4,7 +4,6 @@
   import type { MapEditor } from '../../services/battleMap/mapEditor.svelte';
   import {
     distanceCells,
-    expandToAspect,
     fitRect,
     formatMeters,
     normalizeRect,
@@ -20,7 +19,6 @@
     CORNERS,
     FRAME_CURSOR,
     cornerPoint,
-    frameFromDrag,
     hitFrame,
     moveFrame,
     resizeFrame,
@@ -182,9 +180,9 @@
   }
 
   function draggedFrame(d: Extract<Drag, { kind: 'frame' }>, p: Point): ViewRect {
-    if (d.hit === 'new' || !d.start) return frameFromDrag(d.from, p, frameAspect);
+    if (d.hit === 'new' || !d.start) return normalizeRect(d.from, p);
     if (d.hit === 'move') return moveFrame(d.start, d.from, p);
-    return resizeFrame(d.start, d.hit, p, frameAspect);
+    return resizeFrame(d.start, d.hit, p);
   }
 
   function onwheel(e: WheelEvent) {
@@ -202,10 +200,7 @@
 
   const rect = $derived(drag?.kind === 'rect' ? normalizeRect(drag.a, drag.b) : null);
   const ruler = $derived(drag?.kind === 'ruler' ? drag : null);
-  const frameAspect = $derived(
-    editor.playerAspect ?? (map.playerView ? map.playerView.w / map.playerView.h : 16 / 9),
-  );
-  const playerFrame = $derived(map.playerView ? expandToAspect(map.playerView, frameAspect) : null);
+  const playerFrame = $derived(map.playerView);
   const handleTol = $derived(12 / camera.zoom);
   const frameCursor = $derived.by(() => {
     if (editor.tool !== 'view' || !hover || !playerFrame) return '';

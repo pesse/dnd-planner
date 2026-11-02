@@ -21,14 +21,10 @@
     idleTimer = setTimeout(() => (idle = true), 2000);
   }
 
+  const view = $derived(shown?.view ?? { x: 0, y: 0, w: img.w, h: img.h });
   const camera = $derived.by((): Camera => {
     if (!shown || !img.w || !vw) return { zoom: 1, tx: 0, ty: 0 };
-    return fitRect(shown.view ?? { x: 0, y: 0, w: img.w, h: img.h }, vw, vh);
-  });
-
-  // Jede Größenänderung melden — der SL-Rahmen zeigt sonst ein falsches Seitenverhältnis.
-  $effect(() => {
-    if (vw && vh) sendToGm({ type: 'viewport', w: vw, h: vh });
+    return fitRect(view, vw, vh);
   });
 
   onMount(() => {
@@ -39,13 +35,9 @@
       }
     });
     sendToGm({ type: 'hello' });
-    const bye = () => sendToGm({ type: 'bye' });
-    window.addEventListener('beforeunload', bye);
     return () => {
       unlisten();
-      bye();
       clearTimeout(idleTimer);
-      window.removeEventListener('beforeunload', bye);
     };
   });
 
@@ -75,6 +67,16 @@
       {camera}
       onimagesize={(w, h) => (img = { w, h })}
     />
+    {#if img.w}
+      <!-- Was neben dem Ausschnitt noch ins Fenster passt, bleibt den Spielern verborgen. -->
+      <div
+        class="mask"
+        style:left="{camera.tx + view.x * camera.zoom}px"
+        style:top="{camera.ty + view.y * camera.zoom}px"
+        style:width="{view.w * camera.zoom}px"
+        style:height="{view.h * camera.zoom}px"
+      ></div>
+    {/if}
   {:else}
     <p class="waiting">Warte auf die Spielleitung…</p>
   {/if}
@@ -90,6 +92,11 @@
     inset: 0;
     overflow: hidden;
     background: #000;
+  }
+  .mask {
+    position: absolute;
+    box-shadow: 0 0 0 200vmax #000;
+    pointer-events: none;
   }
   .player.idle {
     cursor: none;
