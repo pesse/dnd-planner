@@ -72,6 +72,7 @@
         {#each tokens as t (t.id)}
           <li>
             <button class="link" class:dim={t.hidden} onclick={() => (editor.selectedId = t.id)}>{t.name}</button>
+            {#if t.hpMax != null && t.hp != null}<span class="tag" class:dead={t.hp === 0}>{t.hp === 0 ? 'besiegt' : `${t.hp}/${t.hpMax} TP`}</span>{/if}
             {#if t.hidden}<span class="tag">versteckt</span>{/if}
           </li>
         {/each}
@@ -167,6 +168,9 @@
   .tag {
     font-size: 0.7rem;
     color: var(--ink-muted);
+  }
+  .tag.dead {
+    color: var(--danger);
   }
   .status {
     padding: 1rem;

@@ -16,6 +16,8 @@
     imageUrl: string;
     hidden?: boolean;
     movable?: boolean;
+    hp?: number | null;
+    hpMax?: number | null;
   }
 
   let {
@@ -94,6 +96,7 @@
       class="token"
       class:hidden-token={t.hidden}
       class:selected={t.id === selectedId}
+      class:down={t.hp === 0}
       class:grab={mode === 'gm' || t.movable}
       data-token-id={t.id}
       style="left: {grid.offsetX + t.x * grid.size}px; top: {grid.offsetY + t.y * grid.size}px; width: {px}px; height: {px}px; --tc: {t.color}; --tb: {Math.max(2, px / 22)}px;"
@@ -103,6 +106,9 @@
         <img src={t.imageUrl} alt="" draggable="false" onerror={() => (brokenImages[t.id] = true)} />
       {:else}
         <span class="initials" style="font-size: {px * 0.36}px">{initialsOf(t.name)}</span>
+      {/if}
+      {#if mode === 'gm' && t.hpMax && t.hp != null && t.hp < t.hpMax}
+        <span class="hp-bar" style="height: {Math.max(4, px / 12)}px"><span style="width: {(100 * t.hp) / t.hpMax}%"></span></span>
       {/if}
       <span class="label" style="font-size: {Math.max(10, grid.size * 0.2)}px">{t.name}</span>
     </div>
@@ -185,6 +191,39 @@
   .token.hidden-token {
     opacity: 0.45;
     border-style: dashed;
+  }
+  .token.down {
+    border-color: #555;
+    background: #333;
+  }
+  .token.down img,
+  .token.down .initials {
+    filter: grayscale(1) brightness(0.6);
+  }
+  .token.down::after {
+    content: '✕';
+    position: absolute;
+    color: #c0281a;
+    font-size: calc(var(--tb) * 14);
+    font-weight: 700;
+    line-height: 1;
+    pointer-events: none;
+  }
+  .hp-bar {
+    position: absolute;
+    bottom: 100%;
+    left: 10%;
+    width: 80%;
+    margin-bottom: 2px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 2px;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .hp-bar span {
+    display: block;
+    height: 100%;
+    background: #d23a26;
   }
   .token.selected {
     outline: calc(var(--tb) * 1.2) solid #ffd36b;

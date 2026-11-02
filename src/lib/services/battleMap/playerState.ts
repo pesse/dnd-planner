@@ -3,7 +3,7 @@ import type { BattleMap, FogOp, Grid, Lighting, Token, ViewRect } from '../../sc
 import { pxToCell, type Point } from './geometry';
 
 /** `movable`: Spieler dürfen nur Charaktere ziehen. Notizen und Encounter bleiben bei der SL. */
-export type PlayerToken = Omit<Token, 'hidden' | 'ref' | 'kind' | 'art' | 'note' | 'encounter'> & { imageUrl: string; movable: boolean };
+export type PlayerToken = Omit<Token, 'hidden' | 'ref' | 'kind' | 'art' | 'note' | 'encounter' | 'hp' | 'hpMax'> & { imageUrl: string; movable: boolean };
 
 export interface PlayerState {
   imageUrl: string;

@@ -25,6 +25,8 @@ export const tokenSchema = z.object({
   color: z.string().default('#8a2012'),
   note: z.string().default('').describe('Nur für die SL.'),
   encounter: z.string().default('').describe('`<akt>/<encounter>` innerhalb der Kampagne; leer ohne Encounter.'),
+  hp: z.number().int().nullable().default(null).describe('Aktuelle TP eines Monsters; null = noch nicht gezählt.'),
+  hpMax: z.number().int().nullable().default(null),
 });
 
 const point = z.tuple([z.number(), z.number()]);

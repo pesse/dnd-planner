@@ -40,3 +40,10 @@ export const characterEntry = (uid: string, name: string): FileEntry => ({
   path: `${CHARACTERS_PATH}/${uid}/character.json`,
   dirPath: `${CHARACTERS_PATH}/${uid}`,
 });
+
+/** Neue TP nach Schaden (negativ) oder Heilung, zwischen 0 und Maximum. Ohne gezählte TP gilt `fallbackMax` als voll. */
+export function adjustHp(token: Pick<Token, 'hp' | 'hpMax'>, fallbackMax: number, delta: number): Pick<Token, 'hp' | 'hpMax'> {
+  const hpMax = token.hpMax ?? fallbackMax;
+  const hp = Math.max(0, Math.min(hpMax, (token.hp ?? hpMax) + delta));
+  return { hp, hpMax };
+}

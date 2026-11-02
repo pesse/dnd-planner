@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { battleMapSchema } from '../../src/lib/schemas/battleMap';
 import { OVERVIEW_ONLY, forgetToken, popDetail, pushDetail } from '../../src/lib/services/battleMap/detailStack';
-import { campaignDirOf, encounterKeyOf, encounterPath } from '../../src/lib/services/battleMap/tokenDetails';
+import { adjustHp, campaignDirOf, encounterKeyOf, encounterPath } from '../../src/lib/services/battleMap/tokenDetails';
 import { toPlayerState } from '../../src/lib/services/battleMap/playerState';
 
 const token = (id: string) => ({ kind: 'token', id }) as const;
@@ -46,8 +46,22 @@ describe('Encounter-Verweis am Token', () => {
   it('schickt Notiz und Encounter nicht ans Spielerfenster', () => {
     const map = battleMapSchema.parse({
       name: 'x',
-      tokens: [{ id: 'c', name: 'Falltür', kind: 'marker', x: 3, y: 3, note: 'Geheimgang nach Norden', encounter: 'akt-1/falle' }],
+      tokens: [
+        { id: 'c', name: 'Falltür', kind: 'marker', x: 3, y: 3, note: 'Geheimgang nach Norden', encounter: 'akt-1/falle' },
+        { id: 'g', name: 'Goblin', kind: 'monster', x: 1, y: 1, hp: 3, hpMax: 7 },
+      ],
     });
-    expect(JSON.stringify(toPlayerState(map, '', {}))).not.toMatch(/Geheimgang|akt-1/);
+    expect(JSON.stringify(toPlayerState(map, '', {}))).not.toMatch(/Geheimgang|akt-1|hp/i);
+  });
+});
+
+describe('Trefferpunkte eines Monster-Tokens', () => {
+  it('zieht Schaden bis 0 ab und heilt höchstens bis zum Maximum', () => {
+    expect(adjustHp({ hp: 5, hpMax: 7 }, 0, -9)).toEqual({ hp: 0, hpMax: 7 });
+    expect(adjustHp({ hp: 5, hpMax: 7 }, 0, 4)).toEqual({ hp: 7, hpMax: 7 });
+  });
+
+  it('beginnt bei alten Tokens ohne gezählte TP mit vollen TP aus dem Werteblock', () => {
+    expect(adjustHp({ hp: null, hpMax: null }, 11, -4)).toEqual({ hp: 7, hpMax: 11 });
   });
 });
