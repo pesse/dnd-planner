@@ -28,6 +28,7 @@
 
   let figure = $state<HTMLElement>();
   let shown = $state(0);
+  let wrapped = $state(false);
   /** Nach einem Bildwechsel blendet `{#key}` über, statt erneut aus der Kachel zu wachsen. */
   let switched = $state(false);
   $effect.pre(() => {
@@ -67,8 +68,8 @@
   <div class="stage">
     <div class="figure-col">
       {#if images.length > 1}
-        <div class="picker">
-          <ArtPicker count={images.length} index={current} onpick={pick} />
+        <div class="picker" class:overlay={wrapped}>
+          <ArtPicker count={images.length} index={current} onpick={pick} bind:wrapped />
         </div>
       {/if}
       {#key `${row.path}|${image?.url}`}
@@ -145,10 +146,13 @@
     bottom: calc(100% + 0.5rem);
     left: 0;
     right: 0;
+    z-index: 1;
     display: flex;
     justify-content: center;
     pointer-events: none;
   }
+
+  .picker.overlay { bottom: auto; top: 0.6rem; left: 0.6rem; right: 0.6rem; }
 
   .figure {
     display: grid;

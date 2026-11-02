@@ -26,6 +26,7 @@
   });
 
   let shown = $state(0);
+  let wrapped = $state(false);
   $effect.pre(() => {
     void images;
     shown = 0;
@@ -35,10 +36,10 @@
 
 <div class="stage" class:with-art={!!art} class:whole>
   {#if art}
-    <div class="art-col" class:picking={images && images.length > 1}>
+    <div class="art-col" class:picking={images && images.length > 1} class:overlay={wrapped}>
       {#if images && images.length > 1}
         <div class="picker">
-          <ArtPicker count={images.length} index={shown} onpick={(i) => (shown = i)} />
+          <ArtPicker count={images.length} index={shown} onpick={(i) => (shown = i)} bind:wrapped />
         </div>
       {/if}
       {#key art}
@@ -68,7 +69,9 @@
   /* Zentriert zwischen Karte und Spaltenrand — das rechte Spalten-Padding zählt zur freien
      Fläche. Reicht der Platz nicht, schneidet `cover` links und rechts gleich viel ab. */
   .art-col { grid-area: 1 / 2; position: sticky; top: 0; display: grid; min-width: 0; }
-  .picker { grid-area: 1 / 1; justify-self: center; max-width: 100%; margin-bottom: 0.5rem; }
+  /* Breite 0 + min-width: die Leiste richtet sich nach dem Bild, statt die Spalte zu verbreitern. */
+  .picker { grid-area: 1 / 1; display: flex; justify-content: center; width: 0; min-width: 100%; margin-bottom: 0.5rem; }
+  .overlay .picker { grid-area: 2 / 1; z-index: 1; align-self: start; margin: 0.5rem 0 0; }
   .art {
     grid-area: 2 / 1; justify-self: center;
     margin: 0 calc(-1 * var(--fw-pad-x, 0px)) 0 0;
@@ -81,7 +84,7 @@
     mask-composite: intersect;
   }
   .art img { width: 100%; height: 100%; object-fit: cover; object-position: 62% center; }
-  .picking .art { height: calc(100vh - 14.5rem); }
+  .picking:not(.overlay) .art { height: calc(100vh - 14.5rem); }
   .whole.with-art { grid-template-columns: minmax(24rem, 1fr) auto; }
   .whole .art {
     width: auto; aspect-ratio: 2 / 3; margin: 0;

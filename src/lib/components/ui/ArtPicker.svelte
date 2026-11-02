@@ -1,10 +1,26 @@
 <script lang="ts">
   /** Nummern-Leiste über einem Bild mit mehreren Fassungen; Shift+←/→ blättert. */
-  let { count, index, onpick }: {
+  let { count, index, onpick, wrapped = $bindable(false) }: {
     count: number;
     index: number;
     onpick: (index: number) => void;
+    /** Braucht die Leiste in der gegebenen Breite mehr als eine Zeile? */
+    wrapped?: boolean;
   } = $props();
+
+  let root = $state<HTMLElement>();
+  $effect(() => {
+    const el = root;
+    if (!el) return;
+    const measure = () => {
+      const first = el.firstElementChild as HTMLElement | null;
+      const last = el.lastElementChild as HTMLElement | null;
+      wrapped = !!first && !!last && last.offsetTop > first.offsetTop;
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  });
 
   const editable = (t: EventTarget | null) =>
     t instanceof HTMLElement && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName));
@@ -19,7 +35,7 @@
 
 <svelte:window {onkeydown} />
 
-<div class="picker" role="tablist" aria-label="Bilder">
+<div class="picker" role="tablist" bind:this={root} aria-label="Bilder">
   {#each { length: count } as _, i (i)}
     <button
       type="button"
