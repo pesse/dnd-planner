@@ -72,17 +72,14 @@
   >
     {#snippet karte()}
       <EntryArtStage kind={draft!.subclassOf ? 'subclass' : 'class'} entryKey={draft!.key} parentKey={draft!.subclassOf}>
-        <ClassCardView klass={draft!}>
-          {#snippet badge()}
-            {#if coverage.total}<DeclarationBadge badge={declBadge} />{/if}
-          {/snippet}
-        </ClassCardView>
+        <ClassCardView klass={draft!} />
       </EntryArtStage>
     {/snippet}
 
     {#snippet bearbeiten()}
       {#if ed.draft}
         <CardEditWrap accent="var(--copper)">
+          {#if coverage.total}<DeclarationBadge badge={declBadge} hint />{/if}
           <ClassEditForm bind:klass={ed.draft} />
         </CardEditWrap>
         <CardTools accent="var(--copper)" actions={[{ label: '🌐 Übersetzen…', onclick: () => (showTranslate = true) }]} />

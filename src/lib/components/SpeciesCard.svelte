@@ -72,17 +72,14 @@
   >
     {#snippet karte()}
       <EntryArtStage kind="species" entryKey={draft!.key ?? ''}>
-        <SpeciesCardView species={draft!}>
-          {#snippet badge()}
-            {#if coverage.total}<DeclarationBadge badge={declBadge} />{/if}
-          {/snippet}
-        </SpeciesCardView>
+        <SpeciesCardView species={draft!} />
       </EntryArtStage>
     {/snippet}
 
     {#snippet bearbeiten()}
       {#if ed.draft}
         <CardEditWrap accent="var(--green)">
+          {#if coverage.total}<DeclarationBadge badge={declBadge} hint />{/if}
           <SpeciesEditForm bind:species={ed.draft} />
         </CardEditWrap>
         <CardTools accent="var(--green)" actions={[{ label: '🌐 Übersetzen…', onclick: () => (showTranslate = true) }]} />
