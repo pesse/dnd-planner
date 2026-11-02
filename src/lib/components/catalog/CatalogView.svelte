@@ -2,7 +2,6 @@
   import { untrack } from 'svelte';
   import { activeFile, vaultVersion } from '../../stores/campaign';
   import { navigateTo } from '../../services/navigation';
-  import { peekEntry } from '../../services/entryPeek';
   import { CatalogFilterState } from './catalogFilterState.svelte';
   import { CATALOGS } from '../../services/catalog/catalogs';
   import {
@@ -162,9 +161,9 @@
       {activeSort}
       sortAsc={filt.sortAsc}
       {loading}
+      {entryOf}
       onsort={(col) => filt.sortBy(col, activeSort)}
       onopen={open}
-      onpeek={(row) => peekEntry(entryOf(row))}
     />
   {/if}
 </div>

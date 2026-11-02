@@ -2,8 +2,11 @@
   import { activeFile } from '../../stores/campaign';
   import { historyScroll } from '../../utils/historyScroll';
   import type { CatalogColumn, CatalogRow, CatalogSpec } from '../../services/catalog/catalogTypes';
+  import type { FileEntry } from '../../types';
+  import GallerySpotlight from './GallerySpotlight.svelte';
+  import { CatalogSpotlight, catalogImages } from './catalogSpotlight.svelte';
 
-  let { spec, rows, columnIds, showGroup, groupLabel, activeSort, sortAsc, loading, onsort, onopen, onpeek }: {
+  let { spec, rows, columnIds, showGroup, groupLabel, activeSort, sortAsc, loading, entryOf, onsort, onopen }: {
     spec: CatalogSpec;
     rows: CatalogRow[];
     columnIds: string[];
@@ -13,12 +16,15 @@
     sortAsc: boolean;
     loading: boolean;
     onsort: (col: string) => void;
+    entryOf: (row: CatalogRow) => FileEntry;
     onopen: (row: CatalogRow) => void;
-    onpeek: (row: CatalogRow) => void;
   } = $props();
 
-  let failedIcons = $state<Record<string, true>>({});
+  let failed = $state<Record<string, true>>({});
+  const spot = new CatalogSpotlight(() => rows, (row) => onopen(row), false);
 </script>
+
+<svelte:window onkeydown={spot.onkeydown} />
 
 {#snippet sortHead(label: string, col: string, def: CatalogColumn = {} as CatalogColumn)}
   <th class:numeric={def.numeric} class:center={def.center} aria-sort={activeSort === col ? (sortAsc ? 'ascending' : 'descending') : 'none'}>
@@ -41,16 +47,18 @@
       {#each rows as row (row.path)}
         <tr class:active={$activeFile?.path === row.path} onclick={() => onopen(row)}>
           <td class="icon-col">
-            {#if row.icon && !failedIcons[row.path]}
+            {#if row.icon && !failed[row.icon]}
               <button
                 type="button"
                 class="icon"
                 class:portrait={spec.portraits}
                 style="--ic:{row.iconColor}"
+                class:selected={row.path === spot.selected}
                 title="Vorschau"
-                onclick={(e) => { e.stopPropagation(); onpeek(row); }}
+                bind:this={spot.anchors[row.path]}
+                onclick={(e) => { e.stopPropagation(); spot.show(row, e.currentTarget); }}
               >
-                <img src={row.icon} alt="" loading="lazy" onerror={() => (failedIcons[row.path] = true)} />
+                <img src={row.icon} alt="" loading="lazy" onerror={() => row.icon && (failed[row.icon] = true)} />
               </button>
             {/if}
           </td>
@@ -82,6 +90,20 @@
     </tbody>
   </table>
 </div>
+
+{#if spot.index >= 0}
+  {@const row = rows[spot.index]}
+  <GallerySpotlight
+    {row}
+    entry={entryOf(row)}
+    images={catalogImages(row, failed)}
+    position={`${spot.index + 1} / ${rows.length}`}
+    origin={spot.origin}
+    onclose={() => spot.close()}
+    onstep={(d) => void spot.step(d)}
+    onopen={() => onopen(row)}
+  />
+{/if}
 
 <style>
   .table-wrap {
@@ -179,6 +201,7 @@
     cursor: zoom-in;
     filter: drop-shadow(0 1px 3px color-mix(in srgb, var(--ic) 45%, transparent));
   }
+  .icon.selected { visibility: hidden; }
   .icon img { display: block; width: 100%; height: 100%; }
   .icon.portrait { height: 40px; filter: none; }
   .icon.portrait img {

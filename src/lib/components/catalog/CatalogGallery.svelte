@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { tick } from 'svelte';
   import { activeFile } from '../../stores/campaign';
   import { historyScroll } from '../../utils/historyScroll';
   import type { CatalogRow, CatalogSpec } from '../../services/catalog/catalogTypes';
   import type { FileEntry } from '../../types';
-  import GallerySpotlight, { type GalleryImage } from './GallerySpotlight.svelte';
+  import GallerySpotlight from './GallerySpotlight.svelte';
+  import { CatalogSpotlight, catalogImages } from './catalogSpotlight.svelte';
 
   let { spec, rows, showGroup, groupLabel, loading, entryOf, onopen }: {
     spec: CatalogSpec;
@@ -17,71 +17,14 @@
   } = $props();
 
   let failed = $state<Record<string, true>>({});
-  let tiles: Record<string, HTMLElement> = {};
-
-  /** Stimmungsbilder vor Symbol; was nicht lädt, fällt weg. Die Kachel zeigt das erste. */
-  function imagesOf(row: CatalogRow): GalleryImage[] {
-    const art = (row.art ?? []).map((url) => ({ url, art: true }));
-    const icon = row.icon && !row.art?.includes(row.icon) ? [{ url: row.icon, art: false }] : [];
-    return [...art, ...icon].filter((img) => !failed[img.url]);
-  }
+  const imagesOf = (row: CatalogRow) => catalogImages(row, failed);
+  const spot = new CatalogSpotlight(() => rows, (row) => onopen(row), true);
 
   /** Hochformat-Kacheln, sobald der Katalog überhaupt Stimmungsbilder kennt — gemischte Höhen zerreißen das Raster. */
   let tall = $derived(rows.some((r) => r.art?.length));
-
-  /** Am Pfad statt am Index: ein Filterwechsel darf die Auswahl nicht auf einen anderen Eintrag schieben. */
-  let selected = $state<string | null>(null);
-  let origin = $state<DOMRect | null>(null);
-  let index = $derived(selected ? rows.findIndex((r) => r.path === selected) : -1);
-
-  function show(row: CatalogRow, from: HTMLElement | null) {
-    origin = from?.querySelector('.frame')?.getBoundingClientRect() ?? null;
-    selected = row.path;
-  }
-
-  async function step(delta: number) {
-    if (!rows.length) return;
-    const next = index < 0 ? (delta > 0 ? 0 : rows.length - 1) : (index + delta + rows.length) % rows.length;
-    const opening = index < 0;
-    const row = rows[next];
-    if (opening) {
-      tiles[row.path]?.scrollIntoView({ block: 'nearest' });
-      await tick();
-      show(row, tiles[row.path] ?? null);
-    } else {
-      origin = null;
-      selected = row.path;
-      tiles[row.path]?.scrollIntoView({ block: 'nearest' });
-    }
-  }
-
-  function close() {
-    const path = selected;
-    selected = null;
-    if (path) tiles[path]?.focus({ preventScroll: true });
-  }
-
-  const editable = (t: EventTarget | null) =>
-    t instanceof HTMLElement && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName));
-
-  function onkeydown(e: KeyboardEvent) {
-    if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || editable(e.target)) return;
-    // Ein anderer Dialog (Vorschau, Anlegen) hat die Tastatur.
-    if (document.querySelector('[role="dialog"]:not(.spotlight)')) return;
-    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-      e.preventDefault();
-      void step(e.key === 'ArrowRight' ? 1 : -1);
-    } else if (index >= 0 && e.key === 'Escape') {
-      e.preventDefault();
-      close();
-    } else if (index >= 0 && e.key === 'Enter') {
-      e.preventDefault();
-      onopen(rows[index]);
-    }
-  }
 </script>
 
-<svelte:window {onkeydown} />
+<svelte:window onkeydown={spot.onkeydown} />
 
 <div class="gallery-wrap" use:historyScroll>
   <div class="grid" class:tall>
@@ -91,10 +34,10 @@
         type="button"
         class="tile"
         class:active={$activeFile?.path === row.path}
-        class:selected={row.path === selected}
+        class:selected={row.path === spot.selected}
         style="--ic:{row.iconColor}"
-        bind:this={tiles[row.path]}
-        onclick={(e) => show(row, e.currentTarget)}
+        bind:this={spot.anchors[row.path]}
+        onclick={(e) => spot.show(row, e.currentTarget)}
         ondblclick={() => onopen(row)}
       >
         <span class="frame" class:art={img?.art} class:portrait={spec.portraits}>
@@ -115,16 +58,17 @@
   </div>
 </div>
 
-{#if index >= 0}
+{#if spot.index >= 0}
+  {@const row = rows[spot.index]}
   <GallerySpotlight
-    row={rows[index]}
-    entry={entryOf(rows[index])}
-    images={imagesOf(rows[index])}
-    position={`${index + 1} / ${rows.length}`}
-    {origin}
-    onclose={close}
-    onstep={(d) => void step(d)}
-    onopen={() => onopen(rows[index])}
+    {row}
+    entry={entryOf(row)}
+    images={imagesOf(row)}
+    position={`${spot.index + 1} / ${rows.length}`}
+    origin={spot.origin}
+    onclose={() => spot.close()}
+    onstep={(d) => void spot.step(d)}
+    onopen={() => onopen(row)}
   />
 {/if}
 
