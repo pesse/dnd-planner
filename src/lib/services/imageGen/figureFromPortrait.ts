@@ -40,6 +40,8 @@ export function defaultCrop(width: number, height: number): Crop {
 
 export async function loadImage(src: string): Promise<HTMLImageElement> {
   const img = new Image();
+  // Das Asset-Protokoll ist ein fremder Origin — ohne CORS-Anfrage verweigert `toBlob` den Export (tainted canvas).
+  img.crossOrigin = 'anonymous';
   img.src = src;
   await img.decode();
   return img;
