@@ -5,6 +5,7 @@
   import type { Camera } from '../../services/battleMap/geometry';
   import { drawFog, drawLighting } from '../../services/battleMap/overlayRender';
   import { initialsOf } from '../../services/battleMap/tokenSources';
+  import { CONDITIONS, type Condition } from '../../schemas/vocabulary';
 
   export interface StageToken {
     id: string;
@@ -18,6 +19,7 @@
     movable?: boolean;
     hp?: number | null;
     hpMax?: number | null;
+    conditions?: Condition[];
   }
 
   let {
@@ -29,6 +31,7 @@
     lighting,
     camera,
     selectedId = null,
+    turnId = '',
     onimagesize,
     overlay,
   }: {
@@ -40,6 +43,7 @@
     lighting: Lighting;
     camera: Camera;
     selectedId?: string | null;
+    turnId?: string;
     onimagesize?: (w: number, h: number) => void;
     overlay?: Snippet<[{ w: number; h: number }]>;
   } = $props();
@@ -97,6 +101,7 @@
       class:hidden-token={t.hidden}
       class:selected={t.id === selectedId}
       class:down={t.hp === 0}
+      class:turn={t.id === turnId}
       class:grab={mode === 'gm' || t.movable}
       data-token-id={t.id}
       style="left: {grid.offsetX + t.x * grid.size}px; top: {grid.offsetY + t.y * grid.size}px; width: {px}px; height: {px}px; --tc: {t.color}; --tb: {Math.max(2, px / 22)}px;"
@@ -109,6 +114,11 @@
       {/if}
       {#if mode === 'gm' && t.hpMax && t.hp != null && t.hp < t.hpMax}
         <span class="hp-bar" style="height: {Math.max(4, px / 12)}px"><span style="width: {(100 * t.hp) / t.hpMax}%"></span></span>
+      {/if}
+      {#if t.conditions?.length}
+        <span class="conditions" style="font-size: {Math.max(9, grid.size * 0.16)}px">
+          {#each t.conditions as c}<span>{CONDITIONS[c]}</span>{/each}
+        </span>
       {/if}
       <span class="label" style="font-size: {Math.max(10, grid.size * 0.2)}px">{t.name}</span>
     </div>
@@ -224,6 +234,29 @@
     display: block;
     height: 100%;
     background: #d23a26;
+  }
+  .token.turn {
+    box-shadow:
+      0 0 0 calc(var(--tb) * 1.2) #6fd3ff,
+      0 0 calc(var(--tb) * 8) #6fd3ff;
+  }
+  .conditions {
+    position: absolute;
+    left: 88%;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    z-index: 3;
+    pointer-events: none;
+  }
+  .conditions span {
+    padding: 0 0.35em;
+    white-space: nowrap;
+    color: #fff;
+    background: rgba(90, 30, 110, 0.85);
+    border-radius: 0.6em;
   }
   .token.selected {
     outline: calc(var(--tb) * 1.2) solid #ffd36b;

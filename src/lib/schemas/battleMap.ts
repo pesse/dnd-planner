@@ -1,5 +1,6 @@
 /** Eine Kampfkarte: Bild, Raster, Tokens, Nebel und rein optisches Licht. Koordinaten in Bildpixeln. */
 import { z } from 'zod';
+import { CONDITION_KEYS } from './vocabulary';
 
 export const TOKEN_KINDS = ['character', 'monster', 'marker'] as const;
 
@@ -27,6 +28,8 @@ export const tokenSchema = z.object({
   encounter: z.string().default('').describe('`<akt>/<encounter>` innerhalb der Kampagne; leer ohne Encounter.'),
   hp: z.number().int().nullable().default(null).describe('Aktuelle TP eines Monsters; null = noch nicht gezählt.'),
   hpMax: z.number().int().nullable().default(null),
+  conditions: z.array(z.enum(CONDITION_KEYS)).default([]),
+  initiative: z.number().int().nullable().default(null).describe('null = nimmt nicht am Kampf teil.'),
 });
 
 const point = z.tuple([z.number(), z.number()]);
@@ -75,6 +78,11 @@ export const viewRectSchema = z.object({
   h: z.number().positive(),
 });
 
+export const combatSchema = z.object({
+  round: z.number().int().min(0).default(0).describe('0 = kein Kampf.'),
+  turn: z.string().default('').describe('Token-ID, die gerade am Zug ist.'),
+});
+
 export const battleMapSchema = z.object({
   name: z.string(),
   image: z.string().default('').describe('Dateiname des Kartenbilds neben der Kartendatei.'),
@@ -83,6 +91,7 @@ export const battleMapSchema = z.object({
   fog: fogSchema.default(fogSchema.parse({})),
   lighting: lightingSchema.default(lightingSchema.parse({})),
   playerView: viewRectSchema.nullable().default(null).describe('Ausschnitt der Spieleransicht; null = ganze Karte.'),
+  combat: combatSchema.default(combatSchema.parse({})),
 });
 
 export type BattleMap = z.infer<typeof battleMapSchema>;
@@ -94,3 +103,4 @@ export type FogMode = (typeof FOG_MODES)[number];
 export type Light = z.infer<typeof lightSchema>;
 export type Lighting = z.infer<typeof lightingSchema>;
 export type ViewRect = z.infer<typeof viewRectSchema>;
+export type Combat = z.infer<typeof combatSchema>;

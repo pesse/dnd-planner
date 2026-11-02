@@ -14,6 +14,8 @@
   import MapCanvas from './MapCanvas.svelte';
   import TokenPanel from './TokenPanel.svelte';
   import MapSettingsPanel from './MapSettingsPanel.svelte';
+  import InitiativePanel from './InitiativePanel.svelte';
+  import DicePanel from './DicePanel.svelte';
   import MapDetailsPanel from './details/MapDetailsPanel.svelte';
 
   const editor = new MapEditor();
@@ -144,6 +146,8 @@
 
       <aside class="panel left" aria-label="Werkzeuge und Einstellungen">
         <TokenPanel {editor} {center} />
+        <InitiativePanel {editor} campaignDir={campaignDirOf(editor.path)} />
+        <DicePanel />
         <MapSettingsPanel {editor} />
       </aside>
 

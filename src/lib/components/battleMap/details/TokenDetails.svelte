@@ -4,9 +4,11 @@
   import type { Encounter } from '../../../schemas/encounter';
   import type { Monster } from '../../../types';
   import type { MapEditor } from '../../../services/battleMap/mapEditor.svelte';
-  import { adjustHp, characterEntry, encounterPath, loadEncounter, loadTokenMonster } from '../../../services/battleMap/tokenDetails';
+  import { characterEntry, encounterPath, loadEncounter, loadTokenMonster } from '../../../services/battleMap/tokenDetails';
   import MonsterStatBlock from '../../MonsterStatBlock.svelte';
   import EntryCard from '../../ui/EntryCard.svelte';
+  import HpTracker from './HpTracker.svelte';
+  import ConditionPicker from './ConditionPicker.svelte';
 
   let { editor, token: t, campaignDir }: { editor: MapEditor; token: Token; campaignDir: string } = $props();
 
@@ -42,16 +44,6 @@
 
   const monsterNotes = $derived(encounter?.monsters.find((m) => m.slug === t.ref)?.notes ?? '');
 
-  let amount = $state<number | null>(null);
-  const hpMax = $derived(t.hpMax ?? monster?.hit_points ?? 0);
-  const hp = $derived(t.hp ?? hpMax);
-
-  function changeHp(sign: 1 | -1) {
-    if (!amount) return;
-    update(adjustHp(t, hpMax, sign * amount));
-    amount = null;
-  }
-
   function update(patch: Partial<Token>) {
     editor.checkpoint();
     editor.updateToken(t.id, patch);
@@ -81,7 +73,20 @@
       {#each SIZES as s}<option value={s.value}>{s.label}</option>{/each}
     </select>
     <input type="color" value={t.color} title="Farbe" onchange={(e) => update({ color: e.currentTarget.value })} />
+    {#if t.kind !== 'marker'}
+      <label class="ini" title="Initiative — leer: nimmt nicht am Kampf teil">
+        Ini
+        <input
+          type="number"
+          value={t.initiative ?? ''}
+          onchange={(e) => editor.setInitiatives({ [t.id]: e.currentTarget.value === '' ? null : Math.round(Number(e.currentTarget.value)) })}
+        />
+      </label>
+    {/if}
   </div>
+  {#if t.kind !== 'marker'}
+    <ConditionPicker {editor} token={t} />
+  {/if}
   <textarea
     rows={t.kind === 'marker' ? 6 : 3}
     placeholder="Notiz (nur für dich) …"
@@ -91,25 +96,8 @@
   ></textarea>
 </div>
 
-{#if t.kind === 'monster' && hpMax}
-  <div class="hp" class:down={hp === 0}>
-    <div class="hp-line">
-      <span class="hp-value">{hp} / {hpMax} TP{hp === 0 ? ' · besiegt' : ''}</span>
-      <div class="hp-bar"><span style="width: {(100 * hp) / hpMax}%"></span></div>
-    </div>
-    <div class="hp-line">
-      <input
-        type="number"
-        min="1"
-        placeholder="Wert"
-        aria-label="TP-Änderung"
-        bind:value={amount}
-        onkeydown={(e) => e.key === 'Enter' && changeHp(e.shiftKey ? 1 : -1)}
-      />
-      <button class="dmg" title="Schaden (Enter)" onclick={() => changeHp(-1)}>− Schaden</button>
-      <button class="heal" title="Heilung (Umschalt+Enter)" onclick={() => changeHp(1)}>+ Heilung</button>
-    </div>
-  </div>
+{#if t.kind === 'monster' && (t.hpMax || monster)}
+  <div class="hp"><HpTracker {editor} token={t} fallbackMax={monster?.hit_points ?? 0} /></div>
 {/if}
 
 {#if t.kind === 'monster'}
@@ -187,49 +175,18 @@
     padding: 0.75rem;
   }
   .hp {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
     padding: 0.6rem 1rem;
     border-bottom: 1px solid var(--surface);
   }
-  .hp-line {
+  .ini {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--ink-muted);
   }
-  .hp-value {
-    min-width: 6.5rem;
-    font-weight: 600;
-    font-size: 0.9rem;
-  }
-  .hp.down .hp-value {
-    color: var(--danger);
-  }
-  .hp-bar {
-    flex: 1;
-    height: 0.55rem;
-    border-radius: 3px;
-    background: var(--surface);
-    overflow: hidden;
-  }
-  .hp-bar span {
-    display: block;
-    height: 100%;
-    background: var(--red);
-    transition: width 0.2s;
-  }
-  .hp input {
-    width: 4.5rem;
-  }
-  .hp .dmg,
-  .hp .heal {
-    flex: 1;
-    border-color: var(--border);
-    font-size: 0.8rem;
-  }
-  .hp .dmg {
-    color: var(--danger);
+  .ini input {
+    width: 3.2rem;
   }
   .character :global(.peek-char) {
     flex-direction: column;

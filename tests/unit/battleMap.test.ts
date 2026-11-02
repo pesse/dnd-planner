@@ -68,7 +68,7 @@ describe('Spieleransicht', () => {
       ],
     });
     const state = toPlayerState(map, 'map.png', { b: 'ada.png' });
-    expect(state.tokens[0]).toEqual({ id: 'b', name: 'Ada', x: 2, y: 2, size: 1, color: '#8a2012', imageUrl: 'ada.png', movable: true });
+    expect(state.tokens[0]).toEqual({ id: 'b', name: 'Ada', x: 2, y: 2, size: 1, color: '#8a2012', conditions: [], imageUrl: 'ada.png', movable: true });
     expect(state.tokens[1].movable).toBe(false);
     expect(JSON.stringify(state)).not.toContain('goblin');
   });

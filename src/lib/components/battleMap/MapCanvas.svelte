@@ -242,6 +242,7 @@
     lighting={map.lighting}
     {camera}
     selectedId={editor.selectedId}
+    turnId={map.combat.turn}
     onimagesize={(w, h) => (editor.imageSize = { w, h })}
   >
     {#snippet overlay({ w, h })}

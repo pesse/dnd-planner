@@ -3,7 +3,7 @@ import type { BattleMap, FogOp, Grid, Lighting, Token, ViewRect } from '../../sc
 import { pxToCell, type Point } from './geometry';
 
 /** `movable`: Spieler dürfen nur Charaktere ziehen. Notizen und Encounter bleiben bei der SL. */
-export type PlayerToken = Omit<Token, 'hidden' | 'ref' | 'kind' | 'art' | 'note' | 'encounter' | 'hp' | 'hpMax'> & { imageUrl: string; movable: boolean };
+export type PlayerToken = Omit<Token, 'hidden' | 'ref' | 'kind' | 'art' | 'note' | 'encounter' | 'hp' | 'hpMax' | 'initiative'> & { imageUrl: string; movable: boolean };
 
 export interface PlayerState {
   imageUrl: string;
@@ -12,6 +12,8 @@ export interface PlayerState {
   fog: { enabled: boolean; ops: FogOp[] };
   lighting: Lighting;
   view: ViewRect | null;
+  /** Leer, solange ein verstecktes Token am Zug ist — sonst verriete der Zug es. */
+  turn: string;
 }
 
 export function toPlayerState(map: BattleMap, imageUrl: string, tokenImages: Record<string, string>): PlayerState {
@@ -20,19 +22,21 @@ export function toPlayerState(map: BattleMap, imageUrl: string, tokenImages: Rec
     grid: map.grid,
     tokens: map.tokens
       .filter((t) => !t.hidden)
-      .map(({ id, name, x, y, size, color, kind }) => ({
+      .map(({ id, name, x, y, size, color, kind, conditions }) => ({
         id,
         name,
         x,
         y,
         size,
         color,
+        conditions,
         imageUrl: tokenImages[id] ?? '',
         movable: kind === 'character',
       })),
     fog: map.fog,
     lighting: map.lighting,
     view: map.playerView,
+    turn: map.tokens.some((t) => t.id === map.combat.turn && !t.hidden) ? map.combat.turn : '',
   };
 }
 

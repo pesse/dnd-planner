@@ -24,6 +24,8 @@ export interface TokenDraft {
   encounter: string;
   hp: number | null;
   hpMax: number | null;
+  conditions: Token['conditions'];
+  initiative: number | null;
 }
 
 export const KIND_COLOR: Record<TokenKind, string> = {
@@ -84,6 +86,8 @@ export const monsterDraft = (monster: Monster, ref: string, name = monster.name,
   encounter,
   hp: monster.hit_points || null,
   hpMax: monster.hit_points || null,
+  conditions: [],
+  initiative: null,
 });
 
 export const characterDraft = (uid: string, name: string): TokenDraft => ({
@@ -98,6 +102,8 @@ export const characterDraft = (uid: string, name: string): TokenDraft => ({
   encounter: '',
   hp: null,
   hpMax: null,
+  conditions: [],
+  initiative: null,
 });
 
 export const markerDraft = (name: string): TokenDraft => ({
@@ -112,6 +118,8 @@ export const markerDraft = (name: string): TokenDraft => ({
   encounter: '',
   hp: null,
   hpMax: null,
+  conditions: [],
+  initiative: null,
 });
 
 /** Monster sind zunächst versteckt — die SL deckt sie auf, wenn sie auftauchen. */

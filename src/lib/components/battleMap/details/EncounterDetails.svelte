@@ -4,6 +4,7 @@
   import type { MapEditor } from '../../../services/battleMap/mapEditor.svelte';
   import { encounterDrafts } from '../../../services/battleMap/tokenSources';
   import { encounterPath, loadEncounter } from '../../../services/battleMap/tokenDetails';
+  import { rollMonsterInitiatives } from '../../../services/battleMap/initiative';
   import { pxToCell, type Point } from '../../../services/battleMap/geometry';
   import Markdown from '../../Markdown.svelte';
 
@@ -29,6 +30,15 @@
     });
     return () => { live = false; };
   });
+
+  async function rollInitiative() {
+    busy = true;
+    try {
+      editor.setInitiatives(await rollMonsterInitiatives(tokens, campaignDir));
+    } finally {
+      busy = false;
+    }
+  }
 
   async function place() {
     busy = true;
@@ -62,7 +72,8 @@
     <h3>
       Auf der Karte
       {#if tokens.length}
-        <button class="bulk" onclick={() => editor.setEncounterHidden(key, !anyHidden)}>
+        <button class="bulk" disabled={busy} title="W20 + GES für alle Monster dieses Encounters ohne Initiative" onclick={rollInitiative}>🎲 Initiative</button>
+        <button class="bulk2" onclick={() => editor.setEncounterHidden(key, !anyHidden)}>
           {anyHidden ? '👁 Alle zeigen' : '🙈 Alle verstecken'}
         </button>
       {/if}
@@ -72,6 +83,7 @@
         {#each tokens as t (t.id)}
           <li>
             <button class="link" class:dim={t.hidden} onclick={() => (editor.selectedId = t.id)}>{t.name}</button>
+            {#if t.initiative != null}<span class="tag">Ini {t.initiative}</span>{/if}
             {#if t.hpMax != null && t.hp != null}<span class="tag" class:dead={t.hp === 0}>{t.hp === 0 ? 'besiegt' : `${t.hp}/${t.hpMax} TP`}</span>{/if}
             {#if t.hidden}<span class="tag">versteckt</span>{/if}
           </li>
@@ -146,6 +158,11 @@
     cursor: pointer;
     font-size: 0.8rem;
     padding: 0.2rem 0.5rem;
+  }
+  .bulk2 {
+    margin-left: 0.3rem;
+    text-transform: none;
+    letter-spacing: 0;
   }
   .bulk {
     margin-left: auto;

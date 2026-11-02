@@ -3,11 +3,13 @@
  * Frame an das Spielerfenster; `checkpoint()` vor einer Änderung macht sie rückgängig-fähig.
  */
 import type { BattleMap, FogOp, Light, Token, ViewRect } from '../../schemas/battleMap';
+import type { Condition } from '../../schemas/vocabulary';
 import { AutosaveFile } from '../../utils/autosaveFile.svelte';
 import { newUid } from '../../utils/uid';
 import { onPlayerMessage, sendToPlayer, type ToGm } from './channel';
 import { DetailHistory } from './detailHistory.svelte';
 import { gridFromCell, snapCell, type Point } from './geometry';
+import { advanceTurn, startCombat } from './initiative';
 import { loadBattleMap, mapImageUrl, pickMapImage, serializeBattleMap } from './mapFiles';
 import { toPlayerState } from './playerState';
 import { occupiedCells, placeDrafts, resolveTokenImage, type TokenDraft } from './tokenSources';
@@ -184,6 +186,50 @@ export class MapEditor {
     if (!this.map) return;
     this.checkpoint();
     for (const t of this.map.tokens) if (t.kind === kind) t.hidden = hidden;
+    this.changed();
+  }
+
+  toggleCondition(id: string, condition: Condition): void {
+    const t = this.map?.tokens.find((x) => x.id === id);
+    if (!t) return;
+    this.checkpoint();
+    t.conditions = t.conditions.includes(condition) ? t.conditions.filter((c) => c !== condition) : [...t.conditions, condition];
+    this.changed();
+  }
+
+  setInitiatives(values: Record<string, number | null>): void {
+    if (!this.map) return;
+    this.checkpoint();
+    for (const t of this.map.tokens) if (t.id in values) t.initiative = values[t.id];
+    this.changed();
+  }
+
+  startCombat(): void {
+    if (!this.map) return;
+    this.checkpoint();
+    this.map.combat = startCombat(this.map.tokens);
+    this.#showTurn();
+    this.changed();
+  }
+
+  nextTurn(step: 1 | -1): void {
+    if (!this.map) return;
+    this.checkpoint();
+    this.map.combat = advanceTurn(this.map.tokens, this.map.combat, step);
+    this.#showTurn();
+    this.changed();
+  }
+
+  #showTurn(): void {
+    if (this.map?.combat.turn) this.selectedId = this.map.combat.turn;
+  }
+
+  /** Mit dem Kampf enden auch die Initiativen — der nächste Kampf würfelt neu. */
+  endCombat(): void {
+    if (!this.map) return;
+    this.checkpoint();
+    this.map.combat = { round: 0, turn: '' };
+    for (const t of this.map.tokens) t.initiative = null;
     this.changed();
   }
 

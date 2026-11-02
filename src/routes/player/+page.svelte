@@ -113,6 +113,7 @@
       fog={shown.fog}
       lighting={shown.lighting}
       {camera}
+      turnId={shown.turn}
       onimagesize={(w, h) => (img = { w, h })}
     />
     {#if img.w}
