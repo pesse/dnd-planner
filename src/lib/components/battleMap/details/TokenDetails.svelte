@@ -64,7 +64,6 @@
       title={t.hidden ? 'Für Spieler versteckt — zeigen (H)' : 'Für Spieler sichtbar — verstecken (H)'}
       onclick={() => update({ hidden: !t.hidden })}
     ><EyeIcon closed={t.hidden} /></button>
-    <button class="del" title="Token entfernen (Entf)" onclick={() => editor.removeToken(t.id)}>✕</button>
   </div>
   <p class="kind">
     {KIND_LABEL[t.kind]}{t.hidden ? ' · für Spieler versteckt' : ''}
@@ -117,6 +116,10 @@
 {:else if t.kind === 'character' && t.ref}
   <div class="sheet character"><CharacterTokenInfo uid={t.ref} name={t.name} /></div>
 {/if}
+
+<div class="footer">
+  <button class="del" title="Token entfernen (Entf)" onclick={() => editor.removeToken(t.id)}>Löschen</button>
+</div>
 
 <style>
   .settings {
@@ -178,12 +181,21 @@
     cursor: pointer;
     padding: 0.2rem 0.4rem;
   }
-  .eye:hover,
-  .del:hover {
+  .eye:hover {
     border-color: var(--border);
   }
+  .footer {
+    padding: 0.75rem 1rem 1rem;
+    border-top: 1px solid var(--surface);
+  }
   .del {
+    width: 100%;
+    padding: 0.35rem 0.5rem;
+    border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
     color: var(--danger);
+  }
+  .del:hover {
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
   }
   .link {
     padding: 0;
