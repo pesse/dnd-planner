@@ -33,8 +33,7 @@
   function apply(e: SubmitEvent) {
     e.preventDefault();
     if (!amount || amount < 1) return;
-    editor.checkpoint();
-    editor.updateToken(t.id, adjustHp(t, hpMax, KIND[kind].sign * amount));
+    editor.setHp(t.id, adjustHp(t, hpMax, KIND[kind].sign * amount));
     dialog?.close();
   }
 </script>

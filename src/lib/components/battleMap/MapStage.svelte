@@ -6,6 +6,7 @@
   import { drawFog, drawLighting } from '../../services/battleMap/overlayRender';
   import { initialsOf } from '../../services/battleMap/tokenSources';
   import { CONDITIONS, type Condition } from '../../schemas/vocabulary';
+  import type { HpPop } from '../../services/battleMap/hpPops.svelte';
 
   export interface StageToken {
     id: string;
@@ -33,6 +34,7 @@
     camera,
     selectedId = null,
     turnId = '',
+    pops = [],
     onimagesize,
     overlay,
   }: {
@@ -45,6 +47,7 @@
     camera: Camera;
     selectedId?: string | null;
     turnId?: string;
+    pops?: HpPop[];
     onimagesize?: (w: number, h: number) => void;
     overlay?: Snippet<[{ w: number; h: number }]>;
   } = $props();
@@ -121,6 +124,9 @@
           {#each t.conditions as c}<span>{CONDITIONS[c]}</span>{/each}
         </span>
       {/if}
+      {#each pops.filter((p) => p.tokenId === t.id) as p (p.key)}
+        <span class="pop" class:heal={p.delta > 0} style="font-size: {Math.max(14, px * 0.38)}px">{p.delta > 0 ? '+' : '−'}{Math.abs(p.delta)}</span>
+      {/each}
       <span class="label" style="font-size: {Math.max(10, grid.size * 0.2)}px">{t.name}</span>
     </div>
   {/each}
@@ -272,6 +278,39 @@
     color: #fff;
     background: rgba(90, 30, 110, 0.85);
     border-radius: 0.6em;
+  }
+  .pop {
+    position: absolute;
+    top: 10%;
+    left: 50%;
+    z-index: 4;
+    font-weight: 800;
+    color: #ff5a45;
+    text-shadow:
+      0 0 3px #000,
+      0 2px 4px #000;
+    pointer-events: none;
+    animation: pop 1.8s ease-out forwards;
+  }
+  .pop.heal {
+    color: #7dff7a;
+  }
+  @keyframes pop {
+    0% {
+      opacity: 0;
+      transform: translate(-50%, 20%) scale(0.6);
+    }
+    15% {
+      opacity: 1;
+      transform: translate(-50%, -30%) scale(1.15);
+    }
+    70% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translate(-50%, -140%) scale(1);
+    }
   }
   .token.selected {
     z-index: 2;

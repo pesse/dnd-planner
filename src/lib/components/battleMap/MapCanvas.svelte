@@ -1,5 +1,6 @@
 <script lang="ts">
   /** SL-Arbeitsfläche: Zeigerbedienung je Werkzeug, Lineal, Spieler-Rahmen. */
+  import { hpPops } from '../../services/battleMap/hpPops.svelte';
   import type { FogOp, ViewRect } from '../../schemas/battleMap';
   import type { MapEditor } from '../../services/battleMap/mapEditor.svelte';
   import {
@@ -264,6 +265,7 @@
     {camera}
     selectedId={editor.selectedId}
     turnId={map.combat.turn}
+    pops={hpPops.list}
     onimagesize={(w, h) => (editor.imageSize = { w, h })}
   >
     {#snippet overlay({ w, h })}

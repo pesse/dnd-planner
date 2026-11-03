@@ -2,6 +2,7 @@
  * Zustand der SL-Ansicht einer Karte. Jede Änderung speichert verzögert und geht im nächsten
  * Frame an das Spielerfenster; `checkpoint()` vor einer Änderung macht sie rückgängig-fähig.
  */
+import { popHp } from './hpPops.svelte';
 import type { BattleMap, FogOp, Light, Token, ViewRect } from '../../schemas/battleMap';
 import type { Condition } from '../../schemas/vocabulary';
 import { AutosaveFile } from '../../utils/autosaveFile.svelte';
@@ -171,6 +172,17 @@ export class MapEditor {
     const t = this.map?.tokens.find((x) => x.id === id);
     if (!t) return;
     Object.assign(t, patch);
+    this.changed();
+  }
+
+  /** Schaden oder Heilung: rückgängig-fähig und mit aufsteigender Zahl am Token. */
+  setHp(id: string, next: Pick<Token, 'hp' | 'hpMax'>): void {
+    const t = this.map?.tokens.find((x) => x.id === id);
+    if (!t || next.hp == null) return;
+    const before = t.hp ?? next.hpMax ?? next.hp;
+    this.checkpoint();
+    Object.assign(t, next);
+    popHp(id, next.hp - before);
     this.changed();
   }
 

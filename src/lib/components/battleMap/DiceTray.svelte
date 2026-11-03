@@ -72,8 +72,7 @@
     if (!target || !latest) return;
     const next = await hpAfter(target, campaignDir, sign * latest.total);
     if (!next) return;
-    editor.checkpoint();
-    editor.updateToken(target.id, next);
+    editor.setHp(target.id, next);
   }
 
   function grab(e: PointerEvent) {
