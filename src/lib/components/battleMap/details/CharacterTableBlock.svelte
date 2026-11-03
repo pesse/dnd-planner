@@ -6,12 +6,8 @@
   import { SKILL_DEFS } from '../../../domain/skills';
   import { computeAttackBonus, computeAttackDamage } from '../../../services/attackCalc';
   import { groupedSpellcasting } from '../../../services/spellcasting/grouped';
-  import { spellsByLevel } from '../../../services/spellcasting/byLevel';
   import { rollNow } from '../../../services/battleMap/diceTray.svelte';
   import { sign } from '../../../utils/num';
-  import { matchSpell, SCHOOL_COLORS, type SpellInfo } from '../../../spellLibrary';
-  import { createSpellHover } from '../../spellHover.svelte';
-  import SpellTooltip from '../../SpellTooltip.svelte';
 
   let { character: c, model: m }: { character: Character; model: CharacterSheetModel } = $props();
 
@@ -43,25 +39,6 @@
     if (!rows.size && legacy) return [{ labels: [legacy.abilityDe], saveDC: legacy.saveDC, attackBonus: legacy.attackBonus }];
     return [...rows.values()];
   });
-
-  const infoOf = (key: string, label: string): SpellInfo | undefined =>
-    matchSpell(m.libs.spellIndex, { sourceKey: key || undefined, name: label });
-
-  const spellLevels = $derived(
-    spellsByLevel(
-      [
-        ...(grouped?.sources ?? []).flatMap((src) => src.quotas.flatMap((q) => q.spells)),
-        ...(grouped?.extra ?? []),
-        ...(m.spellcasting?.legacy.spells ?? []),
-      ],
-      infoOf,
-    ),
-  );
-
-  const byLabel = $derived(
-    new Map(spellLevels.flatMap((g) => g.spells).flatMap((s) => (s.info ? [[s.label, s.info] as const] : []))),
-  );
-  const hover = createSpellHover(() => byLabel, () => byLabel.keys());
 
   const isBonus = (s: string): boolean => /^[+-]\d+$/.test(s.trim());
 </script>
@@ -121,28 +98,13 @@
     </section>
   {/if}
 
-  {#if casting.length || spellLevels.length}
+  {#if casting.length}
     <section>
       <h4>Zauber</h4>
       {#each casting as s}
         <p class="line">
-          {s.labels.join(', ')}{#if s.saveDC !== null} · <b>SG {s.saveDC}</b>{/if}{#if s.attackBonus !== null} · Angriff
-            <button class="roll" title="Zauberangriff" onclick={() => rollNow(`W20${sign(s.attackBonus!)}`)}>{sign(s.attackBonus)}</button>{/if}
-        </p>
-      {/each}
-      {#each spellLevels as g (g.level)}
-        <p class="spell-row">
-          <span class="lvl">{g.level === 0 ? 'Zaubertricks' : `Grad ${g.level}`}</span>
-          {#each g.spells as sp (sp.label)}
-            <span
-              class="spell"
-              style:color={SCHOOL_COLORS[sp.info?.school ?? ''] || null}
-              role="note"
-              onmouseenter={(e) => hover.show(e, sp.label)}
-              onmousemove={(e) => hover.move(e)}
-              onmouseleave={() => hover.hide()}
-            >{sp.label}{#if sp.info?.concentration}<sup title="Konzentration">K</sup>{/if}</span>
-          {/each}
+          {s.labels.join(', ')}{#if s.saveDC !== null}&nbsp;· <b>SG {s.saveDC}</b>{/if}{#if s.attackBonus !== null}&nbsp;· <span class="nowrap">Angriff
+            <button class="roll" title="Zauberangriff" onclick={() => rollNow(`W20${sign(s.attackBonus!)}`)}>{sign(s.attackBonus)}</button></span>{/if}
         </p>
       {/each}
     </section>
@@ -163,29 +125,9 @@
   {/if}
 </div>
 
-<SpellTooltip spell={hover.spell} x={hover.x} y={hover.y} />
-
 <style>
-  .spell-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.15rem 0.5rem;
-    margin: 0.15rem 0 0;
-    font-size: 0.82rem;
-  }
-  .lvl {
-    min-width: 5.5rem;
-    font-size: 0.7rem;
-    color: var(--ink-muted);
-  }
-  .spell {
-    cursor: help;
-    border-bottom: 1px dotted currentColor;
-  }
-  .spell sup {
-    margin-left: 0.1rem;
-    font-size: 0.6rem;
+  .nowrap {
+    white-space: nowrap;
   }
   .table-block {
     display: flex;
