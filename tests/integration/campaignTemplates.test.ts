@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { campaignTemplateSchema } from '$lib/schemas/template';
 import { encounterSchema } from '$lib/schemas/encounter';
 import { battleMapSchema } from '$lib/schemas/battleMap';
+import { npcSchema } from '$lib/schemas/npc';
+import { handoutSchema } from '$lib/schemas/handout';
 import { characterSchema } from '$lib/schemas/characterSchema';
 import { pendingCharacterUpgrade, upgradeCharacter } from '$lib/schemas/characterUpgrades';
 import { loadSpellcasting, openSpellChoices } from '$lib/services/spellcasting/project';
@@ -48,6 +50,17 @@ describe.each(templates)('Kampagnen-Vorlage %s', (id) => {
     }
   });
 
+  // Die Abschnitte NSCs und Handouts listen nur JSON – eine .md-Datei dort bliebe unsichtbar.
+  it('NSCs und Handouts sind gültiges JSON, Handouts mit vorhandenem Bild', () => {
+    const all = [dir, ...(existsSync(join(CHAPTERS, id)) ? [join(CHAPTERS, id)] : [])].flatMap(walk);
+    expect(all.filter((p) => /\/(npcs|handouts)\/[^/]+\.md$/.test(p))).toEqual([]);
+    for (const f of all.filter((p) => /\/npcs\/[^/]+\.json$/.test(p))) npcSchema.parse(JSON.parse(readFileSync(f, 'utf8')));
+    for (const f of all.filter((p) => /\/handouts\/[^/]+\.json$/.test(p))) {
+      const h = handoutSchema.parse(JSON.parse(readFileSync(f, 'utf8')));
+      expect(h.image && existsSync(join(f, '..', h.image)), f).toBe(true);
+    }
+  });
+
   it('enthält keine akt-lokalen Monster', () => {
     expect(files.filter((p) => /\/acts\/[^/]+\/monsters\//.test(p))).toEqual([]);
   });
@@ -62,13 +75,13 @@ describe.each(templates)('Kampagnen-Vorlage %s', (id) => {
   });
 
   // Nachgeliefert wird nur, was Spieler sehen dürfen: Akte, Karten und Encounter bleiben bei der Spielleitung.
-  it('liefert nach abgeschlossenen Abenteuern nur NSCs, Welt und Notizen nach', () => {
+  it('liefert nach abgeschlossenen Abenteuern nur NSCs, Welt, Notizen und Handouts nach', () => {
     const t = campaignTemplateSchema.parse(JSON.parse(readFileSync(join(dir, 'template.json'), 'utf8')));
     const unlocks = join(CHAPTERS, id);
     if (!existsSync(unlocks)) return;
     expect(readdirSync(unlocks).filter((c) => !t.chapters.some((ch) => ch.id === c))).toEqual([]);
     const rel = walk(unlocks).map((p) => p.slice(unlocks.length + 1).split('/').slice(1).join('/'));
-    expect(rel.filter((p) => !/^(npcs|world|notes)\/[^/]+\.md$/.test(p))).toEqual([]);
+    expect(rel.filter((p) => !/^((world|notes)\/[^/]+\.md|npcs\/[^/]+\.json|handouts\/[^/]+\.(json|png|jpg|webp|avif))$/.test(p))).toEqual([]);
     if (t.playerEditionOf) expect(rel.filter((p) => existsSync(join(dir, p)))).toEqual([]);
   });
 });

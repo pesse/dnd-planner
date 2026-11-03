@@ -16,6 +16,7 @@ import { DOCUMENT_TEMPLATES } from '../../../templates';
 import { newBattleMap, serializeBattleMap } from '../../../services/battleMap/mapFiles';
 import { instantiateCampaignTemplate, type CampaignTemplateOptions, type CampaignTemplateRef } from '../../../services/templates/templates';
 import { MAP_TEMPLATES_SUBDIR } from '../../../services/battleMap/mapTemplates';
+import { handoutSchema } from '../../../schemas/handout';
 
 interface EntryInfo { name: string; is_dir: boolean; }
 
@@ -29,12 +30,13 @@ export const SECTIONS: CampaignSection[] = [
   { label: 'NPCs', subdir: 'npcs', type: 'npc' },
   { label: 'Welt', subdir: 'world', type: 'world' },
   { label: 'Notizen', subdir: 'notes', type: 'notes' },
+  { label: 'Handouts', subdir: 'handouts', type: 'handout' },
   { label: 'Karten', subdir: 'maps', type: 'map' },
   { label: 'Kartenvorlagen', subdir: MAP_TEMPLATES_SUBDIR, type: 'mapTemplate' },
 ];
 
 /** Sektionen, deren Einträge JSON-Dateien mit einem `name` sind. */
-const JSON_SECTION_TYPES = new Set<FileEntry['type']>(['npc', 'map', 'mapTemplate']);
+const JSON_SECTION_TYPES = new Set<FileEntry['type']>(['npc', 'map', 'mapTemplate', 'handout']);
 
 export const sectionKeyOf = (campaignPath: string, section: CampaignSection): string => `${campaignPath}/${section.subdir}`;
 export const actKeyOf = (campaignPath: string, actDirName: string): string => `${campaignPath}/${actDirName}`;
@@ -310,6 +312,7 @@ export class CampaignTreeState {
       const sectionTemplate =
         section.type === 'npc' ? JSON.stringify(npcSchema.parse({ name: title }), null, 2)
         : section.type === 'map' || section.type === 'mapTemplate' ? serializeBattleMap(newBattleMap(title))
+        : section.type === 'handout' ? JSON.stringify(handoutSchema.parse({ name: title }), null, 2)
         : `# ${title}\n\n` + (DOCUMENT_TEMPLATES[section.type] ?? '');
       await invoke('write_file_content', { path: fullPath, content: sectionTemplate });
       this.showNewFileInput[key] = false;

@@ -29,6 +29,16 @@ vi.mock('@tauri-apps/api/core', () => ({
         return;
       case 'get_absolute_path':
         return `/abs/${args.path}`;
+      case 'merge_dir': {
+        let copied = 0;
+        for (const p of under(args.from)) {
+          const to = args.to + p.slice(args.from.length);
+          if (files.has(to)) continue;
+          files.set(to, files.get(p)!);
+          copied++;
+        }
+        return copied;
+      }
       case 'copy_dir':
         if (under(args.to).length) throw new Error('existiert bereits');
         for (const p of under(args.from)) files.set(args.to + p.slice(args.from.length), files.get(p)!);

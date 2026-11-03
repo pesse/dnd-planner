@@ -503,6 +503,22 @@ async fn copy_dir(from: String, to: String) -> Result<(), String> {
     .await
 }
 
+/// Kopiert einen Ordner in einen vorhandenen hinein und lässt bestehende Dateien stehen.
+/// Liefert die Zahl neuer Dateien; ein fehlender Quellordner bringt 0.
+#[tauri::command]
+async fn merge_dir(from: String, to: String) -> Result<usize, String> {
+    blocking(move || {
+        let src = resolve_path(&from);
+        if !src.is_dir() {
+            return Ok(0);
+        }
+        let (mut copied, mut skipped) = (0usize, 0usize);
+        copy_dir_recursive(&src, &resolve_path(&to), &mut copied, &mut skipped)?;
+        Ok(copied)
+    })
+    .await
+}
+
 /// Speichert einen API-Key im OS-Keychain (Windows Credential Manager / macOS Keychain / libsecret).
 /// `provider` ist der Service-Name, z.B. "anthropic" oder "groq".
 #[tauri::command]
@@ -1180,6 +1196,7 @@ pub fn run() {
             read_json_folder,
             rename_file,
             copy_dir,
+            merge_dir,
             delete_path,
             write_file_base64,
             load_spells_index,

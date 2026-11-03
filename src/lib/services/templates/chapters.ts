@@ -11,11 +11,6 @@ const CAMPAIGN_TEMPLATES = './vault/templates/campaigns';
 const CHAPTERS_PATH = './vault/templates/chapters';
 const PROGRESS = 'progress.json';
 
-interface EntryInfo {
-  name: string;
-  is_dir: boolean;
-}
-
 const progressPath = (slug: string) => `${CAMPAIGNS_PATH}/${slug}/${PROGRESS}`;
 
 async function readJson(path: string): Promise<unknown> {
@@ -42,42 +37,12 @@ export async function readCampaignTemplate(id: string): Promise<CampaignTemplate
   return r.success ? r.data : null;
 }
 
-async function filesUnder(dir: string, prefix = ''): Promise<string[]> {
-  let entries: EntryInfo[];
-  try {
-    entries = await invoke<EntryInfo[]>('list_entries', { path: dir });
-  } catch {
-    return [];
-  }
-  const nested = await Promise.all(
-    entries.map((e) => (e.is_dir ? filesUnder(`${dir}/${e.name}`, `${prefix}${e.name}/`) : Promise.resolve([`${prefix}${e.name}`]))),
-  );
-  return nested.flat();
-}
-
 /**
- * Kopiert die Spieler-Infos eines Abenteuers in die Kampagne und liefert die Zahl neuer Dateien.
- * Additiv, nie überschreibend: die Spieler legen NSCs und Orte oft schon selbst an.
+ * Kopiert die Spieler-Infos eines Abenteuers samt Bildern in die Kampagne und liefert die Zahl
+ * neuer Dateien. Additiv, nie überschreibend: die Spieler legen NSCs und Orte oft schon selbst an.
  */
 export async function unlockChapter(slug: string, template: string, chapter: string): Promise<number> {
-  const from = `${CHAPTERS_PATH}/${template}/${chapter}`;
-  let added = 0;
-  for (const rel of await filesUnder(from)) {
-    const to = `${CAMPAIGNS_PATH}/${slug}/${rel}`;
-    if (await exists(to)) continue;
-    await invoke('write_file_content', { path: to, content: await invoke<string>('read_file_content', { path: `${from}/${rel}` }) });
-    added++;
-  }
-  return added;
-}
-
-async function exists(path: string): Promise<boolean> {
-  try {
-    await invoke<string>('read_file_content', { path });
-    return true;
-  } catch {
-    return false;
-  }
+  return invoke<number>('merge_dir', { from: `${CHAPTERS_PATH}/${template}/${chapter}`, to: `${CAMPAIGNS_PATH}/${slug}` });
 }
 
 /** Ein zurückgenommener Haken löscht nichts: was nachgeliefert wurde, gehört jetzt der Kampagne. */

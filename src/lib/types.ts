@@ -55,7 +55,7 @@ export interface Npc {
 export type FileEntryType =
   | 'campaign' | 'act' | 'session' | 'npc' | 'world' | 'character'
   | 'monster' | 'encounter' | 'notes' | 'spell' | 'item' | 'class' | 'species' | 'feat' | 'background' | 'rule' | 'trap'
-  | 'catalog' | 'map' | 'mapTemplate';
+  | 'catalog' | 'map' | 'mapTemplate' | 'handout';
 
 export interface FileEntry {
   name: string;

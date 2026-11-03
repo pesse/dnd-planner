@@ -6,7 +6,7 @@
   import DiceStage from '$lib/components/battleMap/DiceStage.svelte';
   import type { Roll } from '$lib/services/battleMap/diceLog.svelte';
   import PlayerBadgeMenu from '$lib/components/battleMap/PlayerBadgeMenu.svelte';
-  import { onGmMessage, sendToGm } from '$lib/services/battleMap/channel';
+  import { onGmMessage, sendToGm, type ShownHandout } from '$lib/services/battleMap/channel';
   import { hpPops, popHp } from '$lib/services/battleMap/hpPops.svelte';
   import { fitRect, pxToCell, snapCell, toImage, type Camera, type Point } from '$lib/services/battleMap/geometry';
   import { clampToView, type PlayerState } from '$lib/services/battleMap/playerState';
@@ -15,6 +15,7 @@
   import { textTipState } from '$lib/components/textTip.svelte';
 
   let shown = $state<PlayerState | null>(null);
+  let handout = $state<ShownHandout | null>(null);
   let vw = $state(0);
   let vh = $state(0);
   let img = $state({ w: 0, h: 0 });
@@ -104,6 +105,7 @@
       } else if (msg.type === 'hp') popHp(msg.id, msg.delta);
       else if (msg.type === 'tips') tips = msg.tips;
       else if (msg.type === 'dice') dice = msg;
+      else if (msg.type === 'handout') handout = msg.handout;
     });
     sendToGm({ type: 'hello' });
     return () => {
@@ -175,8 +177,14 @@
         <DiceStage roll={dice.roll ?? undefined} empty="Noch kein Wurf" size={64} />
       </aside>
     {/if}
-  {:else}
+  {:else if !handout}
     <p class="waiting">Warte auf die Spielleitung…</p>
+  {/if}
+  {#if handout}
+    <figure class="handout">
+      <img src={handout.imageUrl} alt={handout.name} />
+      <figcaption>{handout.name}</figcaption>
+    </figure>
   {/if}
 </div>
 
@@ -211,6 +219,30 @@
   }
   .player.idle {
     cursor: none;
+  }
+  .handout {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    margin: 0;
+    padding: 2vmin;
+    box-sizing: border-box;
+    background: rgba(0, 0, 0, 0.88);
+  }
+  .handout img {
+    flex: 1;
+    min-height: 0;
+    max-width: 100%;
+    object-fit: contain;
+  }
+  .handout figcaption {
+    color: #d8c8a0;
+    font-family: var(--font-display);
+    font-size: 1.3rem;
   }
   .waiting {
     position: absolute;

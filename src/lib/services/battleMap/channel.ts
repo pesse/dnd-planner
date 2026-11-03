@@ -10,12 +10,21 @@ import type { PlayerState } from './playerState';
 import type { Badge } from '../../conditionIcon';
 import type { Roll } from './diceLog.svelte';
 
-/** `hp`: nur die Änderung als aufsteigende Zahl — Spieler führen die TP ihrer Charaktere selbst. */
+export interface ShownHandout {
+  name: string;
+  imageUrl: string;
+}
+
+/**
+ * `hp`: nur die Änderung als aufsteigende Zahl — Spieler führen die TP ihrer Charaktere selbst.
+ * `handout`: liegt über der Karte, bis die SL es mit `null` wieder wegnimmt.
+ */
 export type ToPlayer =
   | { type: 'state'; state: PlayerState }
   | { type: 'hp'; id: string; delta: number }
   | { type: 'tips'; tips: Record<string, string> }
-  | { type: 'dice'; shown: boolean; roll: Roll | null };
+  | { type: 'dice'; shown: boolean; roll: Roll | null }
+  | { type: 'handout'; handout: ShownHandout | null };
 export type ToGm =
   | { type: 'hello' }
   | { type: 'move'; id: string; x: number; y: number; done: boolean }
