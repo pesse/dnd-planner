@@ -6,6 +6,7 @@
   import { encounterPath, loadEncounter } from '../../../services/battleMap/tokenDetails';
   import { rollMonsterInitiatives } from '../../../services/battleMap/initiative';
   import { pxToCell, type Point } from '../../../services/battleMap/geometry';
+  import { cockpit } from '../../../services/battleMap/cockpitTab.svelte';
   import Markdown from '../../Markdown.svelte';
 
   let { editor, key, campaignDir, center }: { editor: MapEditor; key: string; campaignDir: string; center: () => Point } = $props();
@@ -68,31 +69,39 @@
     <section><h3>Worum es geht</h3><Markdown source={encounter.description} /></section>
   {/if}
 
-  <section>
-    <h3>
-      Auf der Karte
+  {#if cockpit.tab === 'prep'}
+    <section>
+      <h3>Auf der Karte</h3>
+      <button class="place" disabled={busy} onclick={place}>{busy ? 'Wird gesetzt…' : 'Monster auf die Karte setzen'}</button>
+      {#if tokens.length}<p class="hint">Schon gesetzt: {tokens.length} Token{tokens.length === 1 ? '' : 's'} — zu sehen im Tab Spiel.</p>{/if}
+    </section>
+  {:else}
+    <section>
+      <h3>
+        Monster
+        {#if tokens.length}
+          <button class="bulk" disabled={busy} title="W20 + GES für alle Monster dieses Encounters ohne Initiative" onclick={rollInitiative}>🎲 Initiative</button>
+          <button class="bulk2" onclick={() => editor.setEncounterHidden(key, !anyHidden)}>
+            {anyHidden ? '👁 Alle zeigen' : '🙈 Alle verstecken'}
+          </button>
+        {/if}
+      </h3>
       {#if tokens.length}
-        <button class="bulk" disabled={busy} title="W20 + GES für alle Monster dieses Encounters ohne Initiative" onclick={rollInitiative}>🎲 Initiative</button>
-        <button class="bulk2" onclick={() => editor.setEncounterHidden(key, !anyHidden)}>
-          {anyHidden ? '👁 Alle zeigen' : '🙈 Alle verstecken'}
-        </button>
+        <ul>
+          {#each tokens as t (t.id)}
+            <li>
+              <button class="link" class:dim={t.hidden} onclick={() => (editor.selectedId = t.id)}>{t.name}</button>
+              {#if t.initiative != null}<span class="tag">Ini {t.initiative}</span>{/if}
+              {#if t.hpMax != null && t.hp != null}<span class="tag" class:dead={t.hp === 0}>{t.hp === 0 ? 'besiegt' : `${t.hp}/${t.hpMax} TP`}</span>{/if}
+              {#if t.hidden}<span class="tag">versteckt</span>{/if}
+            </li>
+          {/each}
+        </ul>
+      {:else}
+        <p class="hint">Noch keine Monster dieses Encounters auf der Karte — sie werden im Tab Vorbereitung gesetzt.</p>
       {/if}
-    </h3>
-    {#if tokens.length}
-      <ul>
-        {#each tokens as t (t.id)}
-          <li>
-            <button class="link" class:dim={t.hidden} onclick={() => (editor.selectedId = t.id)}>{t.name}</button>
-            {#if t.initiative != null}<span class="tag">Ini {t.initiative}</span>{/if}
-            {#if t.hpMax != null && t.hp != null}<span class="tag" class:dead={t.hp === 0}>{t.hp === 0 ? 'besiegt' : `${t.hp}/${t.hpMax} TP`}</span>{/if}
-            {#if t.hidden}<span class="tag">versteckt</span>{/if}
-          </li>
-        {/each}
-      </ul>
-    {:else}
-      <button disabled={busy} onclick={place}>{busy ? 'Wird gesetzt…' : 'Monster auf die Karte setzen'}</button>
-    {/if}
-  </section>
+    </section>
+  {/if}
 
   {#if encounter.notes}
     <section><h3>SL-Notizen</h3><Markdown source={encounter.notes} /></section>
@@ -180,6 +189,15 @@
     text-decoration: underline;
   }
   .link.dim {
+    color: var(--ink-muted);
+  }
+  .place {
+    width: 100%;
+    padding: 0.35rem 0.5rem;
+  }
+  .hint {
+    margin: 0.3rem 0 0;
+    font-size: 0.78rem;
     color: var(--ink-muted);
   }
   .tag {

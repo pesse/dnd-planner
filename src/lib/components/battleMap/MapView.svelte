@@ -1,6 +1,5 @@
 <script lang="ts" module>
-  /** Über das Schließen der Karte hinweg: wer mitten in der Session eine andere Seite ansieht, kommt im selben Tab zurück. */
-  let lastTab = $state<'prep' | 'play'>('prep');
+  /** Über das Schließen der Karte hinweg: wer mitten in der Session eine andere Seite ansieht, findet die Würfel wieder offen. */
   let diceOpen = $state(false);
 </script>
 
@@ -15,6 +14,7 @@
   import { campaignDirOf } from '../../services/battleMap/tokenDetails';
   import type { FileEntry } from '../../types';
   import { navHistoryState } from '../../stores/navigationHistory';
+  import { cockpit } from '../../services/battleMap/cockpitTab.svelte';
   import { MapEditor, type MapTool } from '../../services/battleMap/mapEditor.svelte';
   import { openPlayerWindow } from '../../services/battleMap/playerWindow';
   import MapCanvas from './MapCanvas.svelte';
@@ -172,15 +172,15 @@
 
       <aside class="panel left" aria-label="Werkzeuge und Einstellungen">
         <div class="tabs" role="tablist">
-          <button role="tab" aria-selected={lastTab === 'prep'} onclick={() => (lastTab = 'prep')}>Vorbereitung</button>
-          <button role="tab" aria-selected={lastTab === 'play'} onclick={() => (lastTab = 'play')}>Spiel</button>
+          <button role="tab" aria-selected={cockpit.tab === 'prep'} onclick={() => (cockpit.tab = 'prep')}>Vorbereitung</button>
+          <button role="tab" aria-selected={cockpit.tab === 'play'} onclick={() => (cockpit.tab = 'play')}>Spiel</button>
         </div>
-        <div class="tab" role="tabpanel" hidden={lastTab !== 'prep'}>
+        <div class="tab" role="tabpanel" hidden={cockpit.tab !== 'prep'}>
           <TokenPanel {editor} {center} />
           <TokenListPanel {editor} />
           <MapSettingsPanel {editor} />
         </div>
-        <div class="tab" role="tabpanel" hidden={lastTab !== 'play'}>
+        <div class="tab" role="tabpanel" hidden={cockpit.tab !== 'play'}>
           <InitiativePanel {editor} campaignDir={campaignDirOf(editor.path)} />
           <TokenListPanel {editor} />
         </div>
