@@ -98,3 +98,30 @@ export function wizardRiders(params: {
     ...abilityIncreaseRiders(declared, answerOf),
   ];
 }
+
+/**
+ * Die Antworten, die in den Charakter gehen: nur auf Wahlen, die es gerade gibt, und nur
+ * Optionen, die sie gerade anbieten. Eine Antwort auf eine verschwundene Wahl bleibt im
+ * Wizard stehen, falls der Spieler die Grundwahl zurückdreht.
+ */
+export function wizardAnswers(
+  choices: AnalysisChoice[],
+  raw: Record<string, string[]>,
+  /** Antworttext einer `spell-pick`-Wahl; leer, wenn ein Zauber-Block sie führt. */
+  spellPickText: (choice: AnalysisChoice) => string,
+): DeclaredAnswer[] {
+  return choices
+    .map((ch) => ({
+      id: ch.id,
+      choice: ch.type === 'spell-pick' ? spellPickText(ch) : validAnswer(ch, raw[ch.id] ?? []).join(', '),
+    }))
+    .filter((a) => a.choice.trim());
+}
+
+function validAnswer(ch: AnalysisChoice, values: string[]): string[] {
+  // Ohne Optionsliste ist die Wahl Freitext (Werkzeug ohne Bibliothek).
+  if (ch.type === 'text' || !ch.options.length) return values;
+  const offered = values.filter((v) => ch.options.includes(v));
+  if (ch.type === 'choice') return offered.slice(0, 1);
+  return ch.max > 0 ? offered.slice(0, ch.max) : offered;
+}

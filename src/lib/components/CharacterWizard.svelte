@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { CharacterWizard } from '../services/wizard/characterWizard.svelte';
   import { buildWizardCharacter } from '../services/wizard/assembleCharacter';
   import { isComplete as pointBuyComplete } from '../services/wizard/pointBuy';
@@ -11,15 +12,14 @@
   import { loadOriginCatalog, type OriginCatalog, type OriginKind } from '../services/wizard/originCatalog';
   import { preloadSpeciesArt } from '../services/wizard/originArt';
   import { STANDARD_LANGUAGE_PICKS } from '../services/wizard/personal';
-  import { collectGrants, type CollectedGrants } from '../services/proficiencyGrants';
   import { masteryOffer, type MasteryOffer } from '../services/weaponMastery';
   import { fightingStyleOffer, type FightingStyleOffer } from '../services/fightingStyle';
   import { loadTraitFeatOffers, type TraitFeatOffer } from '../services/traitFeat';
   import { FEAT_CATEGORY_DE } from '../featsLibrary';
   import { optionPoolOffers, type OptionPoolOffer } from '../services/declaration/optionPool';
   import { createFormCasting } from '../services/characterFormCasting.svelte';
-  import { featureLedger, wizardCastingInput, wizardGrantInput } from '../services/wizard/castingDraft';
-  import { getSpellLibrary, spellInfoByKey, type SpellInfo } from '../spellLibrary';
+  import { featureLedger, wizardCastingInput } from '../services/wizard/castingDraft';
+  import { getSpellLibrary } from '../spellLibrary';
   import type { Character } from '../schemas/characterSchema';
   import WeaponMasteryPicker from './WeaponMasteryPicker.svelte';
   import FeatPicker from './FeatPicker.svelte';
@@ -90,16 +90,9 @@
   const isOrigin = $derived(ORIGIN_STEPS.includes(currentStep));
 
   let catalog = $state<OriginCatalog | null>(null);
-  let spellLib = $state<SpellInfo[]>([]);
-
-  let grants = $state<CollectedGrants | null>(null);
-  let skillPicks = $state<string[][]>([]); // je offener Wahl eine Auswahl (englische Namen)
   let asiAllowed = $state<AbilityKey[]>([]);
-  let choiceAnswers = $state<Record<string, string[]>>({});
   let creating = $state(false);
   let createError = $state('');
-
-  let lastOriginSig = '';
 
   let ready = $state(false);
   let artProgress = $state(0);
@@ -119,56 +112,34 @@
     ]),
     wait(PRELOAD_MIN_MS),
   ]).finally(() => (ready = true));
-  void getSpellLibrary().then((s) => (spellLib = s));
+  void getSpellLibrary().then((s) => (w.spellLib = s));
 
   const selectedClass = $derived(catalog?.classes.find((c) => c.key === w.klass.sourceKey) ?? null);
   const primaryAbilities = $derived(
     (selectedClass?.overview?.primaryAbilities ?? []).map((a) => abilityKeyOf(a)).filter((k): k is AbilityKey => !!k),
   );
 
-  function originSig(): string {
-    return `${w.species.sourceKey}|${w.klass.sourceKey}|${w.background.sourceKey}`;
-  }
+  // Jede Änderung der Grundwahl lädt nach; die Wahlen dahinter bleiben stehen.
+  $effect(() => {
+    void w.originSig;
+    if (w.basicsComplete) untrack(() => w.kickoff());
+  });
 
-  /** Nach dem letzten Herkunfts-Schritt: beim ersten Mal laden, nach einer Änderung neu aufsetzen. */
-  function syncOrigin() {
-    const sig = originSig();
-    if (sig === lastOriginSig) return;
-    if (!lastOriginSig) w.kickoff();
-    else { w.restart(); grants = null; choiceAnswers = {}; }
-    lastOriginSig = sig;
-    void loadAsi();
-  }
-
-  async function loadGrants() {
-    grants = await collectGrants(wizardGrantInput(w));
-    skillPicks = grants.choices.map(() => []);
-    // Mit `chosenSkills` zusammen die Optionsliste der Expertise-Wahl im Merkmals-Schritt.
-    w.grantedSkills = grants.skills.map((g) => g.value);
-    w.grantedSaves = grants.savingThrows.map((g) => g.value);
-    syncChosenSkills();
-  }
-  function syncChosenSkills() {
-    w.chosenSkills = [...new Set(skillPicks.flat())];
-  }
-  const openChoicesDone = $derived(
-    !grants || grants.choices.every((ch, i) => (skillPicks[i]?.length ?? 0) === ch.choose),
-  );
-
-  async function loadAsi() {
-    const bg = await getBackgroundByKey(w.background.sourceKey);
-    asiAllowed = allowedKeys(bg?.abilityScores ?? []);
-    w.asi = {};
-  }
-  const asiValid = $derived(asiAllowed.length === 0 || isValidAllocation(w.asi, asiAllowed));
+  $effect(() => {
+    const key = w.background.sourceKey;
+    let cancelled = false;
+    void getBackgroundByKey(key).then((bg) => { if (!cancelled) asiAllowed = allowedKeys(bg?.abilityScores ?? []); });
+    return () => { cancelled = true; };
+  });
+  const asiValid = $derived(!!w.background.sourceKey && (asiAllowed.length === 0 || isValidAllocation(w.asi, asiAllowed)));
 
   const toolChoicesDone = $derived(w.pendingToolChoices() === 0);
 
   // Kontingent und wählbare Waffen kommen aus der Bibliothek.
   let mastery = $state<MasteryOffer | null>(null);
   const weaponProfs = $derived({
-    simple: grants?.weapons.some((g) => g.value === 'Simple') ?? false,
-    martial: grants?.weapons.some((g) => g.value === 'Martial') ?? false,
+    simple: w.grants?.weapons.some((g) => g.value === 'Simple') ?? false,
+    martial: w.grants?.weapons.some((g) => g.value === 'Martial') ?? false,
   });
   $effect(() => {
     const key = w.klass.sourceKey;
@@ -241,41 +212,25 @@
   // Die Zauberquellen des ENTSTEHENDEN Charakters, dieselbe Auflösung wie im Editor. Der
   // Schritt erscheint auch ohne Zauberwirker-Klasse, wenn ein Merkmal eine Wahl erzwingt.
   const spellCasting = createFormCasting(() => wizardCastingInput(w));
-  const spellValues = createSpellStepValues(w, spellCasting, () => spellLib);
+  const spellValues = createSpellStepValues(w, spellCasting, () => w.spellLib);
   // Der Fehlschlag gehört mit in die Bedingung: sonst hätte er dieselbe Wirkung wie „wirkt
   // keine Zauber" und der Schritt verschwände, statt den Grund zu nennen.
   const spellsAvailable = $derived(
     spellValues.rows.length > 0 || spellValues.loose.length > 0 || !!spellValues.error,
   );
 
-  // Pflicht: ohne die Antwort bliebe die Zauberliste offen und der Zauber-Schritt hätte
-  // nichts anzubieten.
-  const declaredChoicesDone = $derived(
-    w.declaredChoices
-      .filter((c) => c.type !== 'spell-pick')
-      .every((c) => (choiceAnswers[c.id] ?? []).some((v) => v.trim())),
-  );
-
-  /** Baut alles neu und läuft deshalb gefahrlos zweimal — nach Merkmals- und Zauberschritt. */
-  function commitFeatureChoices() {
-    w.declaredAnswers = w.declaredChoices
-      .map((ch) => ({
-        id: ch.id,
-        // Eine Zauber-Wahl MIT Quota beantwortet der Zauber-Block; ihre Zauber hier noch
-        // einmal als Antworttext wären die zweite Wahrheit.
-        choice:
-          ch.type === 'spell-pick'
-            ? (ch.sourceId && ch.quotaId
-                ? []
-                : (w.featureSpellPicks[ch.id] ?? []).map((v) => spellInfoByKey(spellLib, v)?.name ?? v)
-              ).join(', ')
-            : (choiceAnswers[ch.id] ?? []).join(', '),
-      }))
-      .filter((rc) => rc.choice.trim());
+  /** Schritte, die erst mit Volk, Hintergrund und Klasse etwas anzubieten haben. */
+  const NEEDS_ORIGIN: StepId[] = ['proficiencies', 'mastery', 'fighting-style', 'option-pool', 'features', 'spells', 'equipment'];
+  function blockedHint(id: StepId): string {
+    if (NEEDS_ORIGIN.includes(id) && !w.basicsComplete)
+      return 'Wähle zuerst Volk, Hintergrund und Klasse — erst dann steht fest, was dieser Schritt anbietet.';
+    if (id === 'background-asi' && !w.background.sourceKey) return 'Wähle zuerst einen Hintergrund — er legt fest, welche Attribute steigen dürfen.';
+    return '';
   }
 
-  const canProceed = $derived.by(() => {
-    switch (currentStep) {
+  function stepDone(id: StepId): boolean {
+    if (blockedHint(id)) return false;
+    switch (id) {
       case 'class': return !!w.klass.sourceKey;
       case 'background': return !!w.background.sourceKey;
       case 'species': return !!w.species.sourceKey && !!w.presentation;
@@ -284,26 +239,24 @@
       case 'abilities': return pointBuyComplete(w.scores);
       case 'background-asi': return asiValid;
       case 'trait-feat': return traitFeatsDone;
-      case 'proficiencies': return openChoicesDone;
-      case 'features': return declaredChoicesDone;
+      case 'proficiencies': return w.skillPicksDone;
+      case 'features': return w.plainChoicesDone;
       case 'spells': return spellValues.done;
       case 'equipment': return toolChoicesDone;
       default: return true;
     }
-  });
+  }
+  const status = $derived(steps.map((s) => (s.id === 'review' || stepDone(s.id) ? 'done' : 'open') as 'done' | 'open'));
+  const openSteps = $derived(steps.filter((s, i) => status[i] === 'open'));
 
+  const go = (id: StepId) => (currentStep = id);
   function next() {
-    if (!canProceed) return;
     const nextStep = steps[stepIndex + 1];
-    if (isOrigin && (!nextStep || !ORIGIN_STEPS.includes(nextStep.id))) syncOrigin();
-    if (currentStep === 'features' || currentStep === 'spells') commitFeatureChoices();
-    if (!nextStep) return;
-    if (nextStep.id === 'proficiencies' && !grants) loadGrants();
-    currentStep = nextStep.id;
+    if (nextStep) go(nextStep.id);
   }
   function back() {
     const prev = steps[stepIndex - 1];
-    if (prev) currentStep = prev.id;
+    if (prev) go(prev.id);
   }
 
   async function create() {
@@ -340,10 +293,14 @@
   <div class="spacer"></div>
   {#if stepIndex > 0}<button class="secondary" onclick={back} disabled={creating}>Zurück</button>{/if}
   {#if stepIndex < steps.length - 1}
-    <button class="primary" onclick={next} disabled={!canProceed}>Weiter</button>
+    <button class="primary" onclick={next}>Weiter</button>
   {:else}
-    {#if !w.name.trim()}<span class="hint">Trag oben noch einen Namen ein.</span>{/if}
-    <button class="primary" onclick={create} disabled={creating || !w.name.trim()}>{creating ? 'Erstelle …' : 'Charakter erstellen'}</button>
+    {#if openSteps.length}
+      <span class="hint">Noch offen:
+        {#each openSteps as s, i (s.id)}{i ? ', ' : ''}<button class="link" onclick={() => go(s.id)}>{s.label}</button>{/each}
+      </span>
+    {:else if !w.name.trim()}<span class="hint">Trag oben noch einen Namen ein.</span>{/if}
+    <button class="primary" onclick={create} disabled={creating || !w.name.trim() || openSteps.length > 0}>{creating ? 'Erstelle …' : 'Charakter erstellen'}</button>
   {/if}
 {/snippet}
 
@@ -356,7 +313,8 @@
   scope="wizard"
   {steps}
   current={stepIndex}
-  onstep={(i) => (currentStep = steps[i].id)}
+  {status}
+  onstep={(i) => go(steps[i].id)}
   onclose={onCancel}
   headerExtra={nameField}
   mainWidth={CHOICE_LIST_WIDTH}
@@ -364,7 +322,10 @@
   preview={characterPreview}
   {footer}
 >
-  {#if isOrigin}
+  {#if blockedHint(currentStep)}
+    <p class="hint">{blockedHint(currentStep)}</p>
+
+  {:else if isOrigin}
     <OriginStep kind={currentStep as OriginKind} {w} {catalog} />
 
   {:else if currentStep === 'languages'}
@@ -377,7 +338,7 @@
     <BackgroundAsiStep allowed={asiAllowed} primary={primaryAbilities} scores={w.scores} bind:asi={w.asi as AsiAllocation} />
 
   {:else if currentStep === 'proficiencies'}
-    <SkillPickStep {grants} bind:picks={skillPicks} onchange={syncChosenSkills} />
+    <SkillPickStep grants={w.grants} bind:picks={w.skillPicks} />
 
   {:else if currentStep === 'mastery'}
     {#if !mastery}
@@ -418,8 +379,6 @@
         recommended={offer.recommended}
         onToggle={(key) => {
           w.setTraitFeats(offer.featureKey, picked.includes(key) ? picked.filter((k) => k !== key) : [...picked, key]);
-          // Das Talent kann Übungen wählen lassen (Begabt) — der Übungsschritt lädt neu.
-          grants = null;
         }}
       />
     {/each}
@@ -431,10 +390,10 @@
     {/each}
 
   {:else if currentStep === 'features'}
-    <FeatureChoiceStep {w} bind:answers={choiceAnswers} />
+    <FeatureChoiceStep {w} bind:answers={w.choiceAnswers} />
 
   {:else if currentStep === 'spells'}
-    <SpellStep {w} library={spellLib} v={spellValues} />
+    <SpellStep {w} library={w.spellLib} v={spellValues} />
 
   {:else if currentStep === 'equipment'}
     <EquipmentChoiceStep {w} done={toolChoicesDone} />
@@ -451,5 +410,6 @@
 
 <style>
   .spacer { flex: 1; }
+  .link { background: none; border: none; padding: 0; font: inherit; color: inherit; text-decoration: underline dotted; cursor: pointer; }
   .name-input { width: min(22rem, 100%); font-size: 1rem; }
 </style>

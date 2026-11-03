@@ -15,7 +15,7 @@
   import type { FileEntry } from '../../types';
   import EntryPeekModal from './EntryPeekModal.svelte';
 
-  let { title, label, scope = '', mainWidth, steps = [], current = 0, onstep, onclose, children, headerExtra, detail, preview, footer }: {
+  let { title, label, scope = '', mainWidth, steps = [], current = 0, status, onstep, onclose, children, headerExtra, detail, preview, footer }: {
     title: string;
     label: string;
     /** Klasse am Rahmen, unter der die Formularsprache des Assistenten greift. */
@@ -24,7 +24,11 @@
     mainWidth?: string;
     steps?: { id: string; label: string }[];
     current?: number;
-    /** Nur erledigte Schritte sind anklickbar — vorwärts führt allein „Weiter". */
+    /**
+     * Mit Status ist jeder Schritt anklickbar und zeigt, ob er erledigt ist; ohne nur die
+     * zurückliegenden — vorwärts führt dann allein „Weiter".
+     */
+    status?: ('done' | 'open')[];
     onstep?: (index: number) => void;
     onclose: () => void;
     children: Snippet;
@@ -64,8 +68,9 @@
   {#if steps.length}
     <ol class="steps">
       {#each steps as s, i (s.id)}
-        <li class:active={i === current} class:done={i < current}>
-          {#if i < current && onstep}
+        <li class:active={i === current} class:done={status ? status[i] === 'done' : i < current}
+            class:open={status?.[i] === 'open'}>
+          {#if i !== current && onstep && (status || i < current)}
             <button type="button" onclick={() => onstep(i)}>{s.label}</button>
           {:else}
             <span>{s.label}</span>
@@ -117,8 +122,10 @@
     display: inline-block; padding: 0.18rem 0.6rem; border-radius: 4px;
     color: var(--ink-muted); background: none; border: none; font: inherit;
   }
-  .steps li.done button { color: var(--ink-soft); cursor: pointer; text-decoration: underline dotted; }
-  .steps li.done button:hover { color: var(--ink); background: var(--surface); }
+  .steps li.done button { color: var(--ink-soft); text-decoration: underline dotted; }
+  .steps li button { cursor: pointer; }
+  .steps li button:hover { color: var(--ink); background: var(--surface); }
+  .steps li.open:not(.active) > * { color: var(--ink-muted); font-style: italic; }
   .steps li.active > * { background: var(--arcane, var(--gold)); color: #fff; font-weight: 600; }
 
   .body {

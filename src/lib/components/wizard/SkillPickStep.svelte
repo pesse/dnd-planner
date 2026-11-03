@@ -9,10 +9,9 @@
   } from '../../services/proficiencyGrants';
   import { SKILL_NAMES, type SkillName } from '../../schemas/vocabulary';
 
-  let { grants, picks = $bindable(), onchange }: {
+  let { grants, picks = $bindable() }: {
     grants: CollectedGrants | null;
     picks: string[][];
-    onchange: () => void;
   } = $props();
 
   function allowedSkillsFor(from: SkillName[]): readonly SkillName[] {
@@ -34,7 +33,6 @@
     else if (cur.length >= max) return;
     else next = [...cur, skill];
     picks = picks.map((p, i) => (i === choiceIdx ? next : p));
-    onchange();
   }
 </script>
 
