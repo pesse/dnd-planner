@@ -16,7 +16,7 @@
 <div class="stage" style="--size: {size}px">
   {#if roll}
     {#if solid}
-      <Dice dice={roll.dice.map((d) => ({ ...d, dim: roll.kept != null && d.value !== roll.kept }))} roll={roll.id} {size} gap={4} />
+      <Dice dice={roll.dice.map((d, i) => ({ ...d, dim: roll.kept != null && d.value !== roll.kept, landed: i < (roll.landed ?? 0) }))} roll={roll.id} {size} gap={4} />
     {/if}
     <span class="sum" class:hit={roll.crit === 'hit'} class:miss={roll.crit === 'miss'}>{roll.total}</span>
     <span class="what">{roll.label}</span>

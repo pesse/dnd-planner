@@ -32,5 +32,5 @@ export function addedRoll(latest: Roll | undefined, formula: string, random?: ()
   if (!rollable(merged)) return null;
   const t = throwPool(pool, random);
   const label = poolDe(merged);
-  return { formula: label, label, dice: [...latest.dice, ...t.dice], kept: null, bonus: merged.bonus, total: latest.total + t.total, crit: null };
+  return { formula: label, label, dice: [...latest.dice, ...t.dice], kept: null, bonus: merged.bonus, total: latest.total + t.total, crit: null, landed: latest.dice.length };
 }

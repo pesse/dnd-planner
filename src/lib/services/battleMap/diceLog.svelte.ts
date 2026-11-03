@@ -9,6 +9,8 @@ export interface Roll {
   bonus: number;
   total: number;
   crit: 'hit' | 'miss' | null;
+  /** So viele führende Würfel lagen schon (Strg+Klick addiert) und rollen nicht noch einmal. */
+  landed?: number;
 }
 
 const LIMIT = 12;

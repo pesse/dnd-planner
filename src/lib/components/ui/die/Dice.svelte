@@ -8,6 +8,8 @@
     value: number;
     /** Zählt nicht, z. B. der schlechtere W20 bei Vorteil. */
     dim?: boolean;
+    /** Liegt schon und taumelt beim neuen `roll` nicht mit. */
+    landed?: boolean;
   }
 
   let { dice, roll = 0, color, size = 70, gap = 8, columns }: {
@@ -33,7 +35,7 @@
   const rows = $derived(Math.ceil(dice.length / cols));
   const canvasW = $derived(cols * pitch - gap);
   const canvasH = $derived(rows * pitch - gap);
-  const signature = $derived(`${roll}|${color}|${dice.map((d) => `${d.sides}:${d.value}:${d.dim ? 1 : 0}`).join(',')}`);
+  const signature = $derived(`${roll}|${color}|${dice.map((d) => `${d.sides}:${d.value}:${d.dim ? 1 : 0}${d.landed ? 'l' : ''}`).join(',')}`);
 
   function css(name: string, fallback: string): string {
     return getComputedStyle(canvas!).getPropertyValue(name).trim() || fallback;
@@ -95,9 +97,10 @@
       draw();
     } else {
       const start = performance.now();
-      const end = start + (built.length - 1) * STAGGER + ROLL_MS;
+      const first = dice.filter((d) => d.landed).length;
+      const end = start + Math.max(0, built.length - 1 - first) * STAGGER + ROLL_MS;
       const step = (now: number) => {
-        built.forEach((m, i) => m.pose(now - start - i * STAGGER));
+        built.forEach((m, i) => m.pose(dice[i]?.landed ? ROLL_MS : now - start - (i - first) * STAGGER));
         draw();
         if (now < end) frame = requestAnimationFrame(step);
       };

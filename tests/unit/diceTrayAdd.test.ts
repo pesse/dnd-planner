@@ -12,6 +12,7 @@ describe('addedRoll', () => {
     expect(sum.dice.map((d) => d.sides)).toEqual([6, 8, 8]);
     expect(sum.dice[0].value).toBe(first.dice[0].value);
     expect(sum.total).toBe(sum.dice.reduce((n, d) => n + d.value, 0));
+    expect(sum.landed).toBe(1);
   });
 
   it('gleiche Würfel zählen zusammen, Boni addieren sich', () => {
