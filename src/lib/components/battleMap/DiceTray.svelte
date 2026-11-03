@@ -173,7 +173,7 @@
     align-items: center;
     gap: 0.2rem;
     padding: 0.45rem 0.9rem 0.5rem 1.6rem;
-    background: url('/branding/dice/header.webp') center / 100% 100% no-repeat, linear-gradient(#4a2e1c, #2e1b10);
+    background: url('/branding/dice/header.webp') center / 100% 100% no-repeat #331a0d;
     cursor: move;
     user-select: none;
     touch-action: none;
@@ -201,7 +201,7 @@
     min-height: 7.5rem;
     padding: 0.3rem;
     text-align: center;
-    background: #6e1410;
+    background: linear-gradient(#331a0d 50%, var(--bg-panel) 50%);
     border: 12px solid #5a3a1e;
     border-image: url('/branding/dice/tray.webp') 32 fill / 12px stretch;
   }
