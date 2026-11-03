@@ -2,6 +2,7 @@
   /** Alle Tokens der Karte: auswählen, für Spieler zeigen oder verstecken, entfernen. */
   import type { MapEditor } from '../../services/battleMap/mapEditor.svelte';
   import PanelSection from './PanelSection.svelte';
+  import EyeIcon from '../ui/EyeIcon.svelte';
 
   let { editor }: { editor: MapEditor } = $props();
 
@@ -10,8 +11,8 @@
 
 <PanelSection title="Tokens ({map.tokens.length})">
   {#snippet actions()}
-    <button title="Alle Monster verstecken" onclick={() => editor.setAllHidden('monster', true)}>🙈</button>
-    <button title="Alle Monster zeigen" onclick={() => editor.setAllHidden('monster', false)}>👁</button>
+    <button title="Alle Monster verstecken" onclick={() => editor.setAllHidden('monster', true)}><EyeIcon closed /></button>
+    <button title="Alle Monster zeigen" onclick={() => editor.setAllHidden('monster', false)}><EyeIcon /></button>
   {/snippet}
   {#if !map.tokens.length}
     <p class="hint">Noch keine Tokens.</p>
@@ -20,7 +21,7 @@
     {#each map.tokens as t (t.id)}
       <li class:selected={t.id === editor.selectedId}>
         <button class="eye" title={t.hidden ? 'Für Spieler versteckt — zeigen' : 'Für Spieler sichtbar — verstecken'} onclick={() => editor.toggleHidden(t.id)}>
-          {t.hidden ? '🙈' : '👁'}
+          <EyeIcon closed={t.hidden} />
         </button>
         <button class="name" class:muted={t.hidden} onclick={() => (editor.selectedId = t.id)}>{t.name}</button>
         <button class="del" title="Entfernen" onclick={() => editor.removeToken(t.id)}>✕</button>

@@ -8,6 +8,7 @@
   import { pxToCell, type Point } from '../../../services/battleMap/geometry';
   import { cockpit } from '../../../services/battleMap/cockpitTab.svelte';
   import Markdown from '../../Markdown.svelte';
+  import EyeIcon from '../../ui/EyeIcon.svelte';
 
   let { editor, key, campaignDir, center }: { editor: MapEditor; key: string; campaignDir: string; center: () => Point } = $props();
 
@@ -82,7 +83,7 @@
         {#if tokens.length}
           <button class="bulk" disabled={busy} title="W20 + GES für alle Monster dieses Encounters ohne Initiative" onclick={rollInitiative}>🎲 Initiative</button>
           <button class="bulk2" onclick={() => editor.setEncounterHidden(key, !anyHidden)}>
-            {anyHidden ? '👁 Alle zeigen' : '🙈 Alle verstecken'}
+            <EyeIcon closed={!anyHidden} /> {anyHidden ? 'Alle zeigen' : 'Alle verstecken'}
           </button>
         {/if}
       </h3>
@@ -90,7 +91,7 @@
         <ul>
           {#each tokens as t (t.id)}
             <li>
-              <button class="eye" title={t.hidden ? 'Für Spieler versteckt — zeigen' : 'Für Spieler sichtbar — verstecken'} onclick={() => editor.toggleHidden(t.id)}>{t.hidden ? '🙈' : '👁'}</button>
+              <button class="eye" title={t.hidden ? 'Für Spieler versteckt — zeigen' : 'Für Spieler sichtbar — verstecken'} onclick={() => editor.toggleHidden(t.id)}><EyeIcon closed={t.hidden} /></button>
               <button class="link" class:dim={t.hidden} onclick={() => (editor.selectedId = t.id)}>{t.name}</button>
               {#if t.initiative != null}<span class="tag">Ini {t.initiative}</span>{/if}
               {#if t.hpMax != null && t.hp != null}<span class="tag" class:dead={t.hp === 0}>{t.hp === 0 ? 'besiegt' : `${t.hp}/${t.hpMax} TP`}</span>{/if}

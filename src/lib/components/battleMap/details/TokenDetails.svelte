@@ -1,5 +1,6 @@
 <script lang="ts">
   /** Das ausgewählte Token: Einstellungen, SL-Notiz und dahinter Werteblock oder Charakter. */
+  import EyeIcon from '../../ui/EyeIcon.svelte';
   import { pinnableTip } from '../tips/pinnableTip';
   import { withRule } from '../../ruleTips.svelte';
   import RichTextEditor from '../../RichTextEditor.svelte';
@@ -60,7 +61,7 @@
       class="eye"
       title={t.hidden ? 'Für Spieler versteckt — zeigen (H)' : 'Für Spieler sichtbar — verstecken (H)'}
       onclick={() => update({ hidden: !t.hidden })}
-    >{t.hidden ? '🙈' : '👁'}</button>
+    ><EyeIcon closed={t.hidden} /></button>
     <button class="del" title="Token entfernen (Entf)" onclick={() => editor.removeToken(t.id)}>✕</button>
   </div>
   <p class="kind">

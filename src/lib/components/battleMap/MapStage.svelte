@@ -8,6 +8,7 @@
   import { isBloodied } from '../../services/battleMap/tokenDetails';
   import type { Condition } from '../../schemas/vocabulary';
   import { conditionIconUrl } from '../../conditionIcon';
+  import EyeIcon from '../ui/EyeIcon.svelte';
   import type { HpPop } from '../../services/battleMap/hpPops.svelte';
 
   export interface StageToken {
@@ -120,6 +121,7 @@
       {:else}
         <span class="initials" style="font-size: {px * 0.36}px">{initialsOf(t.name)}</span>
       {/if}
+      {#if t.hidden}<span class="hidden-badge" style="font-size: calc(var(--tb) * 5)"><EyeIcon closed /></span>{/if}
       {#if mode === 'gm' && t.hpMax && t.hp != null && t.hp < t.hpMax}
         <span class="hp-bar" style="height: {Math.max(4, px / 12)}px"><span style="width: {(100 * t.hp) / t.hpMax}%"></span></span>
       {/if}
@@ -217,14 +219,17 @@
   .token.hidden-token .initials {
     filter: saturate(0.4);
   }
-  .token.hidden-token::before {
-    content: '🙈';
+  .hidden-badge {
     position: absolute;
-    top: -0.2em;
-    left: -0.2em;
-    font-size: calc(var(--tb) * 6);
-    line-height: 1;
+    top: -0.25em;
+    left: -0.25em;
     z-index: 2;
+    display: flex;
+    padding: 0.12em;
+    line-height: 1;
+    color: #f3e6c8;
+    background: rgba(20, 12, 8, 0.8);
+    border-radius: 50%;
     pointer-events: none;
   }
   .token.bloodied {
