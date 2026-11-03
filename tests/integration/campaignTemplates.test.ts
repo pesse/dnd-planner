@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { campaignTemplateSchema } from '$lib/schemas/template';
 import { encounterSchema } from '$lib/schemas/encounter';
 import { battleMapSchema } from '$lib/schemas/battleMap';
+import { trapSchema } from '$lib/schemas/trap';
 import { npcSchema } from '$lib/schemas/npc';
 import { handoutSchema } from '$lib/schemas/handout';
 import { characterSchema } from '$lib/schemas/characterSchema';
@@ -22,6 +23,9 @@ const walk = (dir: string): string[] =>
   readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(dir, e.name)) : [join(dir, e.name)]));
 
 const librarySlugs = new Set(walk(join(VAULT, 'monsters')).map((p) => p.split('/').pop()!.replace(/\.json$/, '')));
+const libraryTrapKeys = new Set(
+  walk(join(VAULT, 'traps')).map((p) => trapSchema.parse(JSON.parse(readFileSync(p, 'utf8'))).key),
+);
 const templates = existsSync(TEMPLATES) ? readdirSync(TEMPLATES) : [];
 
 // Eine Vorlage hat keine akt-lokalen Monster: was ein Encounter oder Token nennt, muss die Bibliothek führen.
@@ -41,12 +45,14 @@ describe.each(templates)('Kampagnen-Vorlage %s', (id) => {
     }
   });
 
-  it('Karten sind gültig und ihre Monster-Tokens auflösbar', () => {
+  it('Karten sind gültig und ihre Monster- und Fallen-Tokens auflösbar', () => {
     for (const f of files.filter((p) => /\/maps\/[^/]+\.json$/.test(p))) {
       const map = battleMapSchema.parse(JSON.parse(readFileSync(f, 'utf8')));
       expect(existsSync(join(dir, 'maps', map.image)), f).toBe(true);
       const refs = map.tokens.filter((t) => t.kind === 'monster' && t.ref).map((t) => t.ref!);
       expect(refs.filter((r) => !librarySlugs.has(r)), f).toEqual([]);
+      const trapRefs = map.tokens.filter((t) => t.kind === 'trap' && t.ref).map((t) => t.ref!);
+      expect(trapRefs.filter((r) => !libraryTrapKeys.has(r)), f).toEqual([]);
     }
   });
 
