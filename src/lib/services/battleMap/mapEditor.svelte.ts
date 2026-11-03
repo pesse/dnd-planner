@@ -13,6 +13,7 @@ import { gridFromCell, snapCell, type Point } from './geometry';
 import { advanceTurn, startCombat } from './initiative';
 import { loadBattleMap, mapImageUrl, pickMapImage, serializeBattleMap } from './mapFiles';
 import { toPlayerState } from './playerState';
+import { loadPlayerTips } from './playerTips';
 import { occupiedCells, placeDrafts, resolveTokenImage, type TokenDraft } from './tokenSources';
 
 const isTokenEffect = (b: string): b is TokenEffect => (TOKEN_EFFECT_KEYS as readonly string[]).includes(b);
@@ -40,10 +41,18 @@ export class MapEditor {
   #frame = 0;
   #unlisten: (() => void) | null = null;
   #playerDrag: string | null = null;
+  #tips: Record<string, string> = {};
 
   constructor() {
+    void loadPlayerTips().then((tips) => {
+      this.#tips = tips;
+      sendToPlayer({ type: 'tips', tips });
+    });
     this.#unlisten = onPlayerMessage((msg) => {
-      if (msg.type === 'hello') this.#broadcastNow();
+      if (msg.type === 'hello') {
+        sendToPlayer({ type: 'tips', tips: this.#tips });
+        this.#broadcastNow();
+      }
       else if (msg.type === 'move') this.#playerMove(msg);
       else if (msg.type === 'badge') this.#playerBadge(msg);
     });

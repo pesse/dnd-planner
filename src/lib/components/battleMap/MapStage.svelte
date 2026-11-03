@@ -8,6 +8,7 @@
   import { isBloodied } from '../../services/battleMap/tokenDetails';
   import { badgeIconUrl } from '../../conditionIcon';
   import EyeIcon from '../ui/EyeIcon.svelte';
+  import { textTip } from '../textTip.svelte';
   import type { HpPop } from '../../services/battleMap/hpPops.svelte';
 
   export interface StageToken {
@@ -39,6 +40,7 @@
     selectedId = null,
     turnId = '',
     pops = [],
+    tips,
     onimagesize,
     overlay,
   }: {
@@ -52,6 +54,8 @@
     selectedId?: string | null;
     turnId?: string;
     pops?: HpPop[];
+    /** Nur im Spielerfenster: Regeltexte für Zustände, Effekte und `bloodied`. */
+    tips?: Record<string, string>;
     onimagesize?: (w: number, h: number) => void;
     overlay?: Snippet<[{ w: number; h: number }]>;
   } = $props();
@@ -105,12 +109,13 @@
   {#each tokens as t (t.id)}
     {@const px = grid.size * t.size}
     {@const badges = [...(t.effects ?? []), ...(t.conditions ?? [])]}
+    {@const bloodied = t.bloodied || isBloodied({ hp: t.hp ?? null, hpMax: t.hpMax ?? null })}
     <div
       class="token"
       class:hidden-token={t.hidden}
       class:selected={t.id === selectedId}
       class:down={t.down || t.hp === 0}
-      class:bloodied={t.bloodied || isBloodied({ hp: t.hp ?? null, hpMax: t.hpMax ?? null })}
+      class:bloodied
       class:turn={t.id === turnId}
       class:grab={mode === 'gm' || t.movable}
       data-token-id={t.id}
@@ -127,10 +132,11 @@
         <span class="hp-bar" style="height: {Math.max(4, px / 12)}px"><span style="width: {(100 * t.hp) / t.hpMax}%"></span></span>
       {/if}
       {#if badges.length}
-        <span class="conditions" style="--ci: {Math.max(12, grid.size * 0.3)}px">
-          {#each badges as b}<img src={badgeIconUrl(b)} alt="" draggable="false" />{/each}
+        <span class="conditions" class:tips={!!tips} style="--ci: {Math.max(12, grid.size * 0.3)}px">
+          {#each badges as b}<img src={badgeIconUrl(b)} alt="" draggable="false" use:textTip={tips?.[b]} />{/each}
         </span>
       {/if}
+      {#if bloodied}<span class="blood" class:tips={!!tips} use:textTip={tips?.bloodied}></span>{/if}
       {#each pops.filter((p) => p.tokenId === t.id) as p, i (p.key)}
         <span class="pop" class:heal={p.delta > 0} style="font-size: {Math.max(14, px * 0.38)}px; margin-top: {-i * 1.05}em">{p.delta > 0 ? '+' : '−'}{Math.abs(p.delta)}</span>
       {/each}
@@ -239,9 +245,9 @@
   .token.bloodied img {
     filter: sepia(0.6) saturate(2.2) hue-rotate(-25deg);
   }
-  .token.bloodied::after {
-    content: '';
+  .blood {
     position: absolute;
+    z-index: 3;
     right: 2%;
     bottom: 2%;
     width: calc(var(--tb) * 3.6);
@@ -300,6 +306,10 @@
     gap: 1px;
     z-index: 3;
     pointer-events: none;
+  }
+  .tips,
+  .tips img {
+    pointer-events: auto;
   }
   .conditions img {
     width: var(--ci);

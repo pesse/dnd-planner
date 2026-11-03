@@ -9,7 +9,10 @@ import type { PlayerState } from './playerState';
 import type { Badge } from '../../conditionIcon';
 
 /** `hp`: nur die Änderung als aufsteigende Zahl — Spieler führen die TP ihrer Charaktere selbst. */
-export type ToPlayer = { type: 'state'; state: PlayerState } | { type: 'hp'; id: string; delta: number };
+export type ToPlayer =
+  | { type: 'state'; state: PlayerState }
+  | { type: 'hp'; id: string; delta: number }
+  | { type: 'tips'; tips: Record<string, string> };
 export type ToGm =
   | { type: 'hello' }
   | { type: 'move'; id: string; x: number; y: number; done: boolean }

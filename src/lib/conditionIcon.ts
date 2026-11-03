@@ -4,7 +4,8 @@ import type { Rule } from './schemas/rule';
 import { keySlug } from './utils/text';
 
 export type Badge = Condition | TokenEffect;
-const BADGES: readonly string[] = [...CONDITION_KEYS, ...TOKEN_EFFECT_KEYS];
+export const BADGE_KEYS: readonly Badge[] = [...CONDITION_KEYS, ...TOKEN_EFFECT_KEYS];
+const BADGES: readonly string[] = BADGE_KEYS;
 
 export const badgeIconUrl = (b: Badge): string => `/branding/conditions/${b}.webp`;
 

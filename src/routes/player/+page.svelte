@@ -9,6 +9,8 @@
   import { fitRect, pxToCell, snapCell, toImage, type Camera, type Point } from '$lib/services/battleMap/geometry';
   import { clampToView, type PlayerState } from '$lib/services/battleMap/playerState';
   import { isTauri } from '$lib/services/httpFetch';
+  import TextTooltip from '$lib/components/TextTooltip.svelte';
+  import { textTipState } from '$lib/components/textTip.svelte';
 
   let shown = $state<PlayerState | null>(null);
   let vw = $state(0);
@@ -18,6 +20,7 @@
   let idleTimer: ReturnType<typeof setTimeout> | undefined;
   let drag = $state<{ id: string; grab: Point; at: Point; moved: boolean } | null>(null);
   let menuId = $state<string | null>(null);
+  let tips = $state<Record<string, string>>({});
 
   function wake() {
     idle = false;
@@ -96,6 +99,7 @@
         if (msg.state.imageUrl !== shown?.imageUrl) img = { w: 0, h: 0 };
         shown = msg.state;
       } else if (msg.type === 'hp') popHp(msg.id, msg.delta);
+      else if (msg.type === 'tips') tips = msg.tips;
     });
     sendToGm({ type: 'hello' });
     return () => {
@@ -118,6 +122,8 @@
 
 <svelte:head><title>Spieleransicht</title></svelte:head>
 
+<TextTooltip text={textTipState.text} x={textTipState.x} y={textTipState.y} />
+
 <div
   class="player"
   class:idle
@@ -138,6 +144,7 @@
       {camera}
       turnId={shown.turn}
       pops={hpPops.list}
+      {tips}
       onimagesize={(w, h) => (img = { w, h })}
     />
     {#if menuToken}
