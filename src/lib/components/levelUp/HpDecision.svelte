@@ -1,7 +1,7 @@
 <script lang="ts">
   /** `hp_method` und `hp_roll` als eine Karte: zwei Kacheln, der Wurf hängt an der zweiten. */
   import type { LevelUpQuestion } from '$lib/schemas/levelUp';
-  import Die from '../ui/die/Die.svelte';
+  import Dice from '../ui/die/Dice.svelte';
   import { classColor } from '$lib/domain/classColors';
   import type { LevelUpAssistantUi } from './assistantState.svelte';
 
@@ -43,7 +43,7 @@
 {#if chosen === 'roll' && roll && rolls.length}
   <div class="tray">
     <div class="dice">
-      {#each rolls as r, i (i)}<Die {sides} value={r} roll={throws} delay={i * 90} color={classColor(ui.selectedClassKey)} />{/each}
+      <Dice dice={rolls.map((value) => ({ sides, value }))} roll={throws} color={classColor(ui.selectedClassKey)} />
     </div>
     <button type="button" class="secondary" onclick={rollDice}>Neu würfeln</button>
   </div>
@@ -56,5 +56,5 @@
     background: radial-gradient(ellipse at 50% 40%, color-mix(in srgb, var(--gold) 14%, var(--surface)) 0%, var(--surface) 75%);
     box-shadow: inset 0 2px 8px rgba(60, 35, 5, 0.25);
   }
-  .dice { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+  .dice { flex: 1; min-width: 4.4rem; }
 </style>

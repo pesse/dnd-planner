@@ -2,9 +2,10 @@
   /** Verlauf und Lage der Box überdauern das Schließen der Box und der Karte. */
   interface Roll {
     id: number;
+    /** Zum erneuten Würfeln per Klick auf den Verlauf; bei Vorteil/Nachteil leer. */
+    formula: string;
     label: string;
-    sides: number;
-    rolls: number[];
+    dice: { sides: number; value: number }[];
     kept: number | null;
     bonus: number;
     total: number;
@@ -12,54 +13,59 @@
   }
 
   let history = $state<Roll[]>([]);
+  let formula = $state('');
   let pos = $state<{ x: number; y: number } | null>(null);
   let nextId = 0;
 </script>
 
 <script lang="ts">
   /** Verdeckte Würfe der SL als frei verschiebbare Box über der Karte; der letzte Wurf rollt in 3D. */
-  import { diceDe, parseDice, throwDice, type DiceFormula } from '../../utils/dice';
-  import Die from '../ui/die/Die.svelte';
+  import { addToPool, EMPTY_POOL, parsePool, poolDe, throwDice, throwPool } from '../../utils/dice';
+  import Dice from '../ui/die/Dice.svelte';
 
   let { onclose }: { onclose: () => void } = $props();
 
   const QUICK = [4, 6, 8, 10, 12, 20, 100];
   const LIMIT = { count: 100, sides: 1000 };
   const SOLIDS = [4, 6, 8, 10, 12, 20];
-  /** Jeder Würfel ist ein eigener WebGL-Kontext, und der Browser hält nur ein gutes Dutzend gleichzeitig. */
-  const MAX_SOLIDS = 6;
+  /** Mehr Körper sind im Kasten nicht mehr zu lesen; dann zählt nur die Summe. */
+  const MAX_SOLIDS = 20;
 
   let box = $state<HTMLElement>();
-  let formula = $state('');
   let invalid = $state(false);
   let drag: { dx: number; dy: number } | null = null;
 
   const latest = $derived(history[0]);
-  const solid = $derived(latest && SOLIDS.includes(latest.sides) && latest.rolls.length <= MAX_SOLIDS);
+  const solid = $derived(latest && latest.dice.every((d) => SOLIDS.includes(d.sides)) && latest.dice.length <= MAX_SOLIDS);
+  const pool = $derived(formula.trim() ? parsePool(formula) : EMPTY_POOL);
+  const counts = $derived(new Map(pool?.dice.map((d) => [d.sides, d.count])));
 
-  const critOf = (sides: number, count: number, face: number): Roll['crit'] =>
-    sides === 20 && count === 1 ? (face === 20 ? 'hit' : face === 1 ? 'miss' : null) : null;
+  const critOf = (d20: number): Roll['crit'] => (d20 === 20 ? 'hit' : d20 === 1 ? 'miss' : null);
 
   function push(roll: Omit<Roll, 'id'>) {
     history = [{ id: nextId++, ...roll }, ...history].slice(0, 12);
   }
 
-  function roll(f: DiceFormula) {
-    const t = throwDice(f);
-    push({ label: diceDe(f), sides: f.sides, rolls: t.rolls, kept: null, bonus: f.bonus, total: t.total, crit: critOf(f.sides, f.count, t.rolls[0]) });
+  function pick(sides: number) {
+    if (!pool) return void (invalid = true);
+    formula = poolDe(addToPool(pool, sides));
   }
 
   function rollD20(mode: 'adv' | 'dis') {
     const { rolls } = throwDice({ count: 2, sides: 20, bonus: 0 });
     const kept = mode === 'adv' ? Math.max(...rolls) : Math.min(...rolls);
-    push({ label: mode === 'adv' ? 'W20 Vorteil' : 'W20 Nachteil', sides: 20, rolls, kept, bonus: 0, total: kept, crit: critOf(20, 1, kept) });
+    const dice = rolls.map((value) => ({ sides: 20, value }));
+    push({ formula: '', label: mode === 'adv' ? 'W20 Vorteil' : 'W20 Nachteil', dice, kept, bonus: 0, total: kept, crit: critOf(kept) });
   }
 
-  function rollFormula() {
-    const f = parseDice(formula.replace(/w/gi, 'd'));
-    invalid = !f || f.count < 1 || f.count > LIMIT.count || f.sides < 2 || f.sides > LIMIT.sides;
+  function rollPool() {
+    const count = pool?.dice.reduce((n, d) => n + d.count, 0) ?? 0;
+    invalid = !pool || !count || count > LIMIT.count || pool.dice.some((d) => d.sides < 2 || d.sides > LIMIT.sides);
     if (invalid) return;
-    roll(f!);
+    const t = throwPool(pool!);
+    const label = poolDe(pool!);
+    push({ formula: label, label, dice: t.dice, kept: null, bonus: pool!.bonus, total: t.total, crit: t.dice.length === 1 && t.dice[0].sides === 20 ? critOf(t.dice[0].value) : null });
+    formula = '';
   }
 
   function grab(e: PointerEvent) {
@@ -80,7 +86,15 @@
   }
 </script>
 
+{#snippet detail(r: Roll)}
+  {r.label}
+  {#if r.dice.length > 1 || r.bonus}
+    · [{#each r.dice as d, j}{j ? ', ' : ''}<span class:dropped={r.kept != null && d.value !== r.kept}>{d.value}</span>{/each}]{r.bonus > 0 ? ` + ${r.bonus}` : r.bonus < 0 ? ` − ${-r.bonus}` : ''}
+  {/if}
+{/snippet}
+
 <section bind:this={box} class="tray" style={pos ? `left: ${pos.x}px; top: ${pos.y}px; right: auto;` : ''} aria-label="Würfel">
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <header onpointerdown={grab} onpointermove={move} onpointerup={() => (drag = null)}>
     <span class="title">🎲 Würfel</span>
     {#if history.length}<button title="Verlauf leeren" onclick={() => (history = [])}>🧹</button>{/if}
@@ -92,11 +106,7 @@
       <div class="stage">
         {#if solid}
           <div class="dice">
-            {#each latest.rolls as value, i (`${latest.id}-${i}`)}
-              <span class:dropped={latest.kept != null && value !== latest.kept}>
-                <Die sides={latest.sides} {value} roll={latest.id} delay={i * 90} />
-              </span>
-            {/each}
+            <Dice dice={latest.dice.map((d) => ({ ...d, dim: latest.kept != null && d.value !== latest.kept }))} roll={latest.id} size={56} gap={4} />
           </div>
         {/if}
         <span class="sum" class:hit={latest.crit === 'hit'} class:miss={latest.crit === 'miss'}>{latest.total}</span>
@@ -105,16 +115,21 @@
 
     <div class="quick">
       {#each QUICK as sides}
-        <button onclick={() => roll({ count: 1, sides, bonus: 0 })}>W{sides}</button>
+        <button class:picked={counts.has(sides)} title="W{sides} in den Wurf legen" onclick={() => pick(sides)}>
+          W{sides}{#if counts.get(sides)}<span class="count">×{counts.get(sides)}</span>{/if}
+        </button>
       {/each}
     </div>
     <div class="pair">
       <button onclick={() => rollD20('adv')}>W20 Vorteil</button>
       <button onclick={() => rollD20('dis')}>W20 Nachteil</button>
     </div>
-    <form class="pair" onsubmit={(e) => { e.preventDefault(); rollFormula(); }}>
-      <input bind:value={formula} class:invalid placeholder="z. B. 2W6+3" aria-label="Würfelformel" oninput={() => (invalid = false)} />
-      <button type="submit">Würfeln</button>
+    <form class="pair" onsubmit={(e) => { e.preventDefault(); rollPool(); }}>
+      <span class="pool">
+        <input bind:value={formula} class:invalid placeholder="z. B. 3W8+2" aria-label="Wurf" oninput={() => (invalid = false)} />
+        {#if formula}<button type="button" class="clear" title="Wurf leeren" onclick={() => { formula = ''; invalid = false; }}>✕</button>{/if}
+      </span>
+      <button type="submit" class="go" disabled={!formula.trim()}>Würfeln</button>
     </form>
 
     {#if history.length}
@@ -122,12 +137,11 @@
         {#each history as r, i (r.id)}
           <li class:latest={i === 0}>
             <span class="total" class:hit={r.crit === 'hit'} class:miss={r.crit === 'miss'}>{r.total}</span>
-            <span class="detail">
-              {r.label}
-              {#if r.rolls.length > 1 || r.bonus}
-                · [{#each r.rolls as d, j}{j ? ', ' : ''}<span class:dropped={r.kept != null && d !== r.kept}>{d}</span>{/each}]{r.bonus > 0 ? ` + ${r.bonus}` : r.bonus < 0 ? ` − ${-r.bonus}` : ''}
-              {/if}
-            </span>
+            {#if r.formula}
+              <button class="detail again" title="{r.formula} wieder in den Wurf legen" onclick={() => (formula = r.formula)}>{@render detail(r)}</button>
+            {:else}
+              <span class="detail">{@render detail(r)}</span>
+            {/if}
           </li>
         {/each}
       </ol>
@@ -183,12 +197,8 @@
     align-items: center;
   }
   .dice {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-  .dice .dropped {
-    opacity: 0.35;
+    align-self: stretch;
+    text-align: center;
   }
   .sum {
     font-family: var(--font-display);
@@ -221,8 +231,51 @@
   button:hover {
     border-color: var(--red);
   }
+  button.picked {
+    border-color: var(--red);
+    color: var(--red);
+  }
+  .count {
+    margin-left: 0.15em;
+    font-size: 0.7rem;
+    font-weight: 700;
+  }
+  .pool {
+    position: relative;
+    flex: 2;
+  }
+  .pool input {
+    width: 100%;
+    padding-right: 1.4rem;
+  }
+  .clear {
+    position: absolute;
+    right: 0.1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: none;
+    padding: 0 0.3rem;
+  }
+  .go {
+    background: var(--red);
+    border-color: var(--red);
+    color: var(--on-accent);
+    font-weight: 600;
+  }
+  .go:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
   input.invalid {
     border-color: var(--danger);
+  }
+  .detail.again {
+    all: unset;
+    cursor: pointer;
+  }
+  .detail.again:hover {
+    text-decoration: underline dotted;
   }
   .history {
     list-style: none;

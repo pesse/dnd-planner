@@ -5,7 +5,7 @@
   import type { ItemInfo } from '../../itemLibrary';
   import { DAMAGE_TYPE_LABELS } from '../../itemLabels';
   import { diceDe, parseDice, throwDice, type DiceFormula, type DiceThrow } from '../../utils/dice';
-  import Die from '../ui/die/Die.svelte';
+  import Dice from '../ui/die/Dice.svelte';
 
   let { lib, line }: { lib: ItemInfo; line: Character['inventory'][number] } = $props();
 
@@ -47,9 +47,7 @@
   {:else}
     <span class="inv-rolled" title="{p.labelDe}: {diceDe(p.formula)} ausgewürfelt">
       {#if throws[p.id]}
-        <span class="inv-dice">
-          {#each throws[p.id].rolls as r, i (i)}<Die sides={p.formula.sides} value={r} roll={throws[p.id].n} delay={i * 90} />{/each}
-        </span>
+        <Dice dice={throws[p.id].rolls.map((value) => ({ sides: p.formula.sides, value }))} roll={throws[p.id].n} size={35} gap={2} columns={5} />
       {/if}
       {p.labelDe}: <strong>{value}</strong>
       <button type="button" class="inv-reroll" title="Neu würfeln" onclick={() => roll(p.id, p.formula)}>↻</button>
@@ -62,7 +60,5 @@
   .inv-unchosen { color: var(--danger); }
   .inv-roll { font-size: 0.8rem; padding: 0 0.35rem; }
   .inv-rolled { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.8rem; }
-  .inv-dice { display: inline-flex; flex-wrap: wrap; gap: 0.1rem; max-width: 12rem; }
-  .inv-dice :global(.die) { width: 2.2rem; height: 2.2rem; }
   .inv-reroll { padding: 0 0.25rem; font-size: 0.75rem; background: none; border: none; color: var(--ink-muted); cursor: pointer; }
 </style>
