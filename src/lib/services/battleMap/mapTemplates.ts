@@ -6,6 +6,8 @@ import { confirmAction } from '../../stores/confirmDialog';
 import { openSaveAs } from '../../editor/saveAs';
 import { slugKeepUmlauts } from '../../utils/text';
 import type { Campaign } from '../../types';
+import { campaignDirOf } from './tokenDetails';
+import { copyMapEncounters } from './mapEncounterCopy';
 
 export const MAP_TEMPLATES_SUBDIR = 'map-templates';
 
@@ -49,7 +51,8 @@ export interface MapPlacement {
   campaign: string;
 }
 
-const placeDir = (campaign: string, subdir: string): string => `./vault/campaigns/${campaign}/${subdir}`;
+const campaignDir = (campaign: string): string => `./vault/campaigns/${campaign}`;
+const placeDir = (campaign: string, subdir: string): string => `${campaignDir(campaign)}/${subdir}`;
 
 async function takenBases(dir: string): Promise<Set<string>> {
   const files = await invoke<string[]>('list_json_files', { path: dir }).catch(() => [] as string[]);
@@ -84,6 +87,7 @@ async function writePlaced(srcPath: string, map: BattleMap, to: MapPlacement, su
   const dir = placeDir(to.campaign, subdir);
   const base = slugKeepUmlauts(to.name);
   if (!base || !(await mayReplace(dir, base, what))) return null;
+  await copyMapEncounters(map, campaignDirOf(srcPath), campaignDir(to.campaign));
   return writeMapCopy(srcPath, { ...map, name: to.name }, dir, base);
 }
 
