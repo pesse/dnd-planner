@@ -5,7 +5,7 @@
   import type { MapEditor } from '../../../services/battleMap/mapEditor.svelte';
   import { pinnableTip } from '../tips/pinnableTip';
   import { conditionTip } from '../../ruleTips.svelte';
-  import { conditionIconUrl } from '../conditionIcon';
+  import { conditionIconUrl } from '../../../conditionIcon';
 
   let { editor, token: t }: { editor: MapEditor; token: Token } = $props();
 

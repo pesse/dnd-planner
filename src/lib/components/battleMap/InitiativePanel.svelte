@@ -3,7 +3,7 @@
   import { pinnableTip } from './tips/pinnableTip';
   import { conditionTip } from '../ruleTips.svelte';
   import { CONDITIONS } from '../../schemas/vocabulary';
-  import { conditionIconUrl } from './conditionIcon';
+  import { conditionIconUrl } from '../../conditionIcon';
   import { isBloodied } from '../../services/battleMap/tokenDetails';
   import type { MapEditor } from '../../services/battleMap/mapEditor.svelte';
   import { initiativeOrder, rollMonsterInitiatives } from '../../services/battleMap/initiative';

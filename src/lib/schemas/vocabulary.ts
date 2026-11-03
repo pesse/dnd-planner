@@ -69,13 +69,13 @@ export const DAMAGE_DICE = ['D4', 'D6', 'D8', 'D10', 'D12'] as const;
 export type DamageDie = (typeof DAMAGE_DICE)[number];
 
 export const CONDITIONS = {
-  blinded:       'Geblendet',
+  blinded:       'Blind',
   charmed:       'Bezaubert',
   deafened:      'Taub',
   exhaustion:    'Erschöpfung',
   frightened:    'Verängstigt',
   grappled:      'Gepackt',
-  incapacitated: 'Handlungsunfähig',
+  incapacitated: 'Kampfunfähig',
   invisible:     'Unsichtbar',
   paralyzed:     'Gelähmt',
   petrified:     'Versteinert',

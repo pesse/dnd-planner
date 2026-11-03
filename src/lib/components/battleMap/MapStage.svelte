@@ -7,7 +7,7 @@
   import { initialsOf, shortName } from '../../services/battleMap/tokenSources';
   import { isBloodied } from '../../services/battleMap/tokenDetails';
   import type { Condition } from '../../schemas/vocabulary';
-  import { conditionIconUrl } from './conditionIcon';
+  import { conditionIconUrl } from '../../conditionIcon';
   import type { HpPop } from '../../services/battleMap/hpPops.svelte';
 
   export interface StageToken {

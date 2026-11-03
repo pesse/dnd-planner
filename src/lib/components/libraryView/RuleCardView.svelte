@@ -2,6 +2,8 @@
   import { ruleText } from '$lib/rulesLibrary';
   import { RULE_CATEGORY_DE, type Rule } from '$lib/schemas/rule';
   import { sourceLabel } from '$lib/services/sourceRegistry';
+  import { ruleIconUrl } from '$lib/conditionIcon';
+  import CardArt from '../ui/CardArt.svelte';
   import LibraryCardFrame from '../ui/LibraryCardFrame.svelte';
   import Markdown from '../Markdown.svelte';
 
@@ -11,6 +13,7 @@
 </script>
 
 <LibraryCardFrame accent="var(--ink-soft)" name={rule.name} nameDe={rule.nameDe}>
+  {#snippet art()}<CardArt src={ruleIconUrl(rule)} color="var(--ink-soft)" />{/snippet}
   {#snippet head()}
     <div class="badges">
       <span class="kategorie">{RULE_CATEGORY_DE[rule.category]}</span>

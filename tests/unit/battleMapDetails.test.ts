@@ -5,6 +5,7 @@ import { adjustHp, campaignDirOf, encounterKeyOf, encounterPath, isBloodied } fr
 import { shortName } from '../../src/lib/services/battleMap/tokenSources';
 import { toPlayerState } from '../../src/lib/services/battleMap/playerState';
 import { asMapTemplate, isMapTemplatePath } from '../../src/lib/services/battleMap/mapTemplates';
+import { ruleIconUrl } from '../../src/lib/conditionIcon';
 import { advanceTurn, initiativeOrder, startCombat } from '../../src/lib/services/battleMap/initiative';
 
 const token = (id: string) => ({ kind: 'token', id }) as const;
@@ -157,5 +158,13 @@ describe('Karte als Vorlage', () => {
     expect(isMapTemplatePath(path)).toBe(true);
     expect(isMapTemplatePath('./vault/campaigns/hellfire-club/maps/gruft.json')).toBe(false);
     expect(campaignDirOf(path)).toBe('./vault/campaigns/hellfire-club');
+  });
+});
+
+describe('Icon eines Regeleintrags', () => {
+  it('gibt es nur für die Zustände der Kampfkarte', () => {
+    expect(ruleIconUrl({ key: 'srd-2024_incapacitated', category: 'condition' })).toBe('/branding/conditions/incapacitated.webp');
+    expect(ruleIconUrl({ key: 'srd-2024_bloodied', category: 'condition' })).toBeNull();
+    expect(ruleIconUrl({ key: 'srd-2024_initiative', category: 'rule' })).toBeNull();
   });
 });
