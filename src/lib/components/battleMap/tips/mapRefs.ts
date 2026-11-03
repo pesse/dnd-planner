@@ -4,7 +4,7 @@
  */
 import { getRuleByKey } from '../../../rulesLibrary';
 import { RULE_REF_SCHEME } from '../../../services/vaultLinks';
-import { pinTip } from '../../../services/battleMap/pinnedTips.svelte';
+import { pinTip, tooltipSpot } from '../../../services/battleMap/pinnedTips.svelte';
 import { prepareRoll } from '../../../services/battleMap/diceTray.svelte';
 import { ruleTipMarkdown } from '../../ruleRefLinks.svelte';
 
@@ -74,7 +74,8 @@ export function mapRefs(node: HTMLElement) {
       e.preventDefault();
       e.stopPropagation();
       const key = (link.getAttribute('href') ?? '').slice(RULE_REF_SCHEME.length).trim();
-      void getRuleByKey(key).then((r) => r && pinTip(ruleTipMarkdown(r), e.clientX + 12, e.clientY + 12));
+      const spot = tooltipSpot(e);
+      void getRuleByKey(key).then((r) => r && pinTip(ruleTipMarkdown(r), spot.x, spot.y));
       return;
     }
     const dice = hit(e);

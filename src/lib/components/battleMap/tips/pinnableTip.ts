@@ -2,18 +2,22 @@
  * `use:pinnableTip={text}` — Schwebe-Tooltip wie `textTip`, der sich per Klick als Fenster anheften lässt.
  * Auf Bedienelementen gehört der Linksklick der eigenen Aktion; dort heftet der Rechtsklick an.
  */
-import { pinTip } from '../../../services/battleMap/pinnedTips.svelte';
-import { textTip, textTipState } from '../../textTip.svelte';
+import { pinTip, tooltipSpot } from '../../../services/battleMap/pinnedTips.svelte';
+import { textTip } from '../../textTip.svelte';
 
 const INTERACTIVE = 'button, a, input, label, select, textarea';
 
 export function pinnableTip(node: HTMLElement, text: string | null | undefined) {
   let current = text;
+  let spot = { x: 0, y: 0 };
+  // Vor `textTip`s mousedown, der den Tooltip ausblendet.
+  const measure = (e: MouseEvent) => (spot = tooltipSpot(e));
+  node.addEventListener('mousedown', measure, true);
   const inner = textTip(node, text);
   const pin = (e: MouseEvent) => {
     if (!current?.trim()) return;
     e.preventDefault();
-    pinTip(current, textTipState.x || e.clientX, textTipState.y || e.clientY);
+    pinTip(current, spot.x, spot.y);
   };
   const click = (e: MouseEvent) => {
     if (!node.closest(INTERACTIVE)) pin(e);
@@ -28,6 +32,7 @@ export function pinnableTip(node: HTMLElement, text: string | null | undefined) 
     destroy() {
       node.removeEventListener('click', click);
       node.removeEventListener('contextmenu', pin);
+      node.removeEventListener('mousedown', measure, true);
       inner.destroy();
     },
   };
