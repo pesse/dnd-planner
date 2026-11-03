@@ -69,10 +69,17 @@ async function readCampaignTemplates(): Promise<CampaignTemplateRef[]> {
   return refs.filter((r): r is CampaignTemplateRef => r !== null).sort((a, b) => a.name.localeCompare(b.name, 'de'));
 }
 
+export interface TemplateLevel {
+  level: number;
+  classLevel: string;
+}
+
 export interface CharacterTemplateRef {
   id: string;
   name: string;
   classLevel: string;
+  /** Aufsteigend, beginnt immer mit Stufe 1 aus `character.json`. */
+  levels: TemplateLevel[];
   species: string;
   /** Leer ohne Porträt. */
   portraitSrc: string;
@@ -89,10 +96,12 @@ export async function listCharacterTemplates(): Promise<CharacterTemplateRef[]> 
       const dir = `${CHARACTER_TEMPLATES}/${id}`;
       try {
         const c = JSON.parse(await invoke<string>('read_file_content', { path: `${dir}/character.json` }));
+        const classLevel = String(c.classLevel ?? '');
         return {
           id,
           name: String(c.name ?? id),
-          classLevel: String(c.classLevel ?? ''),
+          classLevel,
+          levels: [{ level: 1, classLevel }, ...(await higherLevels(dir))],
           species: String(c.species?.name ?? c.race ?? ''),
           portraitSrc: c.portraitFile ? await characterAssetSrc(dir, c.portraitFile) : '',
           campaign: campaignOf.get(id) ?? '',
@@ -105,6 +114,28 @@ export async function listCharacterTemplates(): Promise<CharacterTemplateRef[]> 
   return refs
     .filter((r): r is CharacterTemplateRef => r !== null)
     .sort((a, b) => a.campaign.localeCompare(b.campaign, 'de') || a.name.localeCompare(b.name, 'de'));
+}
+
+async function higherLevels(dir: string): Promise<TemplateLevel[]> {
+  let entries: EntryInfo[];
+  try {
+    entries = await invoke<EntryInfo[]>('list_entries', { path: `${dir}/${LEVELS}` });
+  } catch {
+    return [];
+  }
+  const levels = await Promise.all(
+    entries.map(async (e): Promise<TemplateLevel | null> => {
+      const level = Number(/^(\d+)\.json$/.exec(e.name)?.[1]);
+      if (e.is_dir || !(level > 1)) return null;
+      try {
+        const c = JSON.parse(await invoke<string>('read_file_content', { path: `${dir}/${LEVELS}/${e.name}` }));
+        return { level, classLevel: String(c.classLevel ?? '') };
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return levels.filter((l): l is TemplateLevel => l !== null).sort((a, b) => a.level - b.level);
 }
 
 /**

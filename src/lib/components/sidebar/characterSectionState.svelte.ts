@@ -140,8 +140,8 @@ export class CharacterSectionState {
     await this.openCreated(uid);
   }
 
-  async createFromTemplate(id: string): Promise<void> {
-    const uid = await instantiateCharacterTemplate(id);
+  async createFromTemplate(id: string, level: number): Promise<void> {
+    const uid = await instantiateCharacterTemplate(id, level);
     this.showChooser = false;
     await this.openCreated(uid);
   }

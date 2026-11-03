@@ -6,12 +6,13 @@
   let { onwizard, onimport, ontemplate, oncancel }: {
     onwizard: () => void;
     onimport: () => void;
-    ontemplate: (id: string) => Promise<void>;
+    ontemplate: (id: string, level: number) => Promise<void>;
     oncancel: () => void;
   } = $props();
 
   let templates = $state<CharacterTemplateRef[] | null>(null);
   let showTemplates = $state(false);
+  let level = $state(1);
   let busy = $state('');
   let error = $state('');
 
@@ -25,11 +26,14 @@
     return [...out];
   });
 
+  const offered = $derived([...new Set((templates ?? []).flatMap((t) => t.levels.map((l) => l.level)))].sort((a, b) => a - b));
+  const atLevel = (t: CharacterTemplateRef) => t.levels.find((l) => l.level === level);
+
   async function pick(t: CharacterTemplateRef) {
     busy = t.id;
     error = '';
     try {
-      await ontemplate(t.id);
+      await ontemplate(t.id, level);
     } catch (e) {
       error = `Vorlage konnte nicht angelegt werden: ${e instanceof Error ? e.message : e}`;
     } finally {
@@ -60,18 +64,27 @@
     </div>
   {:else}
     <button class="back" onclick={() => (showTemplates = false)}>← Zurück</button>
+    {#if offered.length > 1}
+      <div class="levels" role="radiogroup" aria-label="Stufe">
+        <span>Stufe</span>
+        {#each offered as l (l)}
+          <button role="radio" aria-checked={level === l} onclick={() => (level = l)}>{l}</button>
+        {/each}
+      </div>
+    {/if}
     {#each groups as [campaign, list] (campaign)}
       <h3>{campaign || 'Weitere Vorlagen'}</h3>
       <div class="grid">
         {#each list as t (t.id)}
-          <button class="template" disabled={!!busy} onclick={() => pick(t)}>
+          {@const at = atLevel(t)}
+          <button class="template" disabled={!!busy || !at} title={at ? '' : `Diese Vorlage gibt es nicht auf Stufe ${level}`} onclick={() => pick(t)}>
             {#if t.portraitSrc}
               <img src={t.portraitSrc} alt="" />
             {:else}
               <span class="placeholder">{t.name.slice(0, 1)}</span>
             {/if}
             <span class="name">{busy === t.id ? 'Wird angelegt…' : t.name}</span>
-            <span class="meta">{[t.species, t.classLevel].filter(Boolean).join(' · ')}</span>
+            <span class="meta">{[t.species, at?.classLevel ?? t.classLevel].filter(Boolean).join(' · ')}</span>
           </button>
         {/each}
       </div>
@@ -124,6 +137,26 @@
     padding: 0;
     color: var(--ink-soft);
     cursor: pointer;
+  }
+  .levels {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.8rem;
+    font-size: 0.85rem;
+  }
+  .levels button {
+    min-width: 2rem;
+    padding: 0.2rem 0.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .levels button[aria-checked='true'] {
+    border-color: var(--red);
+    box-shadow: inset 0 0 0 1px var(--red);
   }
   h3 {
     margin: 0.9rem 0 0.5rem;

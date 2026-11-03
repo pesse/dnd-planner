@@ -36,7 +36,7 @@ vi.mock('@tauri-apps/api/core', () => ({
   convertFileSrc: (p: string) => `asset://${p}`,
 }));
 
-const { listCampaignTemplates, listCharacterTemplates, instantiateCampaignTemplate, freeName } = await import('$lib/services/templates/templates');
+const { listCampaignTemplates, listCharacterTemplates, instantiateCampaignTemplate, instantiateCharacterTemplate, freeName } = await import('$lib/services/templates/templates');
 
 const { readProgress, setChapterCompleted } = await import('$lib/services/templates/chapters');
 
@@ -173,5 +173,16 @@ describe('Charakter-Vorlagen', () => {
     expect(list.map((t) => [t.id, t.campaign])).toEqual([['lose', ''], ['hfc-will', 'Hellfire']]);
     expect(list[1].portraitSrc).toMatch(/^asset:\/\/\/abs\/.*hfc-will\/portrait\.png/);
     expect(list[0]).toMatchObject({ name: 'Ada', classLevel: 'Magier 1', portraitSrc: '' });
+  });
+
+  it('führt die Stufen einer Vorlage und legt sie auf der gewählten an', async () => {
+    files.set(`${T}/characters/lose/levels/3.json`, JSON.stringify({ name: 'Ada', classLevel: 'Magier 3' }));
+    files.set(`${T}/characters/lose/levels/notiz.txt`, 'kein Level');
+    const ada = (await listCharacterTemplates()).find((t) => t.id === 'lose')!;
+    expect(ada.levels).toEqual([{ level: 1, classLevel: 'Magier 1' }, { level: 3, classLevel: 'Magier 3' }]);
+
+    const uid = await instantiateCharacterTemplate('lose', 3);
+    expect(JSON.parse(files.get(`./vault/characters/${uid}/character.json`)!)).toMatchObject({ classLevel: 'Magier 3', uid });
+    expect(under(`./vault/characters/${uid}/levels`)).toEqual([]);
   });
 });

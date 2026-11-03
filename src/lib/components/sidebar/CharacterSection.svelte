@@ -95,7 +95,7 @@
   <NewCharacterChooser
     onwizard={() => { state.showChooser = false; state.showWizard = true; }}
     onimport={() => { state.showChooser = false; state.showImport = true; }}
-    ontemplate={(id) => state.createFromTemplate(id)}
+    ontemplate={(id, level) => state.createFromTemplate(id, level)}
     oncancel={() => (state.showChooser = false)}
   />
 {/if}
