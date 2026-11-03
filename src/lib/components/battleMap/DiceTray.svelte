@@ -164,9 +164,9 @@
     flex-direction: column;
     overflow: hidden;
     background: var(--bg-panel);
-    border: 1px solid var(--border-strong);
+    border: 1px solid #3a2416;
     border-radius: 10px;
-    box-shadow: 0 10px 28px rgba(20, 8, 0, 0.5), 0 0 0 1px rgba(255, 240, 200, 0.4) inset;
+    box-shadow: 0 10px 28px rgba(20, 8, 0, 0.5);
   }
   header {
     display: flex;
@@ -199,13 +199,11 @@
     justify-content: center;
     gap: 0.1rem;
     min-height: 7.5rem;
-    margin: 0.45rem 0.45rem 0;
     padding: 0.3rem;
     text-align: center;
     background: #6e1410;
     border: 12px solid #5a3a1e;
     border-image: url('/branding/dice/tray.webp') 32 fill / 12px stretch;
-    filter: drop-shadow(0 2px 3px rgba(40, 20, 0, 0.35));
   }
   .sum {
     font-family: var(--font-display);
