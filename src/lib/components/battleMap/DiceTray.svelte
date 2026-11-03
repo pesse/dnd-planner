@@ -1,17 +1,17 @@
 <script lang="ts" module>
   /** Wurf in Arbeit und Lage der Box überdauern das Schließen der Box und der Karte. */
-  let formula = $state('');
   let pos = $state<{ x: number; y: number } | null>(null);
   let historyOpen = $state(false);
 </script>
 
 <script lang="ts">
   /** Verdeckte Würfe der SL als frei verschiebbare Box über der Karte; der letzte Wurf rollt in 3D. */
-  import { textTip } from '../textTip.svelte';
+  import { pinnableTip } from './tips/pinnableTip';
   import { withRule } from '../ruleTips.svelte';
   import { addToPool, EMPTY_POOL, parsePool, poolDe, throwDice, throwPool } from '../../utils/dice';
   import Dice from '../ui/die/Dice.svelte';
   import { diceLog, logRoll, type Roll } from '../../services/battleMap/diceLog.svelte';
+  import { diceTray } from '../../services/battleMap/diceTray.svelte';
   import type { MapEditor } from '../../services/battleMap/mapEditor.svelte';
   import { hpAfter } from '../../services/battleMap/tokenDetails';
 
@@ -39,14 +39,14 @@
   const history = $derived(diceLog.rolls);
   const latest = $derived(history[0]);
   const solid = $derived(latest && latest.dice.every((d) => SOLIDS.includes(d.sides)) && latest.dice.length <= MAX_SOLIDS);
-  const pool = $derived(formula.trim() ? parsePool(formula) : EMPTY_POOL);
+  const pool = $derived(diceTray.formula.trim() ? parsePool(diceTray.formula) : EMPTY_POOL);
   const counts = $derived(new Map(pool?.dice.map((d) => [d.sides, d.count])));
 
   const critOf = (d20: number): Roll['crit'] => (d20 === 20 ? 'hit' : d20 === 1 ? 'miss' : null);
 
   function pick(sides: number) {
     if (!pool) return void (invalid = true);
-    formula = poolDe(addToPool(pool, sides));
+    diceTray.formula = poolDe(addToPool(pool, sides));
   }
 
   function rollD20(mode: 'adv' | 'dis') {
@@ -63,7 +63,7 @@
     const t = throwPool(pool!);
     const label = poolDe(pool!);
     logRoll({ formula: label, label, dice: t.dice, kept: null, bonus: pool!.bonus, total: t.total, crit: t.dice.length === 1 && t.dice[0].sides === 20 ? critOf(t.dice[0].value) : null });
-    formula = '';
+    diceTray.formula = '';
   }
 
   const target = $derived(editor.selected?.kind === 'monster' ? editor.selected : null);
@@ -141,14 +141,14 @@
     </div>
     <form class="row" onsubmit={(e) => { e.preventDefault(); rollPool(); }}>
       <span class="pool">
-        <input bind:value={formula} class:invalid placeholder="z. B. 3W8+2" aria-label="Wurf" oninput={() => (invalid = false)} />
-        {#if formula}<button type="button" class="clear" title="Wurf leeren" onclick={() => { formula = ''; invalid = false; }}>✕</button>{/if}
+        <input bind:value={diceTray.formula} class:invalid placeholder="z. B. 3W8+2" aria-label="Wurf" oninput={() => (invalid = false)} />
+        {#if diceTray.formula}<button type="button" class="clear" title="Wurf leeren" onclick={() => { diceTray.formula = ''; invalid = false; }}>✕</button>{/if}
       </span>
-      <button type="submit" class="go" disabled={!formula.trim()}>Würfeln</button>
+      <button type="submit" class="go" disabled={!diceTray.formula.trim()}>Würfeln</button>
     </form>
     <div class="row">
-      <button class="d20" use:textTip={withRule('Zwei W20, der höhere zählt.', 'srd-2024_advantage')} onclick={() => rollD20('adv')}>▲ Vorteil</button>
-      <button class="d20" use:textTip={withRule('Zwei W20, der niedrigere zählt.', 'srd-2024_disadvantage')} onclick={() => rollD20('dis')}>▼ Nachteil</button>
+      <button class="d20" use:pinnableTip={withRule('Zwei W20, der höhere zählt.', 'srd-2024_advantage')} onclick={() => rollD20('adv')}>▲ Vorteil</button>
+      <button class="d20" use:pinnableTip={withRule('Zwei W20, der niedrigere zählt.', 'srd-2024_disadvantage')} onclick={() => rollD20('dis')}>▼ Nachteil</button>
       {#if history.length > 1}
         <button class="toggle" aria-expanded={historyOpen} title="Verlauf {historyOpen ? 'zuklappen' : 'aufklappen'}" onclick={() => (historyOpen = !historyOpen)}>
           <span class="caret">▸</span>{history.length - 1}
@@ -161,7 +161,7 @@
           <li>
             <span class="total" class:hit={r.crit === 'hit'} class:miss={r.crit === 'miss'}>{r.total}</span>
             {#if r.formula}
-              <button class="detail again" title="{r.formula} wieder in den Wurf legen" onclick={() => (formula = r.formula)}>{@render detail(r)}</button>
+              <button class="detail again" title="{r.formula} wieder in den Wurf legen" onclick={() => (diceTray.formula = r.formula)}>{@render detail(r)}</button>
             {:else}
               <span class="detail">{@render detail(r)}</span>
             {/if}

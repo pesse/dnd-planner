@@ -340,3 +340,8 @@ h1, h2, h3, .file-title {
   opacity: 0.7;
   pointer-events: none;
 }
+
+::highlight(dice-ref) {
+  color: var(--arcane);
+  text-decoration: underline dotted;
+}

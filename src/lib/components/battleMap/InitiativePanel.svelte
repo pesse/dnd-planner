@@ -1,6 +1,6 @@
 <script lang="ts">
   /** Initiative-Leiste: Reihenfolge, wer am Zug ist, Runden. */
-  import { textTip } from '../textTip.svelte';
+  import { pinnableTip } from './tips/pinnableTip';
   import { conditionTip } from '../ruleTips.svelte';
   import { CONDITIONS } from '../../schemas/vocabulary';
   import type { MapEditor } from '../../services/battleMap/mapEditor.svelte';
@@ -44,7 +44,7 @@
         onchange={(e) => setIni(t.id, e.currentTarget.value)}
       />
       <button class="name" onclick={() => (editor.selectedId = t.id)}>{t.name}</button>
-      {#each t.conditions as c (c)}<span class="cond" use:textTip={conditionTip(c)}>{CONDITIONS[c].slice(0, 3)}</span>{/each}
+      {#each t.conditions as c (c)}<span class="cond" use:pinnableTip={conditionTip(c)}>{CONDITIONS[c].slice(0, 3)}</span>{/each}
       {#if t.hp != null && t.hpMax}<span class="hp">{t.hp}/{t.hpMax}</span>{/if}
     </div>
   {:else}

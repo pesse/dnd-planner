@@ -3,7 +3,7 @@
   import { CONDITIONS, CONDITION_KEYS, type Condition } from '../../../schemas/vocabulary';
   import type { Token } from '../../../schemas/battleMap';
   import type { MapEditor } from '../../../services/battleMap/mapEditor.svelte';
-  import { textTip } from '../../textTip.svelte';
+  import { pinnableTip } from '../tips/pinnableTip';
   import { conditionTip } from '../../ruleTips.svelte';
 
   let { editor, token: t }: { editor: MapEditor; token: Token } = $props();
@@ -26,7 +26,7 @@
 
 <div class="conditions" bind:this={root}>
   {#each t.conditions as c (c)}
-    <button class="on" use:textTip={conditionTip(c)} onclick={() => editor.toggleCondition(t.id, c)}>{CONDITIONS[c]} ✕</button>
+    <button class="on" use:pinnableTip={conditionTip(c)} onclick={() => editor.toggleCondition(t.id, c)}>{CONDITIONS[c]} ✕</button>
   {/each}
   {#if rest.length}
     <button class="more" aria-haspopup="menu" aria-expanded={open} onclick={() => (open = !open)}>
@@ -36,7 +36,7 @@
   {#if open}
     <div class="menu" role="menu">
       {#each rest as c (c)}
-        <button role="menuitem" use:textTip={conditionTip(c)} onclick={() => add(c)}>{CONDITIONS[c]}</button>
+        <button role="menuitem" use:pinnableTip={conditionTip(c)} onclick={() => add(c)}>{CONDITIONS[c]}</button>
       {/each}
     </div>
   {/if}

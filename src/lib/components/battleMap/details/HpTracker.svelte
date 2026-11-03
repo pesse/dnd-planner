@@ -1,6 +1,6 @@
 <script lang="ts">
   /** TP eines Monster-Tokens: Balken, Schaden und Heilung über einen kleinen Eingabedialog. */
-  import { textTip } from '../../textTip.svelte';
+  import { pinnableTip } from '../tips/pinnableTip';
   import { ruleTipFor } from '../../ruleTips.svelte';
   import type { Token } from '../../../schemas/battleMap';
   import type { MapEditor } from '../../../services/battleMap/mapEditor.svelte';
@@ -42,7 +42,7 @@
 {#if hpMax}
   <div class="hp" class:down={hp === 0}>
     <div class="line">
-      <span class="value" use:textTip={ruleTipFor('srd-2024_hit-points')}>{hp} / {hpMax} TP{hp === 0 ? ' · besiegt' : ''}</span>
+      <span class="value" use:pinnableTip={ruleTipFor('srd-2024_hit-points')}>{hp} / {hpMax} TP{hp === 0 ? ' · besiegt' : ''}</span>
       <div class="bar"><span style="width: {(100 * hp) / hpMax}%"></span></div>
     </div>
     <div class="line">

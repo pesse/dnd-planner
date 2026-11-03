@@ -3,7 +3,7 @@
   import { getRules, ruleDisplayName, ruleText, type RuleInfo } from '../../rulesLibrary';
   import { RULE_CATEGORIES, RULE_CATEGORY_DE, type RuleCategory } from '../../schemas/rule';
   import { ruleTipMarkdown } from '../ruleRefLinks.svelte';
-  import { textTip } from '../textTip.svelte';
+  import { pinnableTip } from './tips/pinnableTip';
   import PanelSection from './PanelSection.svelte';
 
   let rules = $state<RuleInfo[]>([]);
@@ -41,7 +41,7 @@
   </div>
   <ul>
     {#each shown as r (r.key)}
-      <li use:textTip={ruleTipMarkdown(r)}>{ruleDisplayName(r)}</li>
+      <li use:pinnableTip={ruleTipMarkdown(r)}>{ruleDisplayName(r)}</li>
     {:else}
       <li class="none">{rules.length ? 'Nichts gefunden.' : failed ? 'Regeln nicht lesbar.' : 'Lade …'}</li>
     {/each}

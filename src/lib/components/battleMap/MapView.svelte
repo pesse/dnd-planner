@@ -1,6 +1,4 @@
 <script lang="ts" module>
-  /** Über das Schließen der Karte hinweg: wer mitten in der Session eine andere Seite ansieht, findet die Würfel wieder offen. */
-  let diceOpen = $state(false);
   let lastFogTool = $state<MapTool>('reveal-rect');
 </script>
 
@@ -25,6 +23,9 @@
   import InitiativePanel from './InitiativePanel.svelte';
   import RulesPanel from './RulesPanel.svelte';
   import DiceTray from './DiceTray.svelte';
+  import PinnedTips from './tips/PinnedTips.svelte';
+  import { mapRefs } from './tips/mapRefs';
+  import { diceTray } from '../../services/battleMap/diceTray.svelte';
   import MapDetailsPanel from './details/MapDetailsPanel.svelte';
 
   const editor = new MapEditor();
@@ -130,8 +131,9 @@
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const sel = editor.selected;
     if (sel && (e.key === 'Delete' || e.key === 'Backspace')) editor.removeToken(sel.id);
-    else if (sel && e.key.toLowerCase() === 'h') editor.toggleHidden(sel.id); else if (e.key.toLowerCase() === 'w') {
-      diceOpen = !diceOpen;
+    else if (sel && e.key.toLowerCase() === 'h') editor.toggleHidden(sel.id);
+    else if (e.key.toLowerCase() === 'w') {
+      diceTray.open = !diceTray.open;
     } else if (e.key === 'Escape') {
       fogMenu = false;
       if (editor.tool === 'select') editor.selectedId = null;
@@ -146,7 +148,8 @@
 <svelte:window {onkeydown} onpointerdown={(e) => fogMenu && !(e.target as Element).closest('.stack') && (fogMenu = false)} onkeydowncapture={onhistorykey} onmousedowncapture={onhistorymouse} />
 
 <!-- `main`: dort hängen die Werkzeugleisten-Regeln aus toolbar.css. -->
-<div class="main map-overlay" role="dialog" aria-modal="true" aria-label="Kampfkarte">
+<div class="main map-overlay" role="dialog" aria-modal="true" aria-label="Kampfkarte" use:mapRefs>
+  <PinnedTips />
   <div class="toolbar">
     <FileTitle label={editor.map?.name ?? $activeFile?.name ?? ''} />
     <div class="toolbar-sep"></div>
@@ -205,7 +208,7 @@
         <button title="Wiederherstellen (Strg+Y)" onclick={() => editor.redo()}>↪</button>
         <button title="Ganze Karte zeigen" onclick={() => canvas?.fit()}>⤢</button>
         <div class="sep"></div>
-        <button class:active={diceOpen} title="Würfel (W)" onclick={() => (diceOpen = !diceOpen)}>🎲</button>
+        <button class:active={diceTray.open} title="Würfel (W)" onclick={() => (diceTray.open = !diceTray.open)}>🎲</button>
       </div>
 
       <aside class="panel left" aria-label="Werkzeuge und Einstellungen">
@@ -227,7 +230,7 @@
 
       <MapCanvas bind:this={canvas} {editor} />
 
-      {#if diceOpen}<DiceTray {editor} campaignDir={campaignDirOf(editor.path)} onclose={() => (diceOpen = false)} />{/if}
+      {#if diceTray.open}<DiceTray {editor} campaignDir={campaignDirOf(editor.path)} onclose={() => (diceTray.open = false)} />{/if}
 
       <aside class="panel right" aria-label="Details">
         <MapDetailsPanel {editor} campaignDir={campaignDirOf(editor.path)} {center} onleave={leaveTo} />
