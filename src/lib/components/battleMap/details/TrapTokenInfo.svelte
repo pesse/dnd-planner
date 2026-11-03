@@ -80,7 +80,7 @@
       {#if trap.disarm.length}<dt>Entschärfen</dt><dd>{trap.disarm.map(checkDe).join(' · ')}</dd>{/if}
     </dl>
     {#if trap.descDe || trap.desc}
-      <details>
+      <details open>
         <summary>Beschreibung</summary>
         <div class="desc"><Markdown source={trap.descDe || trap.desc} /></div>
       </details>
