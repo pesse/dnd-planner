@@ -222,6 +222,63 @@ fn merge_installed(into: &mut InstalledState, from: InstalledState) {
     }
 }
 
+/// Was die übrigen installierten Bibliotheken führen (Pfad → ihre Hashes). Nachdrucke stehen in
+/// mehreren Packs; ohne diesen Blick löschte ein Update die Datei der anderen Bibliothek.
+fn files_of_other_libraries(own_id: &str) -> HashMap<String, Vec<String>> {
+    let mut out: HashMap<String, Vec<String>> = HashMap::new();
+    let Ok(entries) = fs::read_dir(state_dir()) else {
+        return out;
+    };
+    for e in entries.filter_map(|e| e.ok()) {
+        let path = e.path();
+        if path.extension().and_then(|s| s.to_str()) != Some("json") {
+            continue;
+        }
+        let Some(id) = path.file_stem().and_then(|s| s.to_str()) else {
+            continue;
+        };
+        if id == own_id {
+            continue;
+        }
+        for f in read_state(id).map(|s| s.files).unwrap_or_default() {
+            out.entry(f.path).or_default().push(f.sha256);
+        }
+    }
+    out
+}
+
+#[derive(Debug, PartialEq)]
+enum ExistingFile {
+    /// Liegt schon mit genau diesen Bytes da, etwa als Nachdruck aus einer anderen Bibliothek.
+    Identical,
+    /// Stand einer Installation, also überschreibbar.
+    Installed,
+    /// Von einer Installation, aber seither lokal bearbeitet.
+    Modified,
+    /// Keine Installation kennt sie.
+    Foreign,
+}
+
+fn judge_existing(
+    current: &str,
+    incoming: &str,
+    own: Option<&String>,
+    others: Option<&Vec<String>>,
+) -> ExistingFile {
+    if current == incoming {
+        return ExistingFile::Identical;
+    }
+    let installed = own.is_some_and(|h| h == current)
+        || others.is_some_and(|hs| hs.iter().any(|h| h == current));
+    if installed {
+        ExistingFile::Installed
+    } else if own.is_some() || others.is_some() {
+        ExistingFile::Modified
+    } else {
+        ExistingFile::Foreign
+    }
+}
+
 fn adopt_renamed_libraries() {
     for &(old, new) in RENAMED_LIBRARIES {
         match (read_state(old), read_state(new)) {
@@ -758,6 +815,7 @@ fn extract_pack(
                 .collect()
         })
         .unwrap_or_default();
+    let others = files_of_other_libraries(&entry.id);
 
     let cursor = std::io::Cursor::new(zip_bytes);
     let mut archive =
@@ -765,6 +823,7 @@ fn extract_pack(
 
     let mut summary = InstallSummary::default();
     let mut planned: Vec<(String, Vec<u8>, String)> = Vec::new(); // (Pfad, Inhalt, sha256)
+    let mut files: Vec<InstalledFile> = Vec::new();
 
     for i in 0..archive.len() {
         let mut f = archive.by_index(i).map_err(|e| e.to_string())?;
@@ -791,17 +850,18 @@ fn extract_pack(
         let target = vault.join(&name);
 
         if target.exists() {
-            match known.get(&name) {
-                // Von uns installiert: nur überschreiben, wenn unverändert.
-                Some(installed_hash) => {
-                    let current = fs::read(&target).map(|b| sha256_hex(&b)).unwrap_or_default();
-                    if &current != installed_hash {
-                        summary.skipped_modified += 1;
-                        continue;
-                    }
+            let current = fs::read(&target).map(|b| sha256_hex(&b)).unwrap_or_default();
+            match judge_existing(&current, &hash, known.get(&name), others.get(&name)) {
+                ExistingFile::Identical => {
+                    files.push(InstalledFile { path: name, sha256: hash });
+                    continue;
                 }
-                // Vorhanden, aber nicht von uns — Bestandsinstallation.
-                None => {
+                ExistingFile::Installed => {}
+                ExistingFile::Modified => {
+                    summary.skipped_modified += 1;
+                    continue;
+                }
+                ExistingFile::Foreign => {
                     summary.needs_adopt += 1;
                     if !adopt {
                         continue;
@@ -822,7 +882,7 @@ fn extract_pack(
         });
     }
 
-    let mut files = Vec::with_capacity(planned.len());
+    files.reserve(planned.len());
     let total = planned.len() as u64;
     let step = (total / 100).max(1);
     for (i, (name, data, hash)) in planned.into_iter().enumerate() {
@@ -845,7 +905,7 @@ fn extract_pack(
         let still_here: std::collections::HashSet<&str> =
             files.iter().map(|f| f.path.as_str()).collect();
         for old in &prev.files {
-            if still_here.contains(old.path.as_str()) {
+            if still_here.contains(old.path.as_str()) || others.contains_key(&old.path) {
                 continue;
             }
             let target = vault.join(&old.path);
@@ -1197,6 +1257,31 @@ dbe783d0a70e7c32d7ed413d7776316207832f3f89f2a8eab35473906a61ac818c73467a7c4f4271
             min_version: min_version.map(str::to_string),
             art_of: None,
         }
+    }
+
+    #[test]
+    fn nachdruck_mit_gleichen_bytes_braucht_keine_zustimmung() {
+        let mm = vec!["a".to_string()];
+        assert_eq!(judge_existing("a", "a", None, Some(&mm)), ExistingFile::Identical);
+        assert_eq!(judge_existing("a", "a", None, None), ExistingFile::Identical);
+    }
+
+    #[test]
+    fn stand_einer_anderen_bibliothek_ist_ueberschreibbar() {
+        // MM hat schon die neuere Fassung, das Abenteuer bringt noch die alte.
+        let mm = vec!["neu".to_string()];
+        assert_eq!(judge_existing("neu", "alt", None, Some(&mm)), ExistingFile::Installed);
+        let own = "alt".to_string();
+        assert_eq!(judge_existing("alt", "neu", Some(&own), None), ExistingFile::Installed);
+    }
+
+    #[test]
+    fn bearbeitete_und_fremde_dateien_bleiben_unangetastet() {
+        let mm = vec!["mm".to_string()];
+        let own = "eigen".to_string();
+        assert_eq!(judge_existing("lokal", "neu", None, Some(&mm)), ExistingFile::Modified);
+        assert_eq!(judge_existing("lokal", "neu", Some(&own), None), ExistingFile::Modified);
+        assert_eq!(judge_existing("lokal", "neu", None, None), ExistingFile::Foreign);
     }
 
     #[test]
