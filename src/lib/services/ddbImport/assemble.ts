@@ -6,6 +6,7 @@ import { characterSchema, type Character } from '$lib/schemas/characterSchema';
 import type { DdbSheet } from '$lib/schemas/ddbSheet';
 import { MONSTER_SIZES, type MonsterSize } from '$lib/schemas/vocabulary';
 import { SKILL_DEFS, mod } from '$lib/domain/skills';
+import { presentationFromGender } from '$lib/domain/presentation';
 import { displayName, matchWeaponName, type ItemIndex } from '$lib/itemLibrary';
 import { normName } from '$lib/utils/text';
 import { libraryWeightKg } from '$lib/utils/inventoryWeight';
@@ -24,13 +25,6 @@ export interface DdbImportResult {
 
 const FT_TO_M = 0.3;
 const metres = (ft: number): string => String(Math.round(ft * FT_TO_M * 10) / 10).replace('.', ',');
-
-function presentationOf(gender: string): Character['presentation'] {
-  const g = gender.trim().toLowerCase();
-  if (/^(m|male|männlich|mann)$/.test(g)) return 'masculine';
-  if (/^(f|w|female|weiblich|frau)$/.test(g)) return 'feminine';
-  return undefined;
-}
 
 /** Deutscher Name aus der Item-Bibliothek, sonst der Text, wie er kam. */
 function itemName(items: ItemIndex, raw: string): string {
@@ -133,7 +127,7 @@ function applyPersonal(c: Character, s: DdbSheet): void {
   c.personal.haarfarbe = p.hair;
   c.personal.gewicht = p.weight;
   c.personal.koerpergroesse = p.height;
-  const presentation = presentationOf(p.gender);
+  const presentation = presentationFromGender(p.gender);
   if (presentation) c.presentation = presentation;
   c.traits = s.traits;
   c.ideals = s.ideals;

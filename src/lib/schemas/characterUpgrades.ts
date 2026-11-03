@@ -4,6 +4,7 @@
  */
 import { migrateSourceKey } from './source';
 import { parseClassLevelText } from './classLevelText';
+import { presentationFromGender } from '../domain/presentation';
 
 export const CHARACTER_VERSION = 10;
 
@@ -53,13 +54,6 @@ function moveSourceKeys(node: unknown): void {
   if (typeof o.sourceKey === 'string') o.sourceKey = movedKey(o.sourceKey);
   for (const v of Object.values(o)) moveSourceKeys(v);
 }
-
-/** Freitext-Geschlecht → Äußeres; was hier nicht steht, ist kein Äußeres und bleibt Text. */
-const GENDER_TO_PRESENTATION: [RegExp, string][] = [
-  [/^(m|männlich|maennlich|mann|male|maskulin)$/i, 'masculine'],
-  [/^(w|weiblich|frau|female|feminin)$/i, 'feminine'],
-  [/^(d|divers|beides|neutral|androgyn|nicht-?binär|nonbinary)$/i, 'androgynous'],
-];
 
 // Ein neuer Schritt heißt: `CHARACTER_VERSION` erhöhen und GENAU EINEN Schritt mit dieser
 // `to` ergänzen. Sein `apply` muss idempotent UND inhaltlich abgesichert sein — Altbestand
@@ -237,7 +231,7 @@ export const CHARACTER_UPGRADES: CharacterUpgrade[] = [
       const gender = String(personal.geschlecht ?? '').trim();
       delete personal.geschlecht;
       if (!gender) return;
-      const look = GENDER_TO_PRESENTATION.find(([re]) => re.test(gender))?.[1];
+      const look = presentationFromGender(gender);
       if (look && !c.presentation) c.presentation = look;
       // Ohne passendes Äußeres ginge der Wert sonst verloren — er wandert ins Aussehen.
       else if (!look) personal.aussehen = [`Geschlecht: ${gender}`, String(personal.aussehen ?? '').trim()].filter(Boolean).join('\n');
