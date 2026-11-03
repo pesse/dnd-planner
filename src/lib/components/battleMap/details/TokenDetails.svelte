@@ -8,9 +8,9 @@
   import type { Encounter } from '../../../schemas/encounter';
   import type { Monster } from '../../../types';
   import type { MapEditor } from '../../../services/battleMap/mapEditor.svelte';
-  import { characterEntry, encounterPath, loadEncounter, loadTokenMonster } from '../../../services/battleMap/tokenDetails';
+  import { encounterPath, loadEncounter, loadTokenMonster } from '../../../services/battleMap/tokenDetails';
   import MonsterStatBlock from '../../MonsterStatBlock.svelte';
-  import EntryCard from '../../ui/EntryCard.svelte';
+  import CharacterTokenInfo from './CharacterTokenInfo.svelte';
   import HpTracker from './HpTracker.svelte';
   import ConditionPicker from './ConditionPicker.svelte';
 
@@ -109,7 +109,7 @@
     <p class="muted">Keine Werte zu „{t.ref}" gefunden.</p>
   {/if}
 {:else if t.kind === 'character' && t.ref}
-  <div class="sheet character"><EntryCard entry={characterEntry(t.ref, t.name)} /></div>
+  <div class="sheet character"><CharacterTokenInfo uid={t.ref} name={t.name} /></div>
 {/if}
 
 <style>

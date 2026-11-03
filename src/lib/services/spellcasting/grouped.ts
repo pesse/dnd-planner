@@ -314,7 +314,8 @@ export function groupedSpellcasting(state: SpellcastingState, lookup: Projection
     sources,
     resources: state.resources,
     extra: state.extra.map((key) => spellOf(key, lookup)),
-    issues: state.issues.map((issue) => groupedIssue(issue, lookup)),
+    // Eine fehlende Klasse meldet jede ihrer Quellen; der Bogen zeigt den Hinweis einmal.
+    issues: [...new Map(state.issues.map((i) => groupedIssue(i, lookup)).map((i) => [i.kind + i.text, i])).values()],
     blocks: state.blocks,
   };
 }
