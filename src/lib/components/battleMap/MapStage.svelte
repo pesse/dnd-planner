@@ -233,12 +233,17 @@
     filter: sepia(0.6) saturate(2.2) hue-rotate(-25deg);
   }
   .token.bloodied::after {
-    content: '🩸';
+    content: '';
     position: absolute;
-    right: -0.15em;
-    bottom: -0.1em;
-    font-size: calc(var(--tb) * 6);
-    line-height: 1;
+    right: 2%;
+    bottom: 2%;
+    width: calc(var(--tb) * 3.6);
+    height: calc(var(--tb) * 3.6);
+    background: radial-gradient(circle at 35% 35%, #d6352a, #7a0904 70%);
+    border: 1px solid #3a0402;
+    border-radius: 0 50% 50% 50%;
+    transform: rotate(45deg);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
     pointer-events: none;
   }
   .token.down {

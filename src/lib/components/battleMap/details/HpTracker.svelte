@@ -42,7 +42,7 @@
   <div class="hp" class:down={hp === 0}>
     <div class="line">
       <span class="value" use:pinnableTip={ruleTipFor('srd-2024_hit-points')}>{hp} / {hpMax} TP{hp === 0 ? ' · besiegt' : ''}</span>
-      {#if isBloodied({ hp, hpMax })}<span class="bloodied" use:pinnableTip={ruleTipFor('srd-2024_bloodied')}>🩸 blutig</span>{/if}
+      {#if isBloodied({ hp, hpMax })}<span class="bloodied" use:pinnableTip={ruleTipFor('srd-2024_bloodied')}>blutig</span>{/if}
       <div class="bar"><span style="width: {(100 * hp) / hpMax}%"></span></div>
     </div>
     <div class="line">
