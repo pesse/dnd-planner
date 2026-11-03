@@ -1,7 +1,7 @@
 /** Was hinter einem Token steht: Encounter, Monster-Werte, Charakterdatei. Karten liegen unter `<kampagne>/maps/`. */
 import { invoke } from '@tauri-apps/api/core';
 import { encounterSchema, type Encounter } from '../../schemas/encounter';
-import type { Token } from '../../schemas/battleMap';
+import type { BattleMap, Token } from '../../schemas/battleMap';
 import type { FileEntry, Monster } from '../../types';
 import { CHARACTERS_PATH } from '../characterDirectory';
 import { fetchEncounterMonsters } from '../contextLoad';
@@ -18,6 +18,17 @@ export const encounterKeyOf = (path: string): string => {
   const m = /\/acts\/([^/]+)\/encounters\/([^/]+)\.json$/.exec(path);
   return m ? `${m[1]}/${m[2]}` : '';
 };
+
+/** Ein schon gesetzter Encounter bleibt in der Liste, auch wenn sein Akt nicht zur Karte gehört. */
+export function mapEncounters<E extends { actSlug: string; slug: string }>(
+  all: readonly E[],
+  map: Pick<BattleMap, 'acts' | 'tokens'>,
+): (E & { key: string })[] {
+  const placed = new Set(map.tokens.map((t) => t.encounter).filter(Boolean));
+  return all
+    .map((e) => ({ ...e, key: `${e.actSlug}/${e.slug}` }))
+    .filter((e) => !map.acts.length || map.acts.includes(e.actSlug) || placed.has(e.key));
+}
 
 export async function loadEncounter(path: string): Promise<Encounter | null> {
   try {

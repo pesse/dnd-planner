@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { battleMapSchema } from '../../src/lib/schemas/battleMap';
 import { OVERVIEW_ONLY, forgetToken, popDetail, pushDetail } from '../../src/lib/services/battleMap/detailStack';
-import { adjustHp, campaignDirOf, concentrationDc, encounterKeyOf, encounterPath, isBloodied } from '../../src/lib/services/battleMap/tokenDetails';
+import { adjustHp, campaignDirOf, concentrationDc, encounterKeyOf, encounterPath, isBloodied, mapEncounters } from '../../src/lib/services/battleMap/tokenDetails';
 import { shortName } from '../../src/lib/services/battleMap/tokenSources';
 import { toPlayerState } from '../../src/lib/services/battleMap/playerState';
 import { asMapTemplate, isMapTemplatePath } from '../../src/lib/services/battleMap/mapTemplates';
@@ -194,5 +194,28 @@ describe('Icon eines Regeleintrags', () => {
     expect(ruleIconUrl({ key: 'srd-2024_burning' })).toBe('/branding/conditions/burning.webp');
     expect(ruleIconUrl({ key: 'srd-2024_bloodied' })).toBeNull();
     expect(ruleIconUrl({ key: 'srd-2024_initiative' })).toBeNull();
+  });
+});
+
+describe('Encounter einer Karte', () => {
+  const all = [
+    { actSlug: 'akt-1', slug: 'goblins' },
+    { actSlug: 'akt-2', slug: 'ratten' },
+    { actSlug: 'akt-2', slug: 'wexley' },
+  ];
+
+  it('bietet ohne Akt-Auswahl alle Encounter der Kampagne an', () => {
+    const map = battleMapSchema.parse({ name: 'x' });
+    expect(mapEncounters(all, map).map((e) => e.key)).toEqual(['akt-1/goblins', 'akt-2/ratten', 'akt-2/wexley']);
+  });
+
+  it('beschränkt sich auf die Akte der Karte, behält aber schon gesetzte Encounter', () => {
+    const map = battleMapSchema.parse({
+      name: 'x',
+      acts: ['akt-2'],
+      tokens: [{ id: 'g', name: 'Goblin', kind: 'monster', x: 1, y: 1, encounter: 'akt-1/goblins' }],
+    });
+    expect(mapEncounters(all, map).map((e) => e.key)).toEqual(['akt-1/goblins', 'akt-2/ratten', 'akt-2/wexley']);
+    expect(mapEncounters(all, { ...map, tokens: [] }).map((e) => e.key)).toEqual(['akt-2/ratten', 'akt-2/wexley']);
   });
 });

@@ -13,7 +13,7 @@
     markerDraft,
     trapDraft,
   } from '../../services/battleMap/tokenSources';
-  import { encounterPath } from '../../services/battleMap/tokenDetails';
+  import { encounterPath, mapEncounters } from '../../services/battleMap/tokenDetails';
   import PanelSection from './PanelSection.svelte';
   import { getTraps, trapDisplayName, type TrapInfo } from '../../trapsLibrary';
 
@@ -29,6 +29,7 @@
   let busy = $state(false);
 
   const map = $derived(editor.map!);
+  const encounters = $derived(mapEncounters($encounterSummaries, map));
   const originCell = () => pxToCell(map.grid, center());
 
   async function run(job: () => Promise<void>) {
@@ -60,9 +61,8 @@
 
   const addEncounter = () =>
     run(async () => {
-      const enc = $encounterSummaries.find((e) => `${e.actSlug}/${e.slug}` === encounterKey);
-      if (!enc || !$activeCampaign) return;
-      const key = `${enc.actSlug}/${enc.slug}`;
+      const key = encounters.find((e) => e.key === encounterKey)?.key;
+      if (!key || !$activeCampaign) return;
       editor.addTokens(await encounterDrafts(encounterPath(`./vault/campaigns/${$activeCampaign.path}`, key), key), originCell());
       editor.details.show({ kind: 'encounter', key });
     });
@@ -111,8 +111,8 @@
   <div class="row">
     <select bind:value={encounterKey} aria-label="Encounter">
       <option value="">Encounter wählen…</option>
-      {#each $encounterSummaries as e}
-        <option value="{e.actSlug}/{e.slug}">{e.name}</option>
+      {#each encounters as e (e.key)}
+        <option value={e.key}>{e.name}</option>
       {/each}
     </select>
     <button disabled={!encounterKey || busy} onclick={addEncounter}>+</button>

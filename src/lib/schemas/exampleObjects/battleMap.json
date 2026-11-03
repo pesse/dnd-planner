@@ -1,6 +1,9 @@
 {
   "name": "string",
   "image": "string",
+  "acts": [
+    "string"
+  ],
   "grid": {
     "size": 70,
     "offsetX": 0,

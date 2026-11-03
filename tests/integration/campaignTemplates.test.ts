@@ -45,10 +45,11 @@ describe.each(templates)('Kampagnen-Vorlage %s', (id) => {
     }
   });
 
-  it('Karten sind gültig und ihre Monster- und Fallen-Tokens auflösbar', () => {
+  it('Karten sind gültig und ihre Akte, Monster- und Fallen-Tokens auflösbar', () => {
     for (const f of files.filter((p) => /\/maps\/[^/]+\.json$/.test(p))) {
       const map = battleMapSchema.parse(JSON.parse(readFileSync(f, 'utf8')));
       expect(existsSync(join(dir, 'maps', map.image)), f).toBe(true);
+      expect(map.acts.filter((a) => !existsSync(join(dir, 'acts', a))), f).toEqual([]);
       const refs = map.tokens.filter((t) => t.kind === 'monster' && t.ref).map((t) => t.ref!);
       expect(refs.filter((r) => !librarySlugs.has(r)), f).toEqual([]);
       const trapRefs = map.tokens.filter((t) => t.kind === 'trap' && t.ref).map((t) => t.ref!);

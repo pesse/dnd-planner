@@ -98,6 +98,7 @@ export const combatSchema = z.object({
 export const battleMapSchema = z.object({
   name: z.string(),
   image: z.string().default('').describe('Dateiname des Kartenbilds neben der Kartendatei.'),
+  acts: z.array(z.string()).default([]).describe('Akt-Ordner, deren Encounter die Karte anbietet; leer = alle Akte der Kampagne.'),
   grid: gridSchema.default(gridSchema.parse({})),
   tokens: z.array(tokenSchema).default([]),
   fog: fogSchema.default(fogSchema.parse({})),

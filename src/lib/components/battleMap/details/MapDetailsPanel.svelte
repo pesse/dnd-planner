@@ -2,7 +2,7 @@
   /** Rechte Seite des Cockpits: was gerade ausgewählt oder verlinkt ist, mit eigenem Zurück. */
   import { encounterSummaries } from '../../../stores/context';
   import type { MapEditor } from '../../../services/battleMap/mapEditor.svelte';
-  import { encounterKeyOf } from '../../../services/battleMap/tokenDetails';
+  import { encounterKeyOf, mapEncounters } from '../../../services/battleMap/tokenDetails';
   import type { Point } from '../../../services/battleMap/geometry';
   import type { FileEntry } from '../../../types';
   import EntryCard from '../../ui/EntryCard.svelte';
@@ -20,7 +20,7 @@
   const token = $derived(detail.kind === 'token' ? (editor.map?.tokens.find((t) => t.id === detail.id) ?? null) : null);
   const placed = $derived(new Set(editor.map?.tokens.map((t) => t.encounter).filter(Boolean)));
   const encounters = $derived(
-    $encounterSummaries.map((e) => ({ ...e, key: `${e.actSlug}/${e.slug}` })).sort((a, b) => Number(placed.has(b.key)) - Number(placed.has(a.key))),
+    editor.map ? mapEncounters($encounterSummaries, editor.map).sort((a, b) => Number(placed.has(b.key)) - Number(placed.has(a.key))) : [],
   );
   const linkedEncounter = $derived(
     detail.kind === 'entry' && detail.entry.type === 'encounter' && detail.entry.path.startsWith(`${campaignDir}/`)
@@ -61,7 +61,7 @@
           <span class="sub">{placed.has(e.key) ? 'auf der Karte · ' : ''}{e.monsterList}</span>
         </button>
       {:else}
-        <p class="hint">Diese Kampagne hat noch keine Encounter.</p>
+        <p class="hint">{editor.map?.acts.length ? 'Die Akte dieser Karte haben keine Encounter.' : 'Diese Kampagne hat noch keine Encounter.'}</p>
       {/each}
     </section>
     <p class="hint">Klicke ein Token an, um seine Werte, Notizen und seinen Encounter zu sehen.</p>
