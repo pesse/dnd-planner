@@ -41,15 +41,15 @@ async function copyMissing(from: string, to: string, taken: Set<string>): Promis
 export async function copyMapEncounters(map: Pick<BattleMap, 'tokens'>, fromDir: string, toDir: string): Promise<void> {
   if (fromDir === toDir) return;
   for (const key of encounterKeysOf(map)) {
-    const [act] = key.split('/');
+    const act = key.includes('/') ? key.split('/')[0] : '';
     const source = await readOrNull(encounterPath(fromDir, key));
     if (source === null) continue;
-    await ensureAct(fromDir, toDir, act);
+    if (act) await ensureAct(fromDir, toDir, act);
     const target = encounterPath(toDir, key);
     await copyMissing(encounterPath(fromDir, key), target, await jsonBases(target.slice(0, target.lastIndexOf('/'))));
 
     const monsters = (JSON.parse(source) as { monsters?: { slug: string }[] }).monsters ?? [];
-    const monsterDir = (dir: string) => `${dir}/acts/${act}/monsters`;
+    const monsterDir = (dir: string) => (act ? `${dir}/acts/${act}/monsters` : `${dir}/monsters`);
     const taken = await jsonBases(monsterDir(toDir));
     for (const { slug } of monsters) {
       await copyMissing(`${monsterDir(fromDir)}/${slug}.json`, `${monsterDir(toDir)}/${slug}.json`, taken);

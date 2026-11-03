@@ -69,57 +69,49 @@ export async function fetchMonsterLibrary(): Promise<MonsterLibraryEntry[]> {
   }));
 }
 
-/** Akt-lokale Monster überschreiben die globalen Einträge für diesen Akt. */
-async function actMonsterOverrides(
-  campaignPath: string,
-  actDirName: string,
+/** Eigene Monster eines Akts oder der Kampagne (`scopeDir/monsters`) überschreiben die globalen Einträge. */
+async function localMonsterOverrides(
+  scopeDir: string,
   libraryMap: Map<string, MonsterSummary>,
 ): Promise<Map<string, MonsterSummary>> {
-  const actMap = new Map(libraryMap);
+  const localMap = new Map(libraryMap);
   try {
-    const localFiles = await invoke<string[]>('list_json_files', {
-      path: `./vault/campaigns/${campaignPath}/acts/${actDirName}/monsters`,
-    });
+    const localFiles = await invoke<string[]>('list_json_files', { path: `${scopeDir}/monsters` });
     await Promise.all(
       localFiles.map(async (filename) => {
         const slug = filename.replace('.json', '');
         try {
-          const content = await invoke<string>('read_file_content', {
-            path: `./vault/campaigns/${campaignPath}/acts/${actDirName}/monsters/${filename}`,
-          });
+          const content = await invoke<string>('read_file_content', { path: `${scopeDir}/monsters/${filename}` });
           const parsed = parseMonster(JSON.parse(content));
-          if (parsed.ok) actMap.set(slug, { name: parsed.data.name, cr: parsed.data.challenge_rating });
+          if (parsed.ok) localMap.set(slug, { name: parsed.data.name, cr: parsed.data.challenge_rating });
         } catch { /* ignorieren */ }
       })
     );
   } catch { /* kein lokaler monsters-Ordner */ }
-  return actMap;
+  return localMap;
 }
 
-async function readActEncounters(
-  campaignPath: string,
-  actDirName: string,
-  actMap: Map<string, MonsterSummary>,
+async function readEncounters(
+  scopeDir: string,
+  actSlug: string,
+  monsters: Map<string, MonsterSummary>,
 ): Promise<EncounterSummaryEntry[]> {
   try {
-    const files = await invoke<string[]>('list_json_files', {
-      path: `./vault/campaigns/${campaignPath}/acts/${actDirName}/encounters`,
-    });
+    const files = await invoke<string[]>('list_json_files', { path: `${scopeDir}/encounters` });
     return await Promise.all(
       files.map(async (filename) => {
-        const path = `./vault/campaigns/${campaignPath}/acts/${actDirName}/encounters/${filename}`;
-        const content = await invoke<string>('read_file_content', { path });
+        const content = await invoke<string>('read_file_content', { path: `${scopeDir}/encounters/${filename}` });
         const enc = JSON.parse(content);
         const monsterList = (enc.monsters as Array<{ count: number; slug: string }>)
           .map((m) => {
-            const lib = actMap.get(m.slug);
+            const lib = monsters.get(m.slug);
             const label = lib ? `${lib.name} (HG ${crLabel(lib.cr)})` : m.slug;
             return `${m.count}× ${label}`;
           })
           .join(', ');
         return {
           slug: filename.replace('.json', ''),
-          actSlug: actDirName,
+          actSlug,
           name: enc.name as string,
           difficulty: enc.difficulty as string,
           xpTotal: enc.xp_total as number,
@@ -129,28 +121,25 @@ async function readActEncounters(
       })
     );
   } catch {
-    return []; // Akt hat noch keine Encounters
+    return []; // noch keine Encounter
   }
 }
 
-/** Encounter-Summaries aller Akte; `library` liefert Name+CR für die Monsterliste. */
+/** Encounter-Summaries der Kampagne und aller Akte; `library` liefert Name+CR für die Monsterliste. */
 export async function fetchEncounterSummaries(
   campaignPath: string,
   library: MonsterLibraryEntry[],
 ): Promise<EncounterSummaryEntry[]> {
   const libraryMap = new Map(library.map((m) => [m.slug, { name: m.name, cr: m.challenge_rating }]));
+  const campaignDir = `./vault/campaigns/${campaignPath}`;
+  const all = await readEncounters(campaignDir, '', await localMonsterOverrides(campaignDir, libraryMap));
   try {
-    const actDirs = await listActDirs(`./vault/campaigns/${campaignPath}/acts`);
-
-    const allEncounters: EncounterSummaryEntry[] = [];
-    for (const actDirName of actDirs) {
-      const actMap = await actMonsterOverrides(campaignPath, actDirName, libraryMap);
-      allEncounters.push(...(await readActEncounters(campaignPath, actDirName, actMap)));
+    for (const actDirName of await listActDirs(`${campaignDir}/acts`)) {
+      const actDir = `${campaignDir}/acts/${actDirName}`;
+      all.push(...(await readEncounters(actDir, actDirName, await localMonsterOverrides(actDir, libraryMap))));
     }
-    return allEncounters;
-  } catch {
-    return [];
-  }
+  } catch { /* noch keine Akte */ }
+  return all;
 }
 
 /**

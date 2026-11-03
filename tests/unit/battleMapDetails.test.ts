@@ -47,6 +47,12 @@ describe('Encounter-Verweis am Token', () => {
     expect(encounterKeyOf(path)).toBe('akt-1/goblins');
   });
 
+  it('kennt Encounter der ganzen Kampagne am Schlüssel ohne Akt', () => {
+    const path = encounterPath('./vault/campaigns/hellfire-club-2', 'wegelagerer');
+    expect(path).toBe('./vault/campaigns/hellfire-club-2/encounters/wegelagerer.json');
+    expect(encounterKeyOf(path)).toBe('wegelagerer');
+  });
+
   it('schickt Notiz und Encounter nicht ans Spielerfenster', () => {
     const map = battleMapSchema.parse({
       name: 'x',
@@ -202,20 +208,26 @@ describe('Encounter einer Karte', () => {
     { actSlug: 'akt-1', slug: 'goblins' },
     { actSlug: 'akt-2', slug: 'ratten' },
     { actSlug: 'akt-2', slug: 'wexley' },
+    { actSlug: '', slug: 'wegelagerer' },
   ];
 
-  it('bietet ohne Akt-Auswahl alle Encounter der Kampagne an', () => {
+  it('bietet einer Vorlage alle Encounter an', () => {
     const map = battleMapSchema.parse({ name: 'x' });
-    expect(mapEncounters(all, map).map((e) => e.key)).toEqual(['akt-1/goblins', 'akt-2/ratten', 'akt-2/wexley']);
+    expect(mapEncounters(all, map, true).map((e) => e.key)).toEqual(['akt-1/goblins', 'akt-2/ratten', 'akt-2/wexley', 'wegelagerer']);
   });
 
-  it('beschränkt sich auf die Akte der Karte, behält aber schon gesetzte Encounter', () => {
+  it('bietet einer Karte ohne Akt nur die Encounter der ganzen Kampagne an', () => {
+    const map = battleMapSchema.parse({ name: 'x' });
+    expect(mapEncounters(all, map, false).map((e) => e.key)).toEqual(['wegelagerer']);
+  });
+
+  it('beschränkt sich auf die Akte der Karte und die Kampagne, behält aber schon gesetzte Encounter', () => {
     const map = battleMapSchema.parse({
       name: 'x',
       acts: ['akt-2'],
       tokens: [{ id: 'g', name: 'Goblin', kind: 'monster', x: 1, y: 1, encounter: 'akt-1/goblins' }],
     });
-    expect(mapEncounters(all, map).map((e) => e.key)).toEqual(['akt-1/goblins', 'akt-2/ratten', 'akt-2/wexley']);
-    expect(mapEncounters(all, { ...map, tokens: [] }).map((e) => e.key)).toEqual(['akt-2/ratten', 'akt-2/wexley']);
+    expect(mapEncounters(all, map, false).map((e) => e.key)).toEqual(['akt-1/goblins', 'akt-2/ratten', 'akt-2/wexley', 'wegelagerer']);
+    expect(mapEncounters(all, { ...map, tokens: [] }, false).map((e) => e.key)).toEqual(['akt-2/ratten', 'akt-2/wexley', 'wegelagerer']);
   });
 });

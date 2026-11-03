@@ -13,6 +13,7 @@
     type TokenDraft,
   } from '../../services/battleMap/tokenSources';
   import { encounterPath, mapEncounters } from '../../services/battleMap/tokenDetails';
+  import { isMapTemplatePath } from '../../services/battleMap/mapTemplates';
   import PanelSection from './PanelSection.svelte';
   import CatalogDrawer from '../catalog/CatalogDrawer.svelte';
   import type { CatalogRow } from '../../services/catalog/catalogTypes';
@@ -37,7 +38,7 @@
   let busy = $state(false);
 
   const map = $derived(editor.map!);
-  const encounters = $derived(mapEncounters($encounterSummaries, map));
+  const encounters = $derived(mapEncounters($encounterSummaries, map, isMapTemplatePath(editor.path)));
   const originCell = () => pxToCell(map.grid, center());
 
   async function run(job: () => Promise<void>) {

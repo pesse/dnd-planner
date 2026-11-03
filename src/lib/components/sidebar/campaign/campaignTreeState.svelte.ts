@@ -12,6 +12,7 @@ import { extractActTitle } from '../../../utils/actExtract';
 import type { Campaign, FileEntry } from '../../../types';
 import { slugKeepUmlauts, slugToName } from '../../../utils/text';
 import { npcSchema } from '../../../schemas/npc';
+import { encounterSchema } from '../../../schemas/encounter';
 import { DOCUMENT_TEMPLATES } from '../../../templates';
 import { newBattleMap, serializeBattleMap } from '../../../services/battleMap/mapFiles';
 import { instantiateCampaignTemplate, type CampaignTemplateOptions, type CampaignTemplateRef } from '../../../services/templates/templates';
@@ -26,6 +27,7 @@ export type CampaignSection = { label: string; subdir: string; type: FileEntry['
 
 export const SECTIONS: CampaignSection[] = [
   { label: 'Akte', subdir: 'acts', type: 'act' },
+  { label: 'Encounter', subdir: 'encounters', type: 'encounter' },
   { label: 'Sessions', subdir: 'sessions', type: 'session' },
   { label: 'NPCs', subdir: 'npcs', type: 'npc' },
   { label: 'Welt', subdir: 'world', type: 'world' },
@@ -36,7 +38,7 @@ export const SECTIONS: CampaignSection[] = [
 ];
 
 /** Sektionen, deren Einträge JSON-Dateien mit einem `name` sind. */
-const JSON_SECTION_TYPES = new Set<FileEntry['type']>(['npc', 'map', 'mapTemplate', 'handout']);
+const JSON_SECTION_TYPES = new Set<FileEntry['type']>(['npc', 'encounter', 'map', 'mapTemplate', 'handout']);
 
 export const sectionKeyOf = (campaignPath: string, section: CampaignSection): string => `${campaignPath}/${section.subdir}`;
 export const actKeyOf = (campaignPath: string, actDirName: string): string => `${campaignPath}/${actDirName}`;
@@ -51,6 +53,8 @@ export const encounterPathOf = (campaignPath: string, actDirName: string, filena
   `${encounterDirOf(campaignPath, actDirName)}/${filename}`;
 export const sectionEntryPath = (campaignPath: string, section: CampaignSection, filename: string): string =>
   section.type === 'act' ? actIndexPath(campaignPath, filename) : `${VAULT_BASE}/${campaignPath}/${section.subdir}/${filename}`;
+
+const newEncounterJson = (name: string): string => JSON.stringify(encounterSchema.parse({ name }), null, 2);
 
 export class CampaignTreeState {
   campaigns = $state<Campaign[]>([]);
@@ -157,22 +161,8 @@ export class CampaignTreeState {
     const slug = slugKeepUmlauts(raw);
     const filename = slug + '.json';
     const path = encounterPathOf(campaignPath, actDirName, filename);
-    const template = {
-      name: raw.charAt(0).toUpperCase() + raw.slice(1),
-      description: '',
-      monsters: [],
-      difficulty: 'mittel',
-      xp_total: 0,
-      party_size: 4,
-      party_level: 1,
-      location: '',
-      loot: '',
-      notes: '',
-      status: 'planned',
-    };
-
     try {
-      await invoke('write_file_content', { path, content: JSON.stringify(template, null, 2) });
+      await invoke('write_file_content', { path, content: newEncounterJson(raw.charAt(0).toUpperCase() + raw.slice(1)) });
       this.showNewActEncounterInput[key] = false;
       this.newActEncounterInput[key] = '';
       await this.loadEncountersForAct(campaignPath, actDirName);
@@ -314,6 +304,7 @@ export class CampaignTreeState {
     try {
       const sectionTemplate =
         section.type === 'npc' ? JSON.stringify(npcSchema.parse({ name: title }), null, 2)
+        : section.type === 'encounter' ? newEncounterJson(title)
         : section.type === 'map' || section.type === 'mapTemplate' ? serializeBattleMap(newBattleMap(title))
         : section.type === 'handout' ? JSON.stringify(handoutSchema.parse({ name: title }), null, 2)
         : `# ${title}\n\n` + (DOCUMENT_TEMPLATES[section.type] ?? '');
@@ -323,6 +314,7 @@ export class CampaignTreeState {
       await this.loadSection(campaignPath, section);
       await this.openFile(campaignPath, section, entryName);
       if (section.type === 'act') loadActSummaries(campaignPath);
+      if (section.type === 'encounter') loadEncounterContext(campaignPath);
     } catch (err) {
       console.error('Datei konnte nicht erstellt werden:', err);
     }

@@ -21,7 +21,7 @@
     label: 'Encounter',
     parse: jsonParser(parseEncounter),
     onLoad: (content, path) => {
-      const match = path.match(/^(.*\/acts\/[^/]+)\/encounters\//);
+      const match = path.match(/^(.*\/acts\/[^/]+|.*\/campaigns\/[^/]+)\/encounters\//);
       actMonsterBasePath = match ? `${match[1]}/monsters` : undefined;
       loadEncounterMonsters(content, path);
     },

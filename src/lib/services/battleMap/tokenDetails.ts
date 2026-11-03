@@ -8,26 +8,35 @@ import { fetchEncounterMonsters } from '../contextLoad';
 
 export const campaignDirOf = (mapPath: string): string => mapPath.replace(/\/(maps|map-templates)\/[^/]+$/, '');
 
-/** `<akt>/<encounter>` — derselbe Schlüssel wie in `encounterSummaries`, unabhängig vom Kampagnenordner. */
+/**
+ * `<akt>/<encounter>` oder, für einen Encounter der ganzen Kampagne, nur `<encounter>` — derselbe
+ * Schlüssel wie in `encounterSummaries`, unabhängig vom Kampagnenordner.
+ */
+export const encounterKey = (actSlug: string, slug: string): string => (actSlug ? `${actSlug}/${slug}` : slug);
+
 export const encounterPath = (campaignDir: string, key: string): string => {
-  const [act, slug] = key.split('/');
-  return `${campaignDir}/acts/${act}/encounters/${slug}.json`;
+  const [act, slug] = key.includes('/') ? key.split('/') : ['', key];
+  return act ? `${campaignDir}/acts/${act}/encounters/${slug}.json` : `${campaignDir}/encounters/${slug}.json`;
 };
 
 export const encounterKeyOf = (path: string): string => {
-  const m = /\/acts\/([^/]+)\/encounters\/([^/]+)\.json$/.exec(path);
-  return m ? `${m[1]}/${m[2]}` : '';
+  const m = /\/acts\/([^/]+)\/encounters\/([^/]+)\.json$/.exec(path) ?? /\/campaigns\/[^/]+()\/encounters\/([^/]+)\.json$/.exec(path);
+  return m ? encounterKey(m[1], m[2]) : '';
 };
 
-/** Ein schon gesetzter Encounter bleibt in der Liste, auch wenn sein Akt nicht zur Karte gehört. */
+/**
+ * Eine Karte bietet die Encounter ihrer Akte und die der ganzen Kampagne an, eine Vorlage alle.
+ * Ein schon gesetzter Encounter bleibt in der Liste, auch wenn sein Akt nicht zur Karte gehört.
+ */
 export function mapEncounters<E extends { actSlug: string; slug: string }>(
   all: readonly E[],
   map: Pick<BattleMap, 'acts' | 'tokens'>,
+  isTemplate: boolean,
 ): (E & { key: string })[] {
   const placed = new Set(map.tokens.map((t) => t.encounter).filter(Boolean));
   return all
-    .map((e) => ({ ...e, key: `${e.actSlug}/${e.slug}` }))
-    .filter((e) => !map.acts.length || map.acts.includes(e.actSlug) || placed.has(e.key));
+    .map((e) => ({ ...e, key: encounterKey(e.actSlug, e.slug) }))
+    .filter((e) => isTemplate || !e.actSlug || map.acts.includes(e.actSlug) || placed.has(e.key));
 }
 
 export async function loadEncounter(path: string): Promise<Encounter | null> {

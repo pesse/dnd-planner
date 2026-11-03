@@ -7,6 +7,7 @@ import type { CharacterContextLevel, CharacterMinimum, CharacterNotes } from './
 
 export interface EncounterSummaryEntry {
   slug: string;
+  /** Leer: der Encounter gehört der ganzen Kampagne, keinem Akt. */
   actSlug: string;
   name: string;
   difficulty: string;

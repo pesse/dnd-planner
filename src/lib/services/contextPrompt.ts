@@ -94,7 +94,7 @@ export function renderActs(acts: ActSummaryEntry[], activeFile: FileEntry | null
 }
 
 const encounterLine = (e: EncounterSummaryEntry, tag: string): string =>
-  `- **${e.name}** (${e.actSlug}${tag}, ${e.difficulty}, ${e.xpTotal} XP): ${e.monsterList}`;
+  `- **${e.name}** (${e.actSlug || 'campaign-wide'}${tag}, ${e.difficulty}, ${e.xpTotal} XP): ${e.monsterList}`;
 
 /**
  * Vergangen vs. geplant wird über die alphabetische Akt-Reihenfolge entschieden — die
@@ -109,7 +109,7 @@ export function renderEncounters(encounters: EncounterSummaryEntry[], acts: ActS
 
   // Der offene Encounter ist als Active File schon vollständig enthalten.
   const activeEncSlug = activeFile?.type === 'encounter' ? activeFile.name : null;
-  const activeEncActSlug = activeFile?.path?.match(/\/acts\/([^/]+)\/encounters\//)?.[1] ?? null;
+  const activeEncActSlug = activeFile?.path?.match(/\/acts\/([^/]+)\/encounters\//)?.[1] ?? '';
   const isActive = (e: EncounterSummaryEntry) =>
     e.slug === activeEncSlug && e.actSlug === activeEncActSlug;
 

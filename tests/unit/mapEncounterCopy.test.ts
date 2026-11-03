@@ -56,6 +56,15 @@ describe('copyMapEncounters', () => {
     expect(files.get(`${TO}/acts/k1/monsters/riesenratte.json`)).toBe('angepasst');
   });
 
+  it('kopiert Encounter der ganzen Kampagne ohne Akt', async () => {
+    files.set(`${FROM}/encounters/wegelagerer.json`, encounter(['bandit']));
+    files.set(`${FROM}/monsters/bandit.json`, '{"name":"Bandit"}');
+    await copyMapEncounters({ tokens: [{ encounter: 'wegelagerer' }] } as never, FROM, TO);
+    expect(files.get(`${TO}/encounters/wegelagerer.json`)).toBe(encounter(['bandit']));
+    expect(files.get(`${TO}/monsters/bandit.json`)).toBe('{"name":"Bandit"}');
+    expect([...files.keys()].some((p) => p.startsWith(`${TO}/acts/`))).toBe(false);
+  });
+
   it('tut innerhalb derselben Kampagne nichts', async () => {
     const before = new Map(files);
     await copyMapEncounters(map, FROM, FROM);
