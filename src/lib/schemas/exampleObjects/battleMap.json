@@ -28,6 +28,9 @@
       "conditions": [
         "blinded"
       ],
+      "effects": [
+        "burning"
+      ],
       "initiative": -9007199254740991
     }
   ],

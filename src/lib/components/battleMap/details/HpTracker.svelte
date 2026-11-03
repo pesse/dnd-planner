@@ -4,7 +4,9 @@
   import { ruleTipFor } from '../../ruleTips.svelte';
   import type { Token } from '../../../schemas/battleMap';
   import type { MapEditor } from '../../../services/battleMap/mapEditor.svelte';
-  import { adjustHp, isBloodied } from '../../../services/battleMap/tokenDetails';
+  import { adjustHp, concentrationDc, isBloodied } from '../../../services/battleMap/tokenDetails';
+  import { badgeIconUrl } from '../../../conditionIcon';
+  import { badgeTip } from '../../ruleTips.svelte';
   import { diceLog } from '../../../services/battleMap/diceLog.svelte';
 
   let { editor, token: t, fallbackMax }: { editor: MapEditor; token: Token; fallbackMax: number } = $props();
@@ -18,6 +20,7 @@
   let input = $state<HTMLInputElement>();
   let kind = $state<keyof typeof KIND>('damage');
   let amount = $state<number | null>(null);
+  let concentrationCheck = $state<{ id: string; dc: number; down: boolean } | null>(null);
 
   const lastRoll = $derived(diceLog.rolls[0]);
   const hpMax = $derived(t.hpMax ?? fallbackMax);
@@ -33,7 +36,11 @@
   function apply(e: SubmitEvent) {
     e.preventDefault();
     if (!amount || amount < 1) return;
-    editor.setHp(t.id, adjustHp(t, hpMax, KIND[kind].sign * amount));
+    const next = adjustHp(t, hpMax, KIND[kind].sign * amount);
+    editor.setHp(t.id, next);
+    if (kind === 'damage' && t.effects.includes('concentration')) {
+      concentrationCheck = { id: t.id, dc: concentrationDc(amount), down: next.hp === 0 };
+    }
     dialog?.close();
   }
 </script>
@@ -49,6 +56,14 @@
       <button class="hurt" onclick={() => open('damage')}>⚔ Schaden</button>
       <button class="mend" onclick={() => open('heal')}>✚ Heilung</button>
     </div>
+    {#if concentrationCheck?.id === t.id && t.effects.includes('concentration')}
+      <div class="concentration" use:pinnableTip={badgeTip('concentration')}>
+        <img src={badgeIconUrl('concentration')} alt="" />
+        <span>{concentrationCheck.down ? 'Bei 0 TP endet die Konzentration.' : `Konzentration halten: RW KON, SG ${concentrationCheck.dc}`}</span>
+        <button title="Konzentration entfernen" onclick={() => { editor.toggleEffect(t.id, 'concentration'); concentrationCheck = null; }}>verloren</button>
+        {#if !concentrationCheck.down}<button title="Hinweis schließen" onclick={() => (concentrationCheck = null)}>gehalten</button>{/if}
+      </div>
+    {/if}
   </div>
 {/if}
 
@@ -79,6 +94,29 @@
     color: var(--danger);
     white-space: nowrap;
     cursor: help;
+  }
+  .concentration {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.4rem;
+    font-size: 0.8rem;
+    color: #0d4f4a;
+    background: #d5ece8;
+    border-left: 3px solid #1a8a80;
+    border-radius: 4px;
+  }
+  .concentration img {
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+  .concentration span {
+    flex: 1;
+  }
+  .concentration button {
+    flex: none;
+    padding: 0.1rem 0.4rem;
+    font-size: 0.75rem;
   }
   .hp {
     display: flex;

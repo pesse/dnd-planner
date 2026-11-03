@@ -1,6 +1,6 @@
 /** Regeltext eines Bibliothekseintrags als Tooltip-Markdown, einmal geladen und reaktiv abrufbar. */
 import { getRuleByKey } from '../rulesLibrary';
-import type { Condition } from '../schemas/vocabulary';
+import type { Badge } from '../conditionIcon';
 import { ruleTipMarkdown } from './ruleRefLinks.svelte';
 
 const tips = $state<Record<string, string>>({});
@@ -17,9 +17,9 @@ export function ruleTipFor(key: string): string | null {
   return tips[key] ?? null;
 }
 
-export const conditionRuleKey = (c: Condition): string => `srd-2024_${c}`;
+export const badgeRuleKey = (b: Badge): string => `srd-2024_${b}`;
 
-export const conditionTip = (c: Condition): string | null => ruleTipFor(conditionRuleKey(c));
+export const badgeTip = (b: Badge): string | null => ruleTipFor(badgeRuleKey(b));
 
 /** Ein Hinweis zur Bedienung über dem Regeltext, damit der eine Tooltip beides trägt. */
 export function withRule(hint: string, key: string): string {

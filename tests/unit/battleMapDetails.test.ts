@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { battleMapSchema } from '../../src/lib/schemas/battleMap';
 import { OVERVIEW_ONLY, forgetToken, popDetail, pushDetail } from '../../src/lib/services/battleMap/detailStack';
-import { adjustHp, campaignDirOf, encounterKeyOf, encounterPath, isBloodied } from '../../src/lib/services/battleMap/tokenDetails';
+import { adjustHp, campaignDirOf, concentrationDc, encounterKeyOf, encounterPath, isBloodied } from '../../src/lib/services/battleMap/tokenDetails';
 import { shortName } from '../../src/lib/services/battleMap/tokenSources';
 import { toPlayerState } from '../../src/lib/services/battleMap/playerState';
 import { asMapTemplate, isMapTemplatePath } from '../../src/lib/services/battleMap/mapTemplates';
@@ -130,6 +130,12 @@ describe('Beschriftung und Zustand eines Tokens', () => {
     expect(isBloodied({ hp: 0, hpMax: 68 })).toBe(false);
     expect(isBloodied({ hp: null, hpMax: null })).toBe(false);
   });
+
+  it('verlangt für Konzentration SG 10 oder halben Schaden, höchstens 30', () => {
+    expect(concentrationDc(7)).toBe(10);
+    expect(concentrationDc(25)).toBe(12);
+    expect(concentrationDc(90)).toBe(30);
+  });
 });
 
 describe('Karte als Vorlage', () => {
@@ -137,7 +143,7 @@ describe('Karte als Vorlage', () => {
     name: 'Gruft',
     tokens: [
       { id: 'c', name: 'Ada Prüfling', kind: 'character', ref: 'abc', x: 1, y: 1, initiative: 17 },
-      { id: 'g', name: 'Goblin', kind: 'monster', x: 2, y: 1, hp: 2, hpMax: 7, conditions: ['prone'], initiative: 12, encounter: 'akt-1/goblins' },
+      { id: 'g', name: 'Goblin', kind: 'monster', x: 2, y: 1, hp: 2, hpMax: 7, conditions: ['prone'], effects: ['burning'], initiative: 12, encounter: 'akt-1/goblins' },
       { id: 'm', name: 'Falltür', kind: 'marker', x: 3, y: 3, hidden: true, note: 'Geheimgang' },
     ],
     fog: { enabled: true, ops: [{ shape: 'rect', mode: 'reveal', x: 0, y: 0, w: 5, h: 5 }] },
@@ -147,7 +153,7 @@ describe('Karte als Vorlage', () => {
   it('lässt Spieler-Charaktere und Spielgeschehen weg, Vorbereitung bleibt', () => {
     const t = asMapTemplate(map);
     expect(t.tokens.map((x) => x.id)).toEqual(['g', 'm']);
-    expect(t.tokens[0]).toMatchObject({ hp: 7, hpMax: 7, conditions: [], initiative: null, hidden: true, encounter: 'akt-1/goblins' });
+    expect(t.tokens[0]).toMatchObject({ hp: 7, hpMax: 7, conditions: [], effects: [], initiative: null, hidden: true, encounter: 'akt-1/goblins' });
     expect(t.tokens[1]).toMatchObject({ hidden: true, note: 'Geheimgang' });
     expect(t.fog).toEqual({ enabled: true, ops: [] });
     expect(t.combat).toEqual({ round: 0, turn: '' });
@@ -162,9 +168,10 @@ describe('Karte als Vorlage', () => {
 });
 
 describe('Icon eines Regeleintrags', () => {
-  it('gibt es nur für die Zustände der Kampfkarte', () => {
-    expect(ruleIconUrl({ key: 'srd-2024_incapacitated', category: 'condition' })).toBe('/branding/conditions/incapacitated.webp');
-    expect(ruleIconUrl({ key: 'srd-2024_bloodied', category: 'condition' })).toBeNull();
-    expect(ruleIconUrl({ key: 'srd-2024_initiative', category: 'rule' })).toBeNull();
+  it('gibt es nur für Zustände und Effekte der Kampfkarte', () => {
+    expect(ruleIconUrl({ key: 'srd-2024_incapacitated' })).toBe('/branding/conditions/incapacitated.webp');
+    expect(ruleIconUrl({ key: 'srd-2024_burning' })).toBe('/branding/conditions/burning.webp');
+    expect(ruleIconUrl({ key: 'srd-2024_bloodied' })).toBeNull();
+    expect(ruleIconUrl({ key: 'srd-2024_initiative' })).toBeNull();
   });
 });

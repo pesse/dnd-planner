@@ -58,3 +58,5 @@ export async function hpAfter(token: Token, campaignDir: string, delta: number):
 /** Blutig: höchstens die Hälfte der TP, aber nicht besiegt. */
 export const isBloodied = ({ hp, hpMax }: Pick<Token, 'hp' | 'hpMax'>): boolean =>
   hp != null && hpMax != null && hp > 0 && hp <= hpMax / 2;
+
+export const concentrationDc = (damage: number): number => Math.min(30, Math.max(10, Math.floor(damage / 2)));

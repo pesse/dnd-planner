@@ -3,8 +3,9 @@
   import { ABILITY_ABBR_DE, ABILITY_KEYS } from '../../schemas/abilities';
   import { resolveCharacterPortrait } from '../../services/characterPortrait.svelte';
   import type { Character } from '../../schemas/characterSchema';
+  import type { Snippet } from 'svelte';
 
-  let { character: c, dirPath }: { character: Character; dirPath: string } = $props();
+  let { character: c, dirPath, classAction }: { character: Character; dirPath: string; classAction?: Snippet } = $props();
 
   let portrait = $state('');
   $effect(() => {
@@ -29,7 +30,7 @@
   {#if portrait}<img class="portrait" src={portrait} alt="" />{/if}
   <div class="body">
     <h2>{c.name || 'Unbenannter Charakter'}</h2>
-    <p class="classes">{formatClassLevel(c.classes) || c.classLevel}</p>
+    <p class="classes">{formatClassLevel(c.classes) || c.classLevel}{@render classAction?.()}</p>
     {#if origin}<p class="sub">{origin}</p>{/if}
     {#if c.playerName}<p class="sub">Spieler: <strong>{c.playerName}</strong></p>{/if}
 
@@ -63,7 +64,7 @@
   }
   .body { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
   h2 { margin: 0; font-size: 1.35rem; color: var(--arcane); }
-  .classes { margin: 0; color: var(--ink); font-weight: 600; }
+  .classes { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0; color: var(--ink); font-weight: 600; }
   .sub { margin: 0; color: var(--ink-muted); font-size: 0.85rem; }
   .sub strong { color: var(--ink-soft); }
 

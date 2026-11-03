@@ -3,7 +3,7 @@
  * Frame an das Spielerfenster; `checkpoint()` vor einer Änderung macht sie rückgängig-fähig.
  */
 import { popHp } from './hpPops.svelte';
-import type { BattleMap, FogOp, Light, Token, ViewRect } from '../../schemas/battleMap';
+import type { BattleMap, FogOp, Light, Token, TokenEffect, ViewRect } from '../../schemas/battleMap';
 import type { Condition } from '../../schemas/vocabulary';
 import { AutosaveFile } from '../../utils/autosaveFile.svelte';
 import { newUid } from '../../utils/uid';
@@ -14,6 +14,8 @@ import { advanceTurn, startCombat } from './initiative';
 import { loadBattleMap, mapImageUrl, pickMapImage, serializeBattleMap } from './mapFiles';
 import { toPlayerState } from './playerState';
 import { occupiedCells, placeDrafts, resolveTokenImage, type TokenDraft } from './tokenSources';
+
+const toggled = <T>(list: T[], v: T): T[] => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
 export type MapTool = 'select' | 'view' | 'reveal-rect' | 'reveal-brush' | 'cover-rect' | 'cover-brush' | 'light' | 'ruler' | 'grid';
 
@@ -213,7 +215,15 @@ export class MapEditor {
     const t = this.map?.tokens.find((x) => x.id === id);
     if (!t) return;
     this.checkpoint();
-    t.conditions = t.conditions.includes(condition) ? t.conditions.filter((c) => c !== condition) : [...t.conditions, condition];
+    t.conditions = toggled(t.conditions, condition);
+    this.changed();
+  }
+
+  toggleEffect(id: string, effect: TokenEffect): void {
+    const t = this.map?.tokens.find((x) => x.id === id);
+    if (!t) return;
+    this.checkpoint();
+    t.effects = toggled(t.effects, effect);
     this.changed();
   }
 

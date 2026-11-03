@@ -48,10 +48,9 @@
 <svelte:window onkeydown={(e) => sheetOpen && e.key === 'Escape' && (sheetOpen = false)} />
 
 {#if character}
-  <CharacterPeekCard {character} dirPath={entry.dirPath!} />
-  <div class="actions">
-    <button onclick={() => (sheetOpen = true)}>📜 Bogen ansehen</button>
-  </div>
+  <CharacterPeekCard {character} dirPath={entry.dirPath!}>
+    {#snippet classAction()}<button class="sheet-btn" onclick={() => (sheetOpen = true)}>📜 Bogen</button>{/snippet}
+  </CharacterPeekCard>
   <CharacterTableBlock {character} {model} />
 
   {#if sheetOpen}
@@ -72,14 +71,10 @@
 {/if}
 
 <style>
-  .actions {
-    display: flex;
-    gap: 0.4rem;
-    padding: 0 1rem 0.6rem;
-  }
-  .actions button {
-    padding: 0.2rem 0.6rem;
-    font-size: 0.8rem;
+  .sheet-btn {
+    padding: 0.1rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 400;
     color: var(--ink-soft);
     background: var(--bg-raised);
     border: 1px solid var(--border);

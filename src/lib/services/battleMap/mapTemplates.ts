@@ -19,8 +19,8 @@ export const asMapTemplate = (map: BattleMap): BattleMap => ({
     .filter((t) => t.kind !== 'character')
     .map((t) =>
       t.kind === 'monster'
-        ? { ...t, hp: t.hpMax, conditions: [], initiative: null, hidden: true }
-        : { ...t, conditions: [], initiative: null },
+        ? { ...t, hp: t.hpMax, conditions: [], effects: [], initiative: null, hidden: true }
+        : { ...t, conditions: [], effects: [], initiative: null },
     ),
   fog: { ...map.fog, ops: [] },
   combat: { round: 0, turn: '' },

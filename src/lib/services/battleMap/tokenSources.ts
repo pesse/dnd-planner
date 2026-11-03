@@ -25,6 +25,7 @@ export interface TokenDraft {
   hp: number | null;
   hpMax: number | null;
   conditions: Token['conditions'];
+  effects: Token['effects'];
   initiative: number | null;
 }
 
@@ -87,6 +88,7 @@ export const monsterDraft = (monster: Monster, ref: string, name = monster.name,
   hp: monster.hit_points || null,
   hpMax: monster.hit_points || null,
   conditions: [],
+  effects: [],
   initiative: null,
 });
 
@@ -103,6 +105,7 @@ export const characterDraft = (uid: string, name: string): TokenDraft => ({
   hp: null,
   hpMax: null,
   conditions: [],
+  effects: [],
   initiative: null,
 });
 
@@ -119,6 +122,7 @@ export const markerDraft = (name: string): TokenDraft => ({
   hp: null,
   hpMax: null,
   conditions: [],
+  effects: [],
   initiative: null,
 });
 

@@ -1,11 +1,15 @@
 import { CONDITION_KEYS, type Condition } from './schemas/vocabulary';
+import { TOKEN_EFFECT_KEYS, type TokenEffect } from './schemas/battleMap';
 import type { Rule } from './schemas/rule';
 import { keySlug } from './utils/text';
 
-export const conditionIconUrl = (c: Condition): string => `/branding/conditions/${c}.webp`;
+export type Badge = Condition | TokenEffect;
+const BADGES: readonly string[] = [...CONDITION_KEYS, ...TOKEN_EFFECT_KEYS];
 
-/** Der Glossareintrag eines Zustands zeigt dasselbe Icon wie die Kampfkarte. */
-export function ruleIconUrl(rule: Pick<Rule, 'key' | 'category'>): string | null {
+export const badgeIconUrl = (b: Badge): string => `/branding/conditions/${b}.webp`;
+
+/** Der Glossareintrag eines Zustands oder Effekts zeigt dasselbe Icon wie die Kampfkarte. */
+export function ruleIconUrl(rule: Pick<Rule, 'key'>): string | null {
   const slug = keySlug(rule.key);
-  return rule.category === 'condition' && (CONDITION_KEYS as readonly string[]).includes(slug) ? conditionIconUrl(slug as Condition) : null;
+  return BADGES.includes(slug) ? badgeIconUrl(slug as Badge) : null;
 }

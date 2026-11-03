@@ -4,6 +4,11 @@ import { CONDITION_KEYS } from './vocabulary';
 
 export const TOKEN_KINDS = ['character', 'monster', 'marker'] as const;
 
+/** Liegt neben den Zuständen am Token, ist aber keiner: Brand ist eine Gefahr, Konzentration eine Zauberregel. */
+export const TOKEN_EFFECTS = { burning: 'Brand', concentration: 'Konzentration' } as const;
+export type TokenEffect = keyof typeof TOKEN_EFFECTS;
+export const TOKEN_EFFECT_KEYS = Object.keys(TOKEN_EFFECTS) as [TokenEffect, ...TokenEffect[]];
+
 export const gridSchema = z.object({
   size: z.number().positive().default(70).describe('Kantenlänge eines Feldes in Bildpixeln.'),
   offsetX: z.number().default(0),
@@ -29,6 +34,7 @@ export const tokenSchema = z.object({
   hp: z.number().int().nullable().default(null).describe('Aktuelle TP eines Monsters; null = noch nicht gezählt.'),
   hpMax: z.number().int().nullable().default(null),
   conditions: z.array(z.enum(CONDITION_KEYS)).default([]),
+  effects: z.array(z.enum(TOKEN_EFFECT_KEYS)).default([]),
   initiative: z.number().int().nullable().default(null).describe('null = nimmt nicht am Kampf teil.'),
 });
 

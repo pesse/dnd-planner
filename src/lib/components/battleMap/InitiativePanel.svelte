@@ -1,9 +1,11 @@
 <script lang="ts">
   /** Initiative-Leiste: Reihenfolge, wer am Zug ist, Runden. */
   import { pinnableTip } from './tips/pinnableTip';
-  import { conditionTip } from '../ruleTips.svelte';
+  import { badgeTip } from '../ruleTips.svelte';
   import { CONDITIONS } from '../../schemas/vocabulary';
-  import { conditionIconUrl } from '../../conditionIcon';
+  import { TOKEN_EFFECTS } from '../../schemas/battleMap';
+  import { rollNow } from '../../services/battleMap/diceTray.svelte';
+  import { badgeIconUrl } from '../../conditionIcon';
   import { isBloodied } from '../../services/battleMap/tokenDetails';
   import type { MapEditor } from '../../services/battleMap/mapEditor.svelte';
   import { initiativeOrder, rollMonsterInitiatives } from '../../services/battleMap/initiative';
@@ -46,9 +48,18 @@
         onchange={(e) => setIni(t.id, e.currentTarget.value)}
       />
       <button class="name" onclick={() => (editor.selectedId = t.id)}>{t.name}</button>
-      {#each t.conditions as c (c)}<img class="cond" src={conditionIconUrl(c)} alt={CONDITIONS[c]} use:pinnableTip={conditionTip(c)} />{/each}
+      {#each t.effects as e (e)}<img class="cond" src={badgeIconUrl(e)} alt={TOKEN_EFFECTS[e]} use:pinnableTip={badgeTip(e)} />{/each}
+      {#each t.conditions as c (c)}<img class="cond" src={badgeIconUrl(c)} alt={CONDITIONS[c]} use:pinnableTip={badgeTip(c)} />{/each}
       {#if t.hp != null && t.hpMax}<span class="hp" class:bloodied={isBloodied(t)}>{t.hp}/{t.hpMax}</span>{/if}
     </div>
+    {#if t.id === combat.turn && t.effects.includes('burning')}
+      <div class="reminder" use:pinnableTip={badgeTip('burning')}>
+        <img src={badgeIconUrl('burning')} alt="" />
+        <span>Brand zu Zugbeginn</span>
+        <button title="Feuerschaden würfeln (1W4)" onclick={() => rollNow('1W4')}>🎲 1W4 Feuer</button>
+        <button title="Brand entfernen" onclick={() => editor.toggleEffect(t.id, 'burning')}>gelöscht</button>
+      </div>
+    {/if}
   {:else}
     <p class="hint">Noch keine Charaktere oder Monster auf der Karte.</p>
   {/each}
@@ -118,6 +129,31 @@
     width: 1.1rem;
     height: 1.1rem;
     cursor: help;
+  }
+  .reminder {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem;
+    margin: 0 0 0.2rem 0.6rem;
+    padding: 0.2rem 0.35rem;
+    font-size: 0.75rem;
+    color: #7a2a06;
+    background: #f6dcc4;
+    border-left: 3px solid #c2410c;
+    border-radius: 4px;
+  }
+  .reminder img {
+    width: 1rem;
+    height: 1rem;
+  }
+  .reminder span {
+    flex: 1 0 70%;
+  }
+  .reminder button {
+    padding: 0.05rem 0.35rem;
+    white-space: nowrap;
+    font-size: 0.7rem;
   }
   .hp.bloodied {
     color: var(--danger);

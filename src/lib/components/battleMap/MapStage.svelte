@@ -1,13 +1,12 @@
 <script lang="ts">
   /** Zeichnet Karte, Raster, Tokens, Licht und Nebel — für SL- und Spielerfenster gleich. */
   import type { Snippet } from 'svelte';
-  import type { FogOp, Grid, Lighting } from '../../schemas/battleMap';
+  import type { FogOp, Grid, Lighting, Token } from '../../schemas/battleMap';
   import type { Camera } from '../../services/battleMap/geometry';
   import { drawFog, drawLighting } from '../../services/battleMap/overlayRender';
   import { initialsOf, shortName } from '../../services/battleMap/tokenSources';
   import { isBloodied } from '../../services/battleMap/tokenDetails';
-  import type { Condition } from '../../schemas/vocabulary';
-  import { conditionIconUrl } from '../../conditionIcon';
+  import { badgeIconUrl } from '../../conditionIcon';
   import EyeIcon from '../ui/EyeIcon.svelte';
   import type { HpPop } from '../../services/battleMap/hpPops.svelte';
 
@@ -25,7 +24,8 @@
     bloodied?: boolean;
     hp?: number | null;
     hpMax?: number | null;
-    conditions?: Condition[];
+    conditions?: Token['conditions'];
+    effects?: Token['effects'];
   }
 
   let {
@@ -104,6 +104,7 @@
 
   {#each tokens as t (t.id)}
     {@const px = grid.size * t.size}
+    {@const badges = [...(t.effects ?? []), ...(t.conditions ?? [])]}
     <div
       class="token"
       class:hidden-token={t.hidden}
@@ -125,9 +126,9 @@
       {#if mode === 'gm' && t.hpMax && t.hp != null && t.hp < t.hpMax}
         <span class="hp-bar" style="height: {Math.max(4, px / 12)}px"><span style="width: {(100 * t.hp) / t.hpMax}%"></span></span>
       {/if}
-      {#if t.conditions?.length}
+      {#if badges.length}
         <span class="conditions" style="--ci: {Math.max(12, grid.size * 0.3)}px">
-          {#each t.conditions as c}<img src={conditionIconUrl(c)} alt="" draggable="false" />{/each}
+          {#each badges as b}<img src={badgeIconUrl(b)} alt="" draggable="false" />{/each}
         </span>
       {/if}
       {#each pops.filter((p) => p.tokenId === t.id) as p, i (p.key)}
