@@ -5,7 +5,7 @@
 import { getRuleByKey } from '../../../rulesLibrary';
 import { RULE_REF_SCHEME } from '../../../services/vaultLinks';
 import { pinTip, tooltipSpot } from '../../../services/battleMap/pinnedTips.svelte';
-import { prepareRoll } from '../../../services/battleMap/diceTray.svelte';
+import { rollNow } from '../../../services/battleMap/diceTray.svelte';
 import { ruleTipMarkdown } from '../../ruleRefLinks.svelte';
 
 const DICE = /(?<![\p{L}\d])\d*[WwDd]\d+(?:\s*[+−-]\s*\d+(?![\p{L}\d]))?(?![\p{L}\d])/gu;
@@ -82,7 +82,7 @@ export function mapRefs(node: HTMLElement) {
     if (!dice) return;
     e.preventDefault();
     e.stopPropagation();
-    prepareRoll(dice.formula);
+    rollNow(dice.formula);
   };
 
   const move = (e: MouseEvent) => {

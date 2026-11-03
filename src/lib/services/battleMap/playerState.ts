@@ -1,15 +1,17 @@
 /** Was das Spielerfenster bekommt. Versteckte Tokens verlassen das SL-Fenster gar nicht erst. */
 import type { BattleMap, FogOp, Grid, Lighting, Token, ViewRect } from '../../schemas/battleMap';
 import { pxToCell, type Point } from './geometry';
+import { isBloodied } from './tokenDetails';
 
 /**
  * `movable`: Spieler dürfen nur Charaktere ziehen. Notizen und Encounter bleiben bei der SL.
- * Von den TP erfahren die Spieler nur, ob jemand besiegt ist.
+ * Von den TP erfahren die Spieler nur, ob jemand blutig oder besiegt ist.
  */
 export type PlayerToken = Omit<Token, 'hidden' | 'ref' | 'kind' | 'art' | 'note' | 'encounter' | 'hp' | 'hpMax' | 'initiative'> & {
   imageUrl: string;
   movable: boolean;
   down: boolean;
+  bloodied: boolean;
 };
 
 export interface PlayerState {
@@ -29,7 +31,7 @@ export function toPlayerState(map: BattleMap, imageUrl: string, tokenImages: Rec
     grid: map.grid,
     tokens: map.tokens
       .filter((t) => !t.hidden)
-      .map(({ id, name, x, y, size, color, kind, conditions, hp }) => ({
+      .map(({ id, name, x, y, size, color, kind, conditions, hp, hpMax }) => ({
         id,
         name,
         x,
@@ -40,6 +42,7 @@ export function toPlayerState(map: BattleMap, imageUrl: string, tokenImages: Rec
         imageUrl: tokenImages[id] ?? '',
         movable: kind === 'character',
         down: hp === 0,
+        bloodied: isBloodied({ hp, hpMax }),
       })),
     fog: map.fog,
     lighting: map.lighting,

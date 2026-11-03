@@ -3,6 +3,7 @@
   import { pinnableTip } from './tips/pinnableTip';
   import { conditionTip } from '../ruleTips.svelte';
   import { CONDITIONS } from '../../schemas/vocabulary';
+  import { isBloodied } from '../../services/battleMap/tokenDetails';
   import type { MapEditor } from '../../services/battleMap/mapEditor.svelte';
   import { initiativeOrder, rollMonsterInitiatives } from '../../services/battleMap/initiative';
   import PanelSection from './PanelSection.svelte';
@@ -45,7 +46,7 @@
       />
       <button class="name" onclick={() => (editor.selectedId = t.id)}>{t.name}</button>
       {#each t.conditions as c (c)}<span class="cond" use:pinnableTip={conditionTip(c)}>{CONDITIONS[c].slice(0, 3)}</span>{/each}
-      {#if t.hp != null && t.hpMax}<span class="hp">{t.hp}/{t.hpMax}</span>{/if}
+      {#if t.hp != null && t.hpMax}<span class="hp" class:bloodied={isBloodied(t)}>{t.hp}/{t.hpMax}</span>{/if}
     </div>
   {:else}
     <p class="hint">Noch keine Charaktere oder Monster auf der Karte.</p>
@@ -119,6 +120,10 @@
     background: #5a1e6e;
     border-radius: 0.6em;
     cursor: help;
+  }
+  .hp.bloodied {
+    color: var(--danger);
+    font-weight: 700;
   }
   .hp {
     font-size: 0.7rem;

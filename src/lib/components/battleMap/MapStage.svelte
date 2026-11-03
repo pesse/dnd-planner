@@ -4,7 +4,8 @@
   import type { FogOp, Grid, Lighting } from '../../schemas/battleMap';
   import type { Camera } from '../../services/battleMap/geometry';
   import { drawFog, drawLighting } from '../../services/battleMap/overlayRender';
-  import { initialsOf } from '../../services/battleMap/tokenSources';
+  import { initialsOf, shortName } from '../../services/battleMap/tokenSources';
+  import { isBloodied } from '../../services/battleMap/tokenDetails';
   import { CONDITIONS, type Condition } from '../../schemas/vocabulary';
   import type { HpPop } from '../../services/battleMap/hpPops.svelte';
 
@@ -19,6 +20,7 @@
     hidden?: boolean;
     movable?: boolean;
     down?: boolean;
+    bloodied?: boolean;
     hp?: number | null;
     hpMax?: number | null;
     conditions?: Condition[];
@@ -105,6 +107,7 @@
       class:hidden-token={t.hidden}
       class:selected={t.id === selectedId}
       class:down={t.down || t.hp === 0}
+      class:bloodied={t.bloodied || isBloodied({ hp: t.hp ?? null, hpMax: t.hpMax ?? null })}
       class:turn={t.id === turnId}
       class:grab={mode === 'gm' || t.movable}
       data-token-id={t.id}
@@ -127,7 +130,7 @@
       {#each pops.filter((p) => p.tokenId === t.id) as p, i (p.key)}
         <span class="pop" class:heal={p.delta > 0} style="font-size: {Math.max(14, px * 0.38)}px; margin-top: {-i * 1.05}em">{p.delta > 0 ? '+' : '−'}{Math.abs(p.delta)}</span>
       {/each}
-      <span class="label" style="font-size: {Math.max(10, grid.size * 0.2)}px">{t.name}</span>
+      <span class="label" style="font-size: {Math.max(10, grid.size * 0.2)}px">{shortName(t.name)}</span>
     </div>
   {/each}
 
@@ -221,6 +224,21 @@
     font-size: calc(var(--tb) * 6);
     line-height: 1;
     z-index: 2;
+    pointer-events: none;
+  }
+  .token.bloodied {
+    border-color: #a3140c;
+  }
+  .token.bloodied img {
+    filter: sepia(0.6) saturate(2.2) hue-rotate(-25deg);
+  }
+  .token.bloodied::after {
+    content: '🩸';
+    position: absolute;
+    right: -0.15em;
+    bottom: -0.1em;
+    font-size: calc(var(--tb) * 6);
+    line-height: 1;
     pointer-events: none;
   }
   .token.down {

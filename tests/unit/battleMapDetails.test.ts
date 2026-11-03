@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { battleMapSchema } from '../../src/lib/schemas/battleMap';
 import { OVERVIEW_ONLY, forgetToken, popDetail, pushDetail } from '../../src/lib/services/battleMap/detailStack';
-import { adjustHp, campaignDirOf, encounterKeyOf, encounterPath } from '../../src/lib/services/battleMap/tokenDetails';
+import { adjustHp, campaignDirOf, encounterKeyOf, encounterPath, isBloodied } from '../../src/lib/services/battleMap/tokenDetails';
+import { shortName } from '../../src/lib/services/battleMap/tokenSources';
 import { toPlayerState } from '../../src/lib/services/battleMap/playerState';
 import { advanceTurn, initiativeOrder, startCombat } from '../../src/lib/services/battleMap/initiative';
 
@@ -111,5 +112,20 @@ describe('Initiative und Zugwechsel', () => {
     const state = toPlayerState(map, '', {});
     expect(state.turn).toBe('');
     expect(JSON.stringify(state)).not.toMatch(/initiative/);
+  });
+});
+
+describe('Beschriftung und Zustand eines Tokens', () => {
+  it('kürzt Namen auf der Karte, laufende Nummern bleiben stehen', () => {
+    expect(shortName('Goblin-Krieger 3')).toBe('Goblin-… 3');
+    expect(shortName('Ada Prüfling')).toBe('Ada');
+    expect(shortName('Oger')).toBe('Oger');
+  });
+
+  it('ist blutig bei höchstens halben TP, aber nicht besiegt', () => {
+    expect(isBloodied({ hp: 34, hpMax: 68 })).toBe(true);
+    expect(isBloodied({ hp: 35, hpMax: 68 })).toBe(false);
+    expect(isBloodied({ hp: 0, hpMax: 68 })).toBe(false);
+    expect(isBloodied({ hp: null, hpMax: null })).toBe(false);
   });
 });

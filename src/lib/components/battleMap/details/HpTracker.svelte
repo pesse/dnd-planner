@@ -4,7 +4,7 @@
   import { ruleTipFor } from '../../ruleTips.svelte';
   import type { Token } from '../../../schemas/battleMap';
   import type { MapEditor } from '../../../services/battleMap/mapEditor.svelte';
-  import { adjustHp } from '../../../services/battleMap/tokenDetails';
+  import { adjustHp, isBloodied } from '../../../services/battleMap/tokenDetails';
   import { diceLog } from '../../../services/battleMap/diceLog.svelte';
 
   let { editor, token: t, fallbackMax }: { editor: MapEditor; token: Token; fallbackMax: number } = $props();
@@ -42,6 +42,7 @@
   <div class="hp" class:down={hp === 0}>
     <div class="line">
       <span class="value" use:pinnableTip={ruleTipFor('srd-2024_hit-points')}>{hp} / {hpMax} TP{hp === 0 ? ' · besiegt' : ''}</span>
+      {#if isBloodied({ hp, hpMax })}<span class="bloodied" use:pinnableTip={ruleTipFor('srd-2024_bloodied')}>🩸 blutig</span>{/if}
       <div class="bar"><span style="width: {(100 * hp) / hpMax}%"></span></div>
     </div>
     <div class="line">
@@ -72,6 +73,13 @@
 </dialog>
 
 <style>
+  .bloodied {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--danger);
+    white-space: nowrap;
+    cursor: help;
+  }
   .hp {
     display: flex;
     flex-direction: column;

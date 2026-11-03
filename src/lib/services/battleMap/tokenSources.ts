@@ -162,3 +162,14 @@ export const initialsOf = (name: string): string =>
     .slice(0, 2)
     .map((w) => (/^\d+$/.test(w) ? w : w[0].toUpperCase()))
     .join('');
+
+/**
+ * Kurzer Name für die Beschriftung auf der Karte: das erste Wort, gekürzt, eine laufende Nummer
+ * bleibt stehen — sonst wären „Goblin-Krieger 2" und „… 3" nicht mehr zu unterscheiden.
+ */
+export function shortName(name: string, max = 8): string {
+  const [, base, num] = name.trim().match(/^(.*?)(?:\s+(\d+))?$/) ?? [];
+  const first = (base ?? '').split(/\s+/)[0] ?? '';
+  const short = first.length > max ? `${first.slice(0, max - 1)}…` : first;
+  return num ? `${short} ${num}` : short;
+}

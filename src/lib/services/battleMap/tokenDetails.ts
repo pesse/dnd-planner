@@ -54,3 +54,7 @@ export async function hpAfter(token: Token, campaignDir: string, delta: number):
   const monster = token.kind === 'monster' && token.ref ? await loadTokenMonster(token, campaignDir) : null;
   return monster ? adjustHp(token, monster.hit_points, delta) : null;
 }
+
+/** Blutig: höchstens die Hälfte der TP, aber nicht besiegt. */
+export const isBloodied = ({ hp, hpMax }: Pick<Token, 'hp' | 'hpMax'>): boolean =>
+  hp != null && hpMax != null && hp > 0 && hp <= hpMax / 2;

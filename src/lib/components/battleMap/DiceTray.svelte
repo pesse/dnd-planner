@@ -8,17 +8,16 @@
   /** Verdeckte Würfe der SL als frei verschiebbare Box über der Karte; der letzte Wurf rollt in 3D. */
   import { pinnableTip } from './tips/pinnableTip';
   import { withRule } from '../ruleTips.svelte';
-  import { addToPool, EMPTY_POOL, parsePool, poolDe, throwDice, throwPool } from '../../utils/dice';
+  import { addToPool, EMPTY_POOL, parsePool, poolDe, throwDice } from '../../utils/dice';
   import Dice from '../ui/die/Dice.svelte';
   import { diceLog, logRoll, type Roll } from '../../services/battleMap/diceLog.svelte';
-  import { diceTray } from '../../services/battleMap/diceTray.svelte';
+  import { critOf, diceTray, rollFormula } from '../../services/battleMap/diceTray.svelte';
   import type { MapEditor } from '../../services/battleMap/mapEditor.svelte';
   import { hpAfter } from '../../services/battleMap/tokenDetails';
 
   let { editor, campaignDir, onclose }: { editor: MapEditor; campaignDir: string; onclose: () => void } = $props();
 
   const QUICK = [4, 6, 8, 10, 12, 20, 100];
-  const LIMIT = { count: 100, sides: 1000 };
   const SOLIDS = [4, 6, 8, 10, 12, 20];
   const GLYPHS: Record<number, string> = {
     4: '12,2.5 22,20.5 2,20.5',
@@ -42,8 +41,6 @@
   const pool = $derived(diceTray.formula.trim() ? parsePool(diceTray.formula) : EMPTY_POOL);
   const counts = $derived(new Map(pool?.dice.map((d) => [d.sides, d.count])));
 
-  const critOf = (d20: number): Roll['crit'] => (d20 === 20 ? 'hit' : d20 === 1 ? 'miss' : null);
-
   function pick(sides: number) {
     if (!pool) return void (invalid = true);
     diceTray.formula = poolDe(addToPool(pool, sides));
@@ -57,13 +54,8 @@
   }
 
   function rollPool() {
-    const count = pool?.dice.reduce((n, d) => n + d.count, 0) ?? 0;
-    invalid = !pool || !count || count > LIMIT.count || pool.dice.some((d) => d.sides < 2 || d.sides > LIMIT.sides);
-    if (invalid) return;
-    const t = throwPool(pool!);
-    const label = poolDe(pool!);
-    logRoll({ formula: label, label, dice: t.dice, kept: null, bonus: pool!.bonus, total: t.total, crit: t.dice.length === 1 && t.dice[0].sides === 20 ? critOf(t.dice[0].value) : null });
-    diceTray.formula = '';
+    invalid = !rollFormula(diceTray.formula);
+    if (!invalid) diceTray.formula = '';
   }
 
   const target = $derived(editor.selected?.kind === 'marker' ? null : editor.selected);
