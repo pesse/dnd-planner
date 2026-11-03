@@ -3,6 +3,7 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 import { navigateTo } from '../../services/navigation';
+import { invalidateVault } from '../../stores/campaign';
 import { createBlankCharacter, createWizardCharacter } from '../../services/characterCreate';
 import {
   CHARACTERS_PATH,
@@ -124,8 +125,7 @@ export class CharacterSectionState {
     if (!uid) return;
     this.showNewInput = false;
     this.newInput = '';
-    await this.load();
-    await this.openCharacter({ name: uid, is_dir: true });
+    await this.openCreated(uid);
   }
 
   cancelNewCharacter(e: KeyboardEvent): void {
@@ -147,6 +147,7 @@ export class CharacterSectionState {
   }
 
   private async openCreated(uid: string): Promise<void> {
+    invalidateVault();
     this.expanded = true;
     await this.load();
     await this.openCharacter({ name: uid, is_dir: true });

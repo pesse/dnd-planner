@@ -3,7 +3,7 @@
  * Akt/Sessions/NPC/Welt/Notizen/Karten-Sektionen und die Encounter je Akt.
  */
 import { invoke } from '@tauri-apps/api/core';
-import { activeCampaign } from '../../../stores/campaign';
+import { activeCampaign, invalidateVault } from '../../../stores/campaign';
 import { confirmNavigation } from '../../../stores/navigationGuard';
 import { navigateTo } from '../../../services/navigation';
 import { loadActSummaries, loadEncounterContext } from '../../../stores/context';
@@ -101,7 +101,10 @@ export class CampaignTreeState {
   /** @returns false, wenn das Kopieren scheitert. */
   async createFromTemplate(template: CampaignTemplateRef, options: CampaignTemplateOptions): Promise<boolean> {
     try {
-      await this.openCreated(await instantiateCampaignTemplate(template, options));
+      const slug = await instantiateCampaignTemplate(template, options);
+      // Die Vorlage legt auch Charaktere an — deren Liste und der Katalog hängen am Vault-Signal.
+      invalidateVault();
+      await this.openCreated(slug);
       return true;
     } catch (err) {
       console.error('Kampagne konnte nicht aus der Vorlage erstellt werden:', err);
