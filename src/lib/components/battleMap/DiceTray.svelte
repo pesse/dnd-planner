@@ -129,13 +129,12 @@
     <div class="row">
       <button class="d20" title="Zwei W20, der höhere zählt" onclick={() => rollD20('adv')}>▲ Vorteil</button>
       <button class="d20" title="Zwei W20, der niedrigere zählt" onclick={() => rollD20('dis')}>▼ Nachteil</button>
+      {#if history.length > 1}
+        <button class="toggle" aria-expanded={historyOpen} title="Verlauf {historyOpen ? 'zuklappen' : 'aufklappen'}" onclick={() => (historyOpen = !historyOpen)}>
+          <span class="caret">▸</span>{history.length - 1}
+        </button>
+      {/if}
     </div>
-
-    {#if history.length > 1}
-      <button class="toggle" aria-expanded={historyOpen} onclick={() => (historyOpen = !historyOpen)}>
-        <span class="caret">▸</span> Verlauf ({history.length - 1})
-      </button>
-    {/if}
     {#if history.length > 1 && historyOpen}
       <ol class="history">
         {#each history.slice(1) as r (r.id)}
@@ -341,17 +340,9 @@
   .toggle {
     display: flex;
     align-items: center;
-    gap: 0.3rem;
-    margin-top: 0.1rem;
-    padding: 0.25rem 0 0;
-    border: none;
-    border-top: 1px solid var(--border);
-    border-radius: 0;
-    background: none;
+    gap: 0.2rem;
     color: var(--ink-muted);
     font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
   }
   .caret {
     transition: transform 0.15s;
@@ -362,7 +353,8 @@
   .history {
     list-style: none;
     margin: 0;
-    padding: 0;
+    padding: 0.25rem 0 0;
+    border-top: 1px solid var(--border);
     max-height: 7.5rem;
     overflow-y: auto;
     display: flex;
