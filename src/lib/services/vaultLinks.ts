@@ -57,6 +57,7 @@ export function inferFileType(path: string): FileEntry['type'] | null {
   if (/\/vault\/feats\/[^/]+\.json$/i.test(path)) return 'feat';
   if (/\/vault\/backgrounds\/[^/]+\.json$/i.test(path)) return 'background';
   if (/\/vault\/rules\/[^/]+\.json$/i.test(path)) return 'rule';
+  if (/\/vault\/traps\/[^/]+\.json$/i.test(path)) return 'trap';
   // Charaktere sind verzeichnisbasiert, tragen also kein Suffix.
   if (/\/vault\/characters\/[^/]+\/?$/i.test(path)) return 'character';
   if (/\.md$/i.test(path)) return 'notes';

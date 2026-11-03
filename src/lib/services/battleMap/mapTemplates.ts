@@ -12,7 +12,7 @@ export const isMapTemplatePath = (path: string): boolean => path.includes(`/${MA
 const dirOf = (path: string): string => path.slice(0, path.lastIndexOf('/'));
 const baseOf = (path: string): string => path.slice(path.lastIndexOf('/') + 1).replace(/\.json$/, '');
 
-/** Spieler-Charaktere fliegen raus; Monster stehen wieder versteckt und unverletzt da, der Nebel ist zu. */
+/** Spieler-Charaktere fliegen raus; Monster und Fallen stehen wieder versteckt und unverletzt bzw. scharf da, der Nebel ist zu. */
 export const asMapTemplate = (map: BattleMap): BattleMap => ({
   ...map,
   tokens: map.tokens
@@ -20,7 +20,9 @@ export const asMapTemplate = (map: BattleMap): BattleMap => ({
     .map((t) =>
       t.kind === 'monster'
         ? { ...t, hp: t.hpMax, conditions: [], effects: [], initiative: null, hidden: true }
-        : { ...t, conditions: [], effects: [], initiative: null },
+        : t.kind === 'trap'
+          ? { ...t, trapState: 'armed' as const, hidden: true }
+          : { ...t, conditions: [], effects: [], initiative: null },
     ),
   fog: { ...map.fog, ops: [] },
   combat: { round: 0, turn: '' },

@@ -1,5 +1,5 @@
 <script lang="ts">
-  /** Tokens einsetzen: Gruppe, Charakter, Encounter, Monster, Markierung. */
+  /** Tokens einsetzen: Gruppe, Charakter, Encounter, Monster, Falle, Markierung. */
   import { onMount } from 'svelte';
   import { activeCampaign } from '../../stores/campaign';
   import { characterLabel, listCharacterRefs, type CharacterRef } from '../../services/characterDirectory';
@@ -11,9 +11,11 @@
     encounterDrafts,
     libraryMonsterDraft,
     markerDraft,
+    trapDraft,
   } from '../../services/battleMap/tokenSources';
   import { encounterPath } from '../../services/battleMap/tokenDetails';
   import PanelSection from './PanelSection.svelte';
+  import { getTraps, trapDisplayName, type TrapInfo } from '../../trapsLibrary';
 
   let { editor, center }: { editor: MapEditor; center: () => Point } = $props();
 
@@ -22,6 +24,8 @@
   let encounterKey = $state('');
   let monsterQuery = $state('');
   let markerName = $state('');
+  let trapQuery = $state('');
+  let traps = $state<TrapInfo[]>([]);
   let busy = $state(false);
 
   const map = $derived(editor.map!);
@@ -41,6 +45,7 @@
 
   onMount(() => {
     void listCharacterRefs().then((refs) => (characters = refs));
+    void getTraps().then((list) => (traps = list.toSorted((a, b) => trapDisplayName(a).localeCompare(trapDisplayName(b), 'de'))));
   });
 
   function addCharacter() {
@@ -71,6 +76,14 @@
       if (draft) editor.addTokens([draft], originCell());
       monsterQuery = '';
     });
+
+  /** Ein Name ohne Bibliothekseintrag ergibt eine freie Falle, deren Werte in der Notiz stehen. */
+  function addTrap() {
+    const q = trapQuery.trim();
+    const hit = traps.find((t) => trapDisplayName(t).toLowerCase() === q.toLowerCase() || t.name.toLowerCase() === q.toLowerCase());
+    editor.addTokens([trapDraft(hit ? trapDisplayName(hit) : q || 'Falle', hit?.key)], originCell());
+    trapQuery = '';
+  }
 
   function addMarker() {
     const name = markerName.trim() || 'Markierung';
@@ -113,6 +126,16 @@
       {/each}
     </datalist>
     <button disabled={!monsterQuery.trim() || busy} onclick={addMonster}>+</button>
+  </div>
+
+  <div class="row">
+    <input list="map-trap-list" bind:value={trapQuery} placeholder="Falle aus Bibliothek…" onkeydown={(e) => e.key === 'Enter' && addTrap()} />
+    <datalist id="map-trap-list">
+      {#each traps as t (t.key)}
+        <option value={trapDisplayName(t)}></option>
+      {/each}
+    </datalist>
+    <button onclick={addTrap}>+</button>
   </div>
 
   <div class="row">

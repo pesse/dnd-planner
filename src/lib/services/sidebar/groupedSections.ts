@@ -14,6 +14,8 @@ import { FEAT_CATEGORY_DE, featDisplayName, getFeats, invalidateFeatsCache } fro
 import { FEAT_CATEGORIES } from '../../schemas/vocabulary';
 import { getRules, invalidateRulesCache, ruleDisplayName } from '../../rulesLibrary';
 import { RULE_CATEGORIES, RULE_CATEGORY_DE } from '../../schemas/rule';
+import { getTraps, invalidateTrapsCache, trapDisplayName } from '../../trapsLibrary';
+import { TRAP_SEVERITIES, type TrapSeverity } from '../../schemas/trap';
 import { crLabel } from '../monsterFormat';
 import { parseMonster } from '../../utils/schemaValidation';
 import { monsterTypeLabel, type FileEntry } from '../../types';
@@ -230,6 +232,24 @@ async function loadRuleGroups(): Promise<TreeGroup[]> {
     .filter((g) => g.leaves.length);
 }
 
+async function loadTrapGroups(): Promise<TreeGroup[]> {
+  const leaves = (await getTraps()).map((trap) => {
+    const filename = trap.path.slice(trap.path.lastIndexOf('/') + 1);
+    return {
+      entryName: filename.replace('.json', ''),
+      path: trap.path,
+      suffix: `traps/${filename}`,
+      groupId: trap.severity,
+      label: trapDisplayName(trap),
+      nameEn: trap.name,
+    };
+  });
+  leaves.sort((a, b) => a.label.localeCompare(b.label, 'de'));
+  return (Object.keys(TRAP_SEVERITIES) as TrapSeverity[])
+    .map((id) => ({ id, label: TRAP_SEVERITIES[id], leaves: leaves.filter((l) => l.groupId === id) }))
+    .filter((g) => g.leaves.length);
+}
+
 export const GROUPED_SECTIONS: GroupedSection[] = [
   {
     kind: 'monster', type: 'monster', label: 'Monster', addTitle: 'Neues Monster',
@@ -264,10 +284,17 @@ export const GROUPED_SECTIONS: GroupedSection[] = [
   },
 ];
 
-/** Steht in der Seitenleiste hinter den flachen Bibliotheken, als letzte Sektion. */
+/** Steht in der Seitenleiste hinter den flachen Bibliotheken, wie die Fallen danach. */
 export const RULES_SECTION: GroupedSection = {
   kind: 'rule', type: 'rule', label: 'Regeln', addTitle: 'Neue Regel',
   emptyLabel: 'Keine Regeln', searchable: true,
   loadGroups: loadRuleGroups,
   invalidate: invalidateRulesCache,
+};
+
+export const TRAPS_SECTION: GroupedSection = {
+  kind: 'trap', type: 'trap', label: 'Fallen', addTitle: 'Neue Falle',
+  emptyLabel: 'Keine Fallen', searchable: true,
+  loadGroups: loadTrapGroups,
+  invalidate: invalidateTrapsCache,
 };

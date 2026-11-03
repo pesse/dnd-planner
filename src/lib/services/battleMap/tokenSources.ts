@@ -1,7 +1,8 @@
-/** Tokens aus Gruppe, Encounter und Monsterbibliothek anlegen und ihre Bilder auflösen. */
+/** Tokens aus Gruppe, Encounter, Monster- und Fallenbibliothek anlegen und ihre Bilder auflösen. */
 import { invoke } from '@tauri-apps/api/core';
 import { artUrl } from '../../artUrl';
 import { monsterArtSlug } from '../../libraryArt';
+import { TRAP_ICON_URL } from '../../conditionIcon';
 import type { Token, TokenKind } from '../../schemas/battleMap';
 import { encounterSchema } from '../../schemas/encounter';
 import type { Monster } from '../../types';
@@ -27,12 +28,15 @@ export interface TokenDraft {
   conditions: Token['conditions'];
   effects: Token['effects'];
   initiative: number | null;
+  trapState?: Token['trapState'];
+  trapTier?: number;
 }
 
 export const KIND_COLOR: Record<TokenKind, string> = {
   character: '#205c50',
   monster: '#8a2012',
   marker: '#786012',
+  trap: '#4a0d0d',
 };
 
 const ROW = 6;
@@ -66,7 +70,7 @@ export function placeDrafts(drafts: TokenDraft[], origin: Point, taken: Set<stri
     const x = ox + (i % ROW);
     const y = oy + Math.floor(i / ROW);
     for (let dx = 0; dx < n; dx++) for (let dy = 0; dy < n; dy++) used.add(`${x + dx},${y + dy}`);
-    return { id: newUid(), x, y, ...d };
+    return { id: newUid(), x, y, trapState: 'armed', trapTier: 0, ...d };
   });
 }
 
@@ -126,6 +130,15 @@ export const markerDraft = (name: string): TokenDraft => ({
   initiative: null,
 });
 
+/** Fallen liegen verborgen, bis die Spieler sie entdecken oder auslösen. */
+export const trapDraft = (name: string, ref = ''): TokenDraft => ({
+  ...markerDraft(name),
+  kind: 'trap',
+  ref,
+  hidden: true,
+  color: KIND_COLOR.trap,
+});
+
 /** Monster sind zunächst versteckt — die SL deckt sie auf, wenn sie auftauchen. */
 export async function encounterDrafts(encounterPath: string, key: string): Promise<TokenDraft[]> {
   const raw = await invoke<string>('read_file_content', { path: encounterPath });
@@ -156,6 +169,7 @@ export async function resolveTokenImage(token: Token): Promise<string> {
       return '';
     }
   }
+  if (token.kind === 'trap') return TRAP_ICON_URL;
   return token.art ? artUrl(token.art) : '';
 }
 

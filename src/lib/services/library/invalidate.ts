@@ -12,6 +12,7 @@ import { invalidateFeatsCache } from '../../featsLibrary';
 import { invalidateBackgroundsCache } from '../../backgroundsLibrary';
 import { invalidateItemCache } from '../../itemLibrary';
 import { invalidateRulesCache } from '../../rulesLibrary';
+import { invalidateTrapsCache } from '../../trapsLibrary';
 import { invalidateMonsterLore } from '../../monsterLoreLibrary';
 import { invalidateMonsterPaths } from '../contextLoad';
 import { invalidateVault } from '../../stores/campaign';
@@ -27,6 +28,7 @@ export function invalidateLibraryCaches(): void {
   invalidateBackgroundsCache();
   invalidateItemCache();
   invalidateRulesCache();
+  invalidateTrapsCache();
   invalidateMonsterLore();
   invalidateMonsterPaths();
   invalidateArtProbes();

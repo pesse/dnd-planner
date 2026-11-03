@@ -15,7 +15,7 @@
 
   const map = $derived(editor.map!);
   const combat = $derived(map.combat);
-  const fighters = $derived(map.tokens.filter((t) => t.kind !== 'marker'));
+  const fighters = $derived(map.tokens.filter((t) => t.kind !== 'marker' && t.kind !== 'trap'));
   const order = $derived(initiativeOrder(fighters));
   const waiting = $derived(fighters.filter((t) => t.initiative == null && (t.kind === 'character' || !t.hidden)));
   let busy = $state(false);

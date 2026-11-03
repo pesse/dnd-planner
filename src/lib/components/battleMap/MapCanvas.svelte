@@ -48,7 +48,7 @@
   let fitted = '';
 
   const map = $derived(editor.map!);
-  const tokens = $derived(map.tokens.map((t) => ({ ...t, imageUrl: editor.tokenImages[t.id] ?? '' })));
+  const tokens = $derived(map.tokens.map((t) => ({ ...t, imageUrl: editor.tokenImages[t.id] ?? '', down: t.kind === 'trap' && t.trapState === 'disarmed' })));
 
   export function fit() {
     const { w, h } = editor.imageSize;

@@ -9,7 +9,7 @@
   import SidebarSection from './sidebar/SidebarSection.svelte';
   import { libraryManagerOpen } from '../stores/libraries';
   import { LIBRARY_SECTIONS } from '../services/sidebar/librarySections';
-  import { GROUPED_SECTIONS, RULES_SECTION } from '../services/sidebar/groupedSections';
+  import { GROUPED_SECTIONS, RULES_SECTION, TRAPS_SECTION } from '../services/sidebar/groupedSections';
   import { CREATE_SPECS, type CreateKind } from '../services/sidebar/createSpecs';
 
   let createModal = $state<CreateKind | null>(null);
@@ -30,6 +30,7 @@
   {/each}
 
   <GroupedSectionView section={RULES_SECTION} oncreate={() => (createModal = RULES_SECTION.kind)} />
+  <GroupedSectionView section={TRAPS_SECTION} oncreate={() => (createModal = TRAPS_SECTION.kind)} />
 
   {#if $libraryManagerOpen}
     <LibraryManager onclose={() => libraryManagerOpen.set(false)} />

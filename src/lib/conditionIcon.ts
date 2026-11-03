@@ -14,3 +14,6 @@ export function ruleIconUrl(rule: Pick<Rule, 'key'>): string | null {
   const slug = keySlug(rule.key);
   return BADGES.includes(slug) ? badgeIconUrl(slug as Badge) : null;
 }
+
+/** Im selben Stil wie die Zustände, aber kein Abzeichen am Token: das Token selbst ist die Falle. */
+export const TRAP_ICON_URL = '/branding/conditions/trap.webp';

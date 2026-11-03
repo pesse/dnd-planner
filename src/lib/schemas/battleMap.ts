@@ -2,7 +2,11 @@
 import { z } from 'zod';
 import { CONDITION_KEYS } from './vocabulary';
 
-export const TOKEN_KINDS = ['character', 'monster', 'marker'] as const;
+export const TOKEN_KINDS = ['character', 'monster', 'marker', 'trap'] as const;
+
+export const TRAP_STATES = { armed: 'Scharf', triggered: 'Ausgelöst', disarmed: 'Entschärft' } as const;
+export type TrapState = keyof typeof TRAP_STATES;
+const TRAP_STATE_KEYS = Object.keys(TRAP_STATES) as [TrapState, ...TrapState[]];
 
 /** Liegt neben den Zuständen am Token, ist aber keiner: Brand ist eine Gefahr, Konzentration eine Zauberregel. */
 export const TOKEN_EFFECTS = { burning: 'Brand', concentration: 'Konzentration' } as const;
@@ -22,7 +26,7 @@ export const tokenSchema = z.object({
   id: z.string(),
   name: z.string(),
   kind: z.enum(TOKEN_KINDS).default('marker'),
-  ref: z.string().default('').describe('Charakter-UID bzw. Monster-Slug; leer bei Markierungen.'),
+  ref: z.string().default('').describe('Charakter-UID, Monster-Slug bzw. Fallen-Key; leer bei Markierungen.'),
   art: z.string().default('').describe('Bildname für `artUrl`; Charaktere lösen ihr Porträt selbst auf.'),
   x: z.number().describe('Linke obere Ecke in Feldern.'),
   y: z.number(),
@@ -36,6 +40,8 @@ export const tokenSchema = z.object({
   conditions: z.array(z.enum(CONDITION_KEYS)).default([]),
   effects: z.array(z.enum(TOKEN_EFFECT_KEYS)).default([]),
   initiative: z.number().int().nullable().default(null).describe('null = nimmt nicht am Kampf teil.'),
+  trapState: z.enum(TRAP_STATE_KEYS).default('armed'),
+  trapTier: z.number().int().min(0).default(0).describe('Stufe einer Falle: 0 = Grundwerte, n = n-ter Eintrag in `tiers`.'),
 });
 
 const point = z.tuple([z.number(), z.number()]);

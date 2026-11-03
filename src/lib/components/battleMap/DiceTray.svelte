@@ -55,7 +55,7 @@
     if (!invalid) diceTray.formula = '';
   }
 
-  const target = $derived(editor.selected?.kind === 'marker' ? null : editor.selected);
+  const target = $derived(editor.selected?.kind === 'marker' || editor.selected?.kind === 'trap' ? null : editor.selected);
 
   async function applyHp(sign: 1 | -1) {
     if (!target || !latest) return;

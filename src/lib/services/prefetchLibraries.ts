@@ -9,6 +9,7 @@ import { getSpeciesList } from '$lib/speciesLibrary';
 import { getBackgroundsList } from '$lib/backgroundsLibrary';
 import { getFeats } from '$lib/featsLibrary';
 import { getRules } from '$lib/rulesLibrary';
+import { getTraps } from '$lib/trapsLibrary';
 import { getSourceDeclarations } from '$lib/services/sourceRegistry';
 import {
   parseCharacter,
@@ -61,6 +62,7 @@ export function prefetchLibraries(): void {
     getBackgroundsList,
     getFeats,
     getRules,
+    getTraps,
     async () => {
       for (const dir of await listItemDirs()) jobs.push(() => getItemsByDir(dir));
     },

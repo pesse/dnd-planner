@@ -13,12 +13,14 @@ import { searchSpeciesDrafts } from '../../speciesLibrary';
 import { searchBackgroundDrafts } from '../../backgroundsLibrary';
 import { searchRuleDrafts } from '../../rulesLibrary';
 import type { Rule } from '../../schemas/rule';
+import { searchTrapDrafts } from '../../trapsLibrary';
+import { trapSchema, type Trap } from '../../schemas/trap';
 import { OWN_SOURCE } from '../../schemas/source';
 import {
   blankItem, displayName as itemDisplayName, getItemsByDir, loadedItemDirs, searchItems, toHomebrewCopy,
 } from '../../itemLibrary';
 import { blankSpell, getSpellLibrary, loadSpellByPath, searchSpells as searchSpellLib } from '../../spellLibrary';
-import { parseBackground, parseClass, parseRule, parseSpecies, normalizeItem } from '../../utils/schemaValidation';
+import { parseBackground, parseClass, parseRule, parseSpecies, parseTrap, normalizeItem } from '../../utils/schemaValidation';
 import { searchMonsterLibrary } from '../../monsterLibrary';
 import { BACKGROUND_TEMPLATE, CLASS_TEMPLATE, MONSTER_TEMPLATE, SPECIES_TEMPLATE } from '../../types';
 import type { Background, ClassProgression, FileEntryType, Item, Monster, Species, Spell } from '../../types';
@@ -85,6 +87,11 @@ function blankRule(name: string): Rule {
   return { key: '', source: OWN_SOURCE, name: name || 'Neue Regel', nameDe: name || 'Neue Regel', category: 'rule', desc: '' };
 }
 const searchRuleLibrary = (q: string) => searchRuleDrafts(q, parseRule, blankRule, 8);
+
+function blankTrap(name: string): Trap {
+  return trapSchema.parse({ key: '', source: OWN_SOURCE, name: name || 'New Trap', nameDe: name || 'Neue Falle' });
+}
+const searchTrapLibrary = (q: string) => searchTrapDrafts(q, parseTrap, blankTrap, 8);
 
 /** Bindet T an der Definitionsstelle; die Registry selbst ist typunabhängig. */
 const spec = <T>(s: CreateSpec<T>): CreateSpec<unknown> => s as CreateSpec<unknown>;
@@ -157,6 +164,13 @@ export const CREATE_SPECS = {
     searchLibrary: searchRuleLibrary,
     blank: blankRule,
     nameOf: (r) => r.nameDe || r.name || 'Regel',
+  }),
+  trap: spec<Trap>({
+    type: 'trap',
+    title: 'Neue Falle',
+    searchLibrary: searchTrapLibrary,
+    blank: blankTrap,
+    nameOf: (t) => t.nameDe || t.name || 'Falle',
   }),
 } satisfies Partial<Record<FileEntryType, CreateSpec<unknown>>>;
 

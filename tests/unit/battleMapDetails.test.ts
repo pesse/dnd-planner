@@ -58,6 +58,19 @@ describe('Encounter-Verweis am Token', () => {
     expect(JSON.stringify(toPlayerState(map, '', {}))).not.toMatch(/Geheimgang|akt-1|hp/i);
   });
 
+  it('zeigt eine Falle erst entdeckt, ohne Bibliotheks-Key, Stufe oder Zustand außer „entschärft"', () => {
+    const map = battleMapSchema.parse({
+      name: 'x',
+      tokens: [
+        { id: 'a', name: 'Grube', kind: 'trap', ref: 'dmg-2024_hidden-pit', x: 1, y: 1, hidden: true },
+        { id: 'b', name: 'Nadel', kind: 'trap', ref: 'dmg-2024_poisoned-needle', x: 2, y: 1, trapState: 'disarmed' },
+      ],
+    });
+    const { tokens } = toPlayerState(map, '', {});
+    expect(tokens.map((t) => [t.id, t.down])).toEqual([['b', true]]);
+    expect(JSON.stringify(tokens)).not.toMatch(/dmg-2024|trapState|trapTier/);
+  });
+
   it('zeigt den Spielern Besiegte, aber keine TP', () => {
     const map = battleMapSchema.parse({
       name: 'x',
@@ -157,6 +170,14 @@ describe('Karte als Vorlage', () => {
     expect(t.tokens[1]).toMatchObject({ hidden: true, note: 'Geheimgang' });
     expect(t.fog).toEqual({ enabled: true, ops: [] });
     expect(t.combat).toEqual({ round: 0, turn: '' });
+  });
+
+  it('stellt Fallen wieder scharf und verborgen auf, die gewählte Stufe bleibt', () => {
+    const withTrap = battleMapSchema.parse({
+      name: 'Gruft',
+      tokens: [{ id: 't', name: 'Grube', kind: 'trap', ref: 'dmg-2024_hidden-pit', x: 0, y: 0, trapState: 'triggered', trapTier: 2 }],
+    });
+    expect(asMapTemplate(withTrap).tokens[0]).toMatchObject({ trapState: 'armed', hidden: true, trapTier: 2 });
   });
 
   it('löst Encounter auch aus einer Vorlage in derselben Kampagne auf', () => {

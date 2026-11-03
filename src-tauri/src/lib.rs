@@ -570,6 +570,7 @@ pub struct TransferSelection {
     backgrounds: bool,
     #[serde(default)]
     rules: bool,
+    traps: bool,
 }
 
 /// Ein Charakter für die Auswahl: `uid` ist der Ordnername, `name` nur Anzeige.
@@ -592,6 +593,7 @@ pub struct VaultContents {
     feats: bool,
     backgrounds: bool,
     rules: bool,
+    traps: bool,
 }
 
 #[derive(Serialize)]
@@ -721,6 +723,7 @@ fn vault_overview() -> VaultContents {
         feats: dir_has_files(&vault.join("feats")),
         backgrounds: dir_has_files(&vault.join("backgrounds")),
         rules: dir_has_files(&vault.join("rules")),
+        traps: dir_has_files(&vault.join("traps")),
     }
 }
 
@@ -779,6 +782,9 @@ fn export_vault_inner(
     if selection.rules {
         collect_files(&vault.join("rules"), "rules", &mut files);
     }
+    if selection.traps {
+        collect_files(&vault.join("traps"), "traps", &mut files);
+    }
 
     let file = fs::File::create(&dest_path)
         .map_err(|e| format!("ZIP konnte nicht erstellt werden: {}", e))?;
@@ -807,6 +813,7 @@ fn export_vault_inner(
         "feats": selection.feats,
         "backgrounds": selection.backgrounds,
         "rules": selection.rules,
+        "traps": selection.traps,
     });
     zip.start_file("manifest.json", opts).map_err(|e| e.to_string())?;
     zip.write_all(
@@ -840,6 +847,7 @@ fn inspect_import_zip_inner(zip_path: String) -> Result<VaultContents, String> {
     let (mut items, mut monsters, mut spells) = (false, false, false);
     let (mut classes, mut species, mut feats, mut backgrounds) = (false, false, false, false);
     let mut rules = false;
+    let mut traps = false;
 
     for i in 0..archive.len() {
         let mut f = archive.by_index(i).map_err(|e| e.to_string())?;
@@ -871,6 +879,7 @@ fn inspect_import_zip_inner(zip_path: String) -> Result<VaultContents, String> {
             ["feats", ..] => feats = true,
             ["backgrounds", ..] => backgrounds = true,
             ["rules", ..] => rules = true,
+            ["traps", ..] => traps = true,
             _ => {}
         }
     }
@@ -889,6 +898,7 @@ fn inspect_import_zip_inner(zip_path: String) -> Result<VaultContents, String> {
         feats,
         backgrounds,
         rules,
+        traps,
     })
 }
 
@@ -947,6 +957,7 @@ fn import_vault_inner(
             ["feats", ..] => selection.feats,
             ["backgrounds", ..] => selection.backgrounds,
             ["rules", ..] => selection.rules,
+            ["traps", ..] => selection.traps,
             _ => false,
         };
         if !selected {

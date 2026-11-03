@@ -5,9 +5,9 @@ import { isBloodied } from './tokenDetails';
 
 /**
  * `movable`: Spieler dürfen nur Charaktere ziehen. Notizen und Encounter bleiben bei der SL.
- * Von den TP erfahren die Spieler nur, ob jemand blutig oder besiegt ist.
+ * Von den TP erfahren die Spieler nur, ob jemand blutig oder besiegt ist, von einer Falle nur, dass sie entschärft ist.
  */
-export type PlayerToken = Omit<Token, 'hidden' | 'ref' | 'kind' | 'art' | 'note' | 'encounter' | 'hp' | 'hpMax' | 'initiative'> & {
+export type PlayerToken = Omit<Token, 'hidden' | 'ref' | 'kind' | 'art' | 'note' | 'encounter' | 'hp' | 'hpMax' | 'initiative' | 'trapState' | 'trapTier'> & {
   imageUrl: string;
   movable: boolean;
   down: boolean;
@@ -31,7 +31,7 @@ export function toPlayerState(map: BattleMap, imageUrl: string, tokenImages: Rec
     grid: map.grid,
     tokens: map.tokens
       .filter((t) => !t.hidden)
-      .map(({ id, name, x, y, size, color, kind, conditions, effects, hp, hpMax }) => ({
+      .map(({ id, name, x, y, size, color, kind, conditions, effects, hp, hpMax, trapState }) => ({
         id,
         name,
         x,
@@ -42,7 +42,7 @@ export function toPlayerState(map: BattleMap, imageUrl: string, tokenImages: Rec
         effects,
         imageUrl: tokenImages[id] ?? '',
         movable: kind === 'character',
-        down: hp === 0,
+        down: hp === 0 || (kind === 'trap' && trapState === 'disarmed'),
         bloodied: isBloodied({ hp, hpMax }),
       })),
     fog: map.fog,

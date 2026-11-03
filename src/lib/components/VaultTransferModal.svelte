@@ -19,6 +19,7 @@
     feats: boolean;
     backgrounds: boolean;
     rules: boolean;
+    traps: boolean;
   }
 
   /** Bibliotheks-Kategorien (bool-Flags), Reihenfolge = Anzeige im Dialog. */
@@ -31,6 +32,7 @@
     { key: 'feats', label: 'Talente' },
     { key: 'backgrounds', label: 'Hintergründe' },
     { key: 'rules', label: 'Regeln' },
+    { key: 'traps', label: 'Fallen' },
   ] as const;
   type LibKey = (typeof LIBS)[number]['key'];
 

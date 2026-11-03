@@ -13,6 +13,7 @@
   import CharacterTokenInfo from './CharacterTokenInfo.svelte';
   import HpTracker from './HpTracker.svelte';
   import ConditionPicker from './ConditionPicker.svelte';
+  import TrapTokenInfo from './TrapTokenInfo.svelte';
 
   let { editor, token: t, campaignDir }: { editor: MapEditor; token: Token; campaignDir: string } = $props();
 
@@ -23,7 +24,8 @@
     { value: 3, label: 'Riesig' },
     { value: 4, label: 'Gigantisch' },
   ];
-  const KIND_LABEL = { character: 'Charakter', monster: 'Monster', marker: 'Markierung' } as const;
+  const KIND_LABEL = { character: 'Charakter', monster: 'Monster', marker: 'Markierung', trap: 'Falle' } as const;
+  const fighter = $derived(t.kind === 'character' || t.kind === 'monster');
 
   let monster = $state<Monster | null>(null);
   let monsterMissing = $state(false);
@@ -77,7 +79,7 @@
       {#each SIZES as s}<option value={s.value}>{s.label}</option>{/each}
     </select>
     <input type="color" value={t.color} title="Farbe" onchange={(e) => update({ color: e.currentTarget.value })} />
-    {#if t.kind !== 'marker'}
+    {#if fighter}
       <label class="ini" use:pinnableTip={withRule('Leer: nimmt nicht am Kampf teil.', 'srd-2024_initiative')}>
         Ini
         <input
@@ -88,7 +90,7 @@
       </label>
     {/if}
   </div>
-  {#if t.kind !== 'marker'}
+  {#if fighter}
     <ConditionPicker {editor} token={t} />
   {/if}
   <div class="note" class:tall={t.kind === 'marker'} onfocusin={() => editor.checkpoint()}>
@@ -97,6 +99,10 @@
     {/key}
   </div>
 </div>
+
+{#if t.kind === 'trap'}
+  <div class="hp"><TrapTokenInfo {editor} token={t} /></div>
+{/if}
 
 {#if t.kind === 'monster' && (t.hpMax || monster)}
   <div class="hp"><HpTracker {editor} token={t} fallbackMax={monster?.hit_points ?? 0} /></div>

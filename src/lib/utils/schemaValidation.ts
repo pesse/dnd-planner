@@ -16,6 +16,7 @@ import { speciesSchema, migrateSpeciesLegacy, type Species } from '../schemas/sp
 import { featSchema, migrateFeatLegacy, type Feat } from '../schemas/feat';
 import { backgroundSchema, type Background } from '../schemas/background';
 import { ruleSchema, type Rule } from '../schemas/rule';
+import { trapSchema, type Trap } from '../schemas/trap';
 import { migrateSourceLegacy } from '../schemas/source';
 import type { ZodType } from 'zod';
 
@@ -84,3 +85,5 @@ export const parseFeat = (raw: unknown): ParseResult<Feat> => parse(featSchema, 
 export const parseBackground = (raw: unknown): ParseResult<Background> => parse(backgroundSchema, libraryEntry, raw);
 export const parseRule = (raw: unknown): ParseResult<Rule> => parse(ruleSchema, libraryEntry, raw);
 export const normalizeRule = (raw: unknown): Rule => normalize(ruleSchema, libraryEntry, raw);
+export const parseTrap = (raw: unknown): ParseResult<Trap> => parse(trapSchema, libraryEntry, raw);
+export const normalizeTrap = (raw: unknown): Trap => normalize(trapSchema, libraryEntry, raw);

@@ -1,0 +1,54 @@
+{
+  "key": "string",
+  "source": "homebrew-sam",
+  "name": "string",
+  "nameDe": "string",
+  "severity": "nuisance",
+  "levels": "string",
+  "trigger": "string",
+  "triggerDe": "string",
+  "desc": "string",
+  "descDe": "string",
+  "detect": [
+    {
+      "skill": "Acrobatics",
+      "ability": "str",
+      "dc": -9007199254740991,
+      "note": "string",
+      "noteDe": "string"
+    }
+  ],
+  "disarm": [
+    {
+      "skill": "Acrobatics",
+      "ability": "str",
+      "dc": -9007199254740991,
+      "note": "string",
+      "noteDe": "string"
+    }
+  ],
+  "save": {
+    "ability": "str",
+    "dc": -9007199254740991
+  },
+  "damage": [
+    {
+      "dice": "string",
+      "type": "acid"
+    }
+  ],
+  "tiers": [
+    {
+      "levels": "string",
+      "saveDc": -9007199254740991,
+      "damage": [
+        {
+          "dice": "string",
+          "type": "acid"
+        }
+      ],
+      "note": "string",
+      "noteDe": "string"
+    }
+  ]
+}
