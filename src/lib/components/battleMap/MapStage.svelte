@@ -199,8 +199,22 @@
     pointer-events: none;
   }
   .token.hidden-token {
-    opacity: 0.45;
+    opacity: 0.8;
     border-style: dashed;
+  }
+  .token.hidden-token img,
+  .token.hidden-token .initials {
+    filter: saturate(0.4);
+  }
+  .token.hidden-token::before {
+    content: '🙈';
+    position: absolute;
+    top: -0.2em;
+    left: -0.2em;
+    font-size: calc(var(--tb) * 6);
+    line-height: 1;
+    z-index: 2;
+    pointer-events: none;
   }
   .token.down {
     border-color: #555;
