@@ -95,7 +95,7 @@
   {/if}
   <div class="note" class:tall={t.kind === 'marker'} onfocusin={() => editor.checkpoint()}>
     {#key t.id}
-      <RichTextEditor value={t.note} placeholder="Notiz (nur für dich) …" onChange={(note) => editor.updateToken(t.id, { note })} />
+      <RichTextEditor value={t.note} placeholder="Notiz (nur für dich) …" collapsedToolbar onChange={(note) => editor.updateToken(t.id, { note })} />
     {/key}
   </div>
 </div>

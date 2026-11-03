@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, untrack } from 'svelte';
   import { Editor } from '@tiptap/core';
   import StarterKit from '@tiptap/starter-kit';
   import { Markdown } from 'tiptap-markdown';
@@ -10,9 +10,13 @@
     value: string;
     onChange?: (markdown: string) => void;
     placeholder?: string;
+    /** Werkzeugleiste eingeklappt hinter einem kleinen Knopf — für enge Notizfelder. */
+    collapsedToolbar?: boolean;
   }
 
-  let { value = '', onChange, placeholder = 'Freitext …' }: Props = $props();
+  let { value = '', onChange, placeholder = 'Freitext …', collapsedToolbar = false }: Props = $props();
+
+  let toolbarOpen = $state(untrack(() => !collapsedToolbar));
 
   let editorEl: HTMLElement | null = null;
   let editor = $state<Editor | null>(null);
@@ -111,7 +115,11 @@
   }
 </script>
 
-<div class="editor-shell">
+<div class="editor-shell" class:folding={collapsedToolbar}>
+  {#if collapsedToolbar}
+    <button class="tb fold" class:on={toolbarOpen} title={toolbarOpen ? 'Formatierung ausblenden' : 'Formatierung einblenden'} onclick={() => (toolbarOpen = !toolbarOpen)}>Aa</button>
+  {/if}
+  {#if toolbarOpen}
   <div class="toolbar">
     {#if !showSource}
       <button class="tb" class:on={isBold}       onclick={() => editor?.chain().focus().toggleBold().run()}                title="Fett (Strg+B)"><b>B</b></button>
@@ -134,6 +142,7 @@
 
     <button class="source-btn" class:active={showSource} onclick={toggleSource}>Quelle</button>
   </div>
+  {/if}
 
   <div bind:this={editorEl} class="editor-mount" class:hidden={showSource} data-placeholder={placeholder}></div>
 
@@ -146,3 +155,20 @@
     ></textarea>
   {/if}
 </div>
+
+<style>
+  .folding {
+    position: relative;
+  }
+  .folding .toolbar {
+    padding-right: 2.2rem;
+  }
+  .fold {
+    position: absolute;
+    top: 0.15rem;
+    right: 0.2rem;
+    z-index: 1;
+    padding: 0.1rem 0.3rem;
+    font-size: 0.72rem;
+  }
+</style>
