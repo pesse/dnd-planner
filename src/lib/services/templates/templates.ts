@@ -119,7 +119,7 @@ export async function listCharacterTemplates(): Promise<CharacterTemplateRef[]> 
 async function higherLevels(dir: string): Promise<TemplateLevel[]> {
   let entries: EntryInfo[];
   try {
-    entries = await invoke<EntryInfo[]>('list_entries', { path: `${dir}/${LEVELS}` });
+    entries = await invoke<EntryInfo[]>('list_json_entries', { path: `${dir}/${LEVELS}` });
   } catch {
     return [];
   }

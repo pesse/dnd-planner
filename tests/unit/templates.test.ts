@@ -7,9 +7,13 @@ const under = (dir: string) => [...files.keys()].filter((p) => p.startsWith(`${d
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: async (cmd: string, args: Record<string, string>) => {
     switch (cmd) {
-      case 'list_entries': {
+      case 'list_entries':
+      case 'list_json_entries': {
+        const ext = cmd === 'list_entries' ? '.md' : '.json';
         const names = new Set(under(args.path).map((p) => p.slice(args.path.length + 1).split('/')[0]));
-        return [...names].map((name) => ({ name, is_dir: under(`${args.path}/${name}`).length > 0 }));
+        return [...names]
+          .map((name) => ({ name, is_dir: under(`${args.path}/${name}`).length > 0 }))
+          .filter((e) => e.is_dir || e.name.endsWith(ext));
       }
       case 'read_file_content': {
         const content = files.get(args.path);
