@@ -112,10 +112,7 @@
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const sel = editor.selected;
     if (sel && (e.key === 'Delete' || e.key === 'Backspace')) editor.removeToken(sel.id);
-    else if (sel && e.key.toLowerCase() === 'h') {
-      editor.checkpoint();
-      editor.updateToken(sel.id, { hidden: !sel.hidden });
-    } else if (e.key.toLowerCase() === 'w') {
+    else if (sel && e.key.toLowerCase() === 'h') editor.toggleHidden(sel.id); else if (e.key.toLowerCase() === 'w') {
       diceOpen = !diceOpen;
     } else if (e.key === 'Escape') {
       if (editor.tool === 'select') editor.selectedId = null;

@@ -233,6 +233,13 @@ export class MapEditor {
     this.changed();
   }
 
+  toggleHidden(id: string): void {
+    const t = this.map?.tokens.find((o) => o.id === id);
+    if (!t) return;
+    this.checkpoint();
+    this.updateToken(id, { hidden: !t.hidden });
+  }
+
   setEncounterHidden(encounter: string, hidden: boolean): void {
     if (!this.map) return;
     this.checkpoint();

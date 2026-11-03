@@ -90,10 +90,10 @@
         <ul>
           {#each tokens as t (t.id)}
             <li>
+              <button class="eye" title={t.hidden ? 'Für Spieler versteckt — zeigen' : 'Für Spieler sichtbar — verstecken'} onclick={() => editor.toggleHidden(t.id)}>{t.hidden ? '🙈' : '👁'}</button>
               <button class="link" class:dim={t.hidden} onclick={() => (editor.selectedId = t.id)}>{t.name}</button>
               {#if t.initiative != null}<span class="tag">Ini {t.initiative}</span>{/if}
               {#if t.hpMax != null && t.hp != null}<span class="tag" class:dead={t.hp === 0}>{t.hp === 0 ? 'besiegt' : `${t.hp}/${t.hpMax} TP`}</span>{/if}
-              {#if t.hidden}<span class="tag">versteckt</span>{/if}
             </li>
           {/each}
         </ul>
@@ -177,6 +177,12 @@
     margin-left: auto;
     text-transform: none;
     letter-spacing: 0;
+  }
+  .eye {
+    border: none;
+    background: none;
+    padding: 0.1rem 0.2rem;
+    font-size: 0.9rem;
   }
   .link {
     border: none;

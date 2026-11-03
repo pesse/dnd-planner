@@ -6,11 +6,6 @@
   let { editor }: { editor: MapEditor } = $props();
 
   const map = $derived(editor.map!);
-
-  function toggleHidden(id: string, hidden: boolean) {
-    editor.checkpoint();
-    editor.updateToken(id, { hidden: !hidden });
-  }
 </script>
 
 <PanelSection title="Tokens ({map.tokens.length})">
@@ -24,7 +19,7 @@
   <ul>
     {#each map.tokens as t (t.id)}
       <li class:selected={t.id === editor.selectedId}>
-        <button class="eye" title={t.hidden ? 'Für Spieler versteckt — zeigen' : 'Für Spieler sichtbar — verstecken'} onclick={() => toggleHidden(t.id, t.hidden)}>
+        <button class="eye" title={t.hidden ? 'Für Spieler versteckt — zeigen' : 'Für Spieler sichtbar — verstecken'} onclick={() => editor.toggleHidden(t.id)}>
           {t.hidden ? '🙈' : '👁'}
         </button>
         <button class="name" class:muted={t.hidden} onclick={() => (editor.selectedId = t.id)}>{t.name}</button>
