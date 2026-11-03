@@ -1,9 +1,7 @@
 <script lang="ts">
   /** Tokens einsetzen: Gruppe, Charakter, Encounter, Monster, Falle, Markierung. */
-  import { onMount } from 'svelte';
   import { activeCampaign } from '../../stores/campaign';
-  import { characterLabel, listCharacterRefs, type CharacterRef } from '../../services/characterDirectory';
-  import { campaignCharacterData, encounterSummaries, monsterLibrary } from '../../stores/context';
+  import { campaignCharacterData, encounterSummaries } from '../../stores/context';
   import type { MapEditor } from '../../services/battleMap/mapEditor.svelte';
   import { pxToCell, type Point } from '../../services/battleMap/geometry';
   import {
@@ -12,20 +10,30 @@
     libraryMonsterDraft,
     markerDraft,
     trapDraft,
+    type TokenDraft,
   } from '../../services/battleMap/tokenSources';
   import { encounterPath, mapEncounters } from '../../services/battleMap/tokenDetails';
   import PanelSection from './PanelSection.svelte';
-  import { getTraps, trapDisplayName, type TrapInfo } from '../../trapsLibrary';
+  import CatalogDrawer from '../catalog/CatalogDrawer.svelte';
+  import type { CatalogRow } from '../../services/catalog/catalogTypes';
+  import { getTraps, trapDisplayName } from '../../trapsLibrary';
 
   let { editor, center }: { editor: MapEditor; center: () => Point } = $props();
 
-  let characters = $state<CharacterRef[]>([]);
-  let characterUid = $state('');
+  type LibraryKind = 'character' | 'monster' | 'trap';
+  const LIBRARIES: { kind: LibraryKind; label: string; title: string; columns: string[] }[] = [
+    { kind: 'character', label: 'Charakter…', title: 'Charakter einsetzen', columns: [] },
+    { kind: 'monster', label: 'Monster…', title: 'Monster einsetzen', columns: ['cr'] },
+    { kind: 'trap', label: 'Falle…', title: 'Falle einsetzen', columns: [] },
+  ];
+
+  let drawer = $state<LibraryKind | null>(null);
+  /** Einmal geöffnet, bleibt eine Schublade aufgebaut. */
+  let built = $state<LibraryKind[]>([]);
+  let libraryButtons = $state<HTMLElement>();
   let encounterKey = $state('');
-  let monsterQuery = $state('');
   let markerName = $state('');
-  let trapQuery = $state('');
-  let traps = $state<TrapInfo[]>([]);
+  let trapName = $state('');
   let busy = $state(false);
 
   const map = $derived(editor.map!);
@@ -44,18 +52,6 @@
     }
   }
 
-  onMount(() => {
-    void listCharacterRefs().then((refs) => (characters = refs));
-    void getTraps().then((list) => (traps = list.toSorted((a, b) => trapDisplayName(a).localeCompare(trapDisplayName(b), 'de'))));
-  });
-
-  function addCharacter() {
-    const ref = characters.find((c) => c.uid === characterUid);
-    if (!ref) return;
-    editor.addTokens([characterDraft(ref.uid, characterLabel(ref))], originCell());
-    characterUid = '';
-  }
-
   const addParty = () =>
     editor.addTokens($campaignCharacterData.map((c) => characterDraft(c.slug, c.name)), originCell());
 
@@ -67,22 +63,31 @@
       editor.details.show({ kind: 'encounter', key });
     });
 
-  const addMonster = () =>
+  const PICK: Record<LibraryKind, (row: CatalogRow) => Promise<TokenDraft | null>> = {
+    character: async (row) => characterDraft(row.dirPath!.slice(row.dirPath!.lastIndexOf('/') + 1), row.name),
+    monster: (row) => libraryMonsterDraft(row.entryName),
+    trap: async (row) => {
+      const trap = (await getTraps()).find((t) => t.path === row.path);
+      return trap ? trapDraft(trapDisplayName(trap), trap.key) : null;
+    },
+  };
+
+  const pick = (kind: LibraryKind, row: CatalogRow) =>
     run(async () => {
-      const q = monsterQuery.trim().toLowerCase();
-      const entry = $monsterLibrary.find((m) => m.name.toLowerCase() === q || m.slug === q);
-      if (!entry) throw new Error(`Kein Monster „${monsterQuery}" in der Bibliothek.`);
-      const draft = await libraryMonsterDraft(entry.slug);
-      if (draft) editor.addTokens([draft], originCell());
-      monsterQuery = '';
+      const draft = await PICK[kind](row);
+      if (!draft) throw new Error(`„${row.name}" ließ sich nicht laden.`);
+      editor.addTokens([draft], originCell());
     });
 
-  /** Ein Name ohne Bibliothekseintrag ergibt eine freie Falle, deren Werte in der Notiz stehen. */
-  function addTrap() {
-    const q = trapQuery.trim();
-    const hit = traps.find((t) => trapDisplayName(t).toLowerCase() === q.toLowerCase() || t.name.toLowerCase() === q.toLowerCase());
-    editor.addTokens([trapDraft(hit ? trapDisplayName(hit) : q || 'Falle', hit?.key)], originCell());
-    trapQuery = '';
+  function toggle(kind: LibraryKind) {
+    drawer = drawer === kind ? null : kind;
+    if (drawer && !built.includes(drawer)) built.push(drawer);
+  }
+
+  /** Ohne Bibliothekseintrag: die Werte stehen in der Notiz. */
+  function addFreeTrap() {
+    editor.addTokens([trapDraft(trapName.trim() || 'Falle')], originCell());
+    trapName = '';
   }
 
   function addMarker() {
@@ -98,14 +103,10 @@
     Gruppe der Kampagne ({$campaignCharacterData.length})
   </button>
 
-  <div class="row">
-    <select bind:value={characterUid} aria-label="Charakter">
-      <option value="">Charakter wählen…</option>
-      {#each characters as c (c.uid)}
-        <option value={c.uid}>{characterLabel(c)}{c.classLevel ? ` (${c.classLevel})` : ''}</option>
-      {/each}
-    </select>
-    <button disabled={!characterUid} onclick={addCharacter}>+</button>
+  <div class="libraries" bind:this={libraryButtons}>
+    {#each LIBRARIES as l (l.kind)}
+      <button class:active={drawer === l.kind} title="{l.title} — aus der Bibliothek" onclick={() => toggle(l.kind)}>{l.label}</button>
+    {/each}
   </div>
 
   <div class="row">
@@ -119,23 +120,8 @@
   </div>
 
   <div class="row">
-    <input list="map-monster-list" bind:value={monsterQuery} placeholder="Monster aus Bibliothek…" onkeydown={(e) => e.key === 'Enter' && addMonster()} />
-    <datalist id="map-monster-list">
-      {#each $monsterLibrary as m}
-        <option value={m.name}></option>
-      {/each}
-    </datalist>
-    <button disabled={!monsterQuery.trim() || busy} onclick={addMonster}>+</button>
-  </div>
-
-  <div class="row">
-    <input list="map-trap-list" bind:value={trapQuery} placeholder="Falle aus Bibliothek…" onkeydown={(e) => e.key === 'Enter' && addTrap()} />
-    <datalist id="map-trap-list">
-      {#each traps as t (t.key)}
-        <option value={trapDisplayName(t)}></option>
-      {/each}
-    </datalist>
-    <button onclick={addTrap}>+</button>
+    <input bind:value={trapName} placeholder="Freie Falle…" onkeydown={(e) => e.key === 'Enter' && addFreeTrap()} />
+    <button onclick={addFreeTrap}>+</button>
   </div>
 
   <div class="row">
@@ -143,6 +129,10 @@
     <button onclick={addMarker}>+</button>
   </div>
 </PanelSection>
+
+{#each libraryButtons ? LIBRARIES.filter((l) => built.includes(l.kind)) : [] as l (l.kind)}
+  <CatalogDrawer kind={l.kind} title={l.title} columns={l.columns} open={drawer === l.kind} anchor={libraryButtons!} onpick={(row) => pick(l.kind, row)} onclose={() => (drawer = null)} />
+{/each}
 
 <style>
   .row {
@@ -161,6 +151,17 @@
     cursor: pointer;
     font-size: 0.8rem;
     padding: 0.2rem 0.5rem;
+  }
+  .libraries {
+    display: flex;
+    gap: 0.3rem;
+  }
+  .libraries button {
+    flex: 1;
+  }
+  button.active {
+    border-color: var(--red);
+    color: var(--red);
   }
   button:disabled {
     opacity: 0.5;

@@ -13,7 +13,7 @@
   import type { CatalogRow } from '../../services/catalog/catalogTypes';
   import type { FileEntry } from '../../types';
 
-  let { row, entry, images, position, origin, onclose, onstep, onopen }: {
+  let { row, entry, images, position, origin, onclose, onstep, onopen, openLabel = 'Öffnen' }: {
     row: CatalogRow;
     entry: FileEntry;
     images: GalleryImage[];
@@ -24,6 +24,7 @@
     onclose: () => void;
     onstep: (delta: number) => void;
     onopen: () => void;
+    openLabel?: string;
   } = $props();
 
   let figure = $state<HTMLElement>();
@@ -79,7 +80,7 @@
           class="figure"
           class:art={image?.art}
           style="--ic:{row.iconColor}"
-          title="Öffnen"
+          title={openLabel}
           bind:this={figure}
           onclick={onopen}
           in:fade={{ duration: origin && !switched ? 0 : 140 }}
@@ -99,7 +100,7 @@
       </div>
 
       <footer>
-        <button type="button" class="open" onclick={onopen}>Öffnen ↵</button>
+        <button type="button" class="open" onclick={onopen}>{openLabel} ↵</button>
         <span class="position">{position}</span>
       </footer>
     </aside>

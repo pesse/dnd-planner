@@ -6,7 +6,8 @@ import type { CatalogFilters, CatalogKind, CatalogLayout } from '../../services/
 
 const lastUsed = new Map<CatalogKind, CatalogFilters>();
 
-export class CatalogFilterState {
+/** Der Zustand allein, ohne Verlauf — so nutzt ihn auch ein Katalog, der keine Seite ist. */
+export class CatalogQuery {
   facets = $state<Record<string, string[]>>({});
   search = $state('');
   /** Überlebt den Gruppenwechsel, solange das neue Set die Spalte zeigt. */
@@ -14,33 +15,11 @@ export class CatalogFilterState {
   sortAsc = $state(true);
   layout = $state<CatalogLayout>('table');
 
-  #readArrival = arrivalReader('catalog');
-
-  /** Die Getter müssen memoisiert sein: jede Navigation baut die Props des Elternteils neu. */
-  constructor(kind: () => CatalogKind, group: () => string) {
-    onMount(() => registerViewState('catalog', () => this.snapshot()));
-
-    // Ohne mitgebrachten Zustand gilt die Sortierung eines anderen Katalogs nicht: sie passt nicht auf diese Spalten.
-    $effect(() => {
-      const k = kind();
-      void group();
-      untrack(() => {
-        const arrived = this.#readArrival();
-        if (arrived) this.#apply(arrived.value ?? lastUsed.get(k), CATALOGS[k].defaultLayout);
-      });
-    });
-
-    $effect(() => {
-      const current = this.snapshot();
-      lastUsed.set(untrack(kind), current);
-    });
-  }
-
   snapshot(): CatalogFilters {
     return { facets: { ...this.facets }, search: this.search, sortCol: this.sortCol, sortAsc: this.sortAsc, layout: this.layout };
   }
 
-  #apply(next: CatalogFilters | undefined, defaultLayout: CatalogLayout = 'table') {
+  protected apply(next: CatalogFilters | undefined, defaultLayout: CatalogLayout = 'table') {
     this.sortCol = next?.sortCol ?? 'name';
     this.sortAsc = next?.sortAsc ?? true;
     this.search = next?.search ?? '';
@@ -61,5 +40,30 @@ export class CatalogFilterState {
       this.sortCol = col;
       this.sortAsc = true;
     }
+  }
+}
+
+export class CatalogFilterState extends CatalogQuery {
+  #readArrival = arrivalReader('catalog');
+
+  /** Die Getter müssen memoisiert sein: jede Navigation baut die Props des Elternteils neu. */
+  constructor(kind: () => CatalogKind, group: () => string) {
+    super();
+    onMount(() => registerViewState('catalog', () => this.snapshot()));
+
+    // Ohne mitgebrachten Zustand gilt die Sortierung eines anderen Katalogs nicht: sie passt nicht auf diese Spalten.
+    $effect(() => {
+      const k = kind();
+      void group();
+      untrack(() => {
+        const arrived = this.#readArrival();
+        if (arrived) this.apply(arrived.value ?? lastUsed.get(k), CATALOGS[k].defaultLayout);
+      });
+    });
+
+    $effect(() => {
+      const current = this.snapshot();
+      lastUsed.set(untrack(kind), current);
+    });
   }
 }

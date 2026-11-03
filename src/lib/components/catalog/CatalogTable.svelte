@@ -6,7 +6,7 @@
   import GallerySpotlight from './GallerySpotlight.svelte';
   import { CatalogSpotlight, catalogImages } from './catalogSpotlight.svelte';
 
-  let { spec, rows, columnIds, showGroup, groupLabel, activeSort, sortAsc, loading, entryOf, onsort, onopen }: {
+  let { spec, rows, columnIds, showGroup, groupLabel, activeSort, sortAsc, loading, entryOf, onsort, onopen, inPage = true, openLabel }: {
     spec: CatalogSpec;
     rows: CatalogRow[];
     columnIds: string[];
@@ -18,10 +18,14 @@
     onsort: (col: string) => void;
     entryOf: (row: CatalogRow) => FileEntry;
     onopen: (row: CatalogRow) => void;
+    /** Nur eine Tabelle, die die Seite ist, gehört in deren Verlauf und markiert den offenen Eintrag. */
+    inPage?: boolean;
+    openLabel?: string;
   } = $props();
 
   let failed = $state<Record<string, true>>({});
   const spot = new CatalogSpotlight(() => rows, (row) => onopen(row), false);
+  const scrollMemory = (node: HTMLElement) => (inPage ? historyScroll(node) : undefined);
 </script>
 
 <svelte:window onkeydown={spot.onkeydown} />
@@ -34,7 +38,7 @@
   </th>
 {/snippet}
 
-<div class="table-wrap" use:historyScroll>
+<div class="table-wrap" use:scrollMemory>
   <table>
     <thead>
       <tr>
@@ -45,7 +49,7 @@
     </thead>
     <tbody>
       {#each rows as row (row.path)}
-        <tr class:active={$activeFile?.path === row.path} onclick={() => onopen(row)}>
+        <tr class:active={inPage && $activeFile?.path === row.path} onclick={() => onopen(row)}>
           <td class="icon-col">
             {#if row.icon && !failed[row.icon]}
               <button
@@ -102,6 +106,7 @@
     onclose={() => spot.close()}
     onstep={(d) => void spot.step(d)}
     onopen={() => onopen(row)}
+    {openLabel}
   />
 {/if}
 

@@ -5,11 +5,12 @@
   import { CatalogFilterState } from './catalogFilterState.svelte';
   import { CATALOGS } from '../../services/catalog/catalogs';
   import {
-    catalogEntry, columnsFor, facetOptions, facetValues,
+    catalogEntry, columnsFor, facetOptions,
     type CatalogGroup, type CatalogKind, type CatalogLayout, type CatalogRow,
   } from '../../services/catalog/catalogTypes';
+  import { queryRows } from '../../services/catalog/queryRows';
   import SegmentedToggle from '../ui/SegmentedToggle.svelte';
-  import MultiSelect from '../ui/MultiSelect.svelte';
+  import CatalogFilterBar from './CatalogFilterBar.svelte';
   import CatalogTable from './CatalogTable.svelte';
   import CatalogGallery from './CatalogGallery.svelte';
   import '../toolbar.css';
@@ -52,33 +53,9 @@
   let columnIds = $derived(columnsFor(spec, group));
   let activeSort = $derived(columnIds.includes(filt.sortCol) ? filt.sortCol : 'name');
 
-  const ALL = '*';
-
   let groupRows = $derived(group ? rows.filter((r) => r.group === group) : rows);
 
-  // Eine Facette mit nur einem Wert in dieser Gruppe filtert nichts und bleibt weg.
-  let facets = $derived(
-    Object.entries(spec.facets)
-      .map(([id, def]) => ({ id, ...def, options: facetOptions(groupRows, id) }))
-      .filter((f) => f.options.length > 1 || f.id in filt.facets),
-  );
-
-  let shown = $derived.by(() => {
-    const q = filt.search.trim().toLowerCase();
-    const filtered = groupRows.filter((r) =>
-      Object.entries(filt.facets).every(([id, chosen]) => facetValues(r, id).some((v) => chosen.includes(v.id)))
-      && (!q || r.name.toLowerCase().includes(q) || !!r.altName?.toLowerCase().includes(q)));
-    const key = (r: CatalogRow): string | number =>
-      activeSort === 'name' ? r.name : (r.cells[activeSort].sort ?? r.cells[activeSort].text);
-    const dir = filt.sortAsc ? 1 : -1;
-    return filtered.sort((a, b) => {
-      const ka = key(a), kb = key(b);
-      const c = typeof ka === 'number' && typeof kb === 'number'
-        ? ka - kb
-        : String(ka).localeCompare(String(kb), 'de');
-      return c * dir || a.name.localeCompare(b.name, 'de');
-    });
-  });
+  let shown = $derived(queryRows(groupRows, filt, activeSort));
 
   function setGroup(id: string) {
     const g = groups.find((x) => x.id === id);
@@ -111,51 +88,23 @@
 </div>
 
 <div class="catalog">
-  <div class="controls">
-    <span class="views"><SegmentedToggle options={LAYOUTS} value={filt.layout} onselect={(l) => (filt.layout = l)} /></span>
-    {#if viewOptions.length}
-      <span class="views"><SegmentedToggle options={viewOptions} value={kind} onselect={switchView} /></span>
-    {/if}
-    <input class="search" type="search" placeholder="Suchen…" bind:value={filt.search} />
-    {#if groups.length}
-      <label class="filter">
-        {spec.groupLabel}
-        <select value={group} onchange={(e) => setGroup(e.currentTarget.value)}>
-          <option value="">Alle</option>
-          {#each groups as g}<option value={g.id}>{g.label}</option>{/each}
-        </select>
-      </label>
-    {/if}
-    {#each facets as f (f.id)}
-      {#if f.multi}
-        <span class="filter">
-          {f.label}
-          <MultiSelect options={f.options} selected={filt.facets[f.id] ?? []} onchange={(ids) => filt.setFacet(f.id, ids)} />
-        </span>
-      {:else}
-        <label class="filter">
-          {f.label}
-          <select value={filt.facets[f.id]?.[0] ?? ALL} onchange={(e) => filt.setFacet(f.id, e.currentTarget.value === ALL ? [] : [e.currentTarget.value])}>
-            <option value={ALL}>Alle</option>
-            {#each f.options as o}<option value={o.id}>{o.label}</option>{/each}
-          </select>
-        </label>
+  <CatalogFilterBar
+    {spec}
+    query={filt}
+    {groups}
+    {group}
+    {groupRows}
+    count={loading ? 'Laden…' : `${shown.length} von ${rows.length}`}
+    sortColumns={filt.layout === 'gallery' ? { ids: columnIds, active: activeSort } : undefined}
+    onsetgroup={setGroup}
+  >
+    {#snippet lead()}
+      <span class="views"><SegmentedToggle options={LAYOUTS} value={filt.layout} onselect={(l) => (filt.layout = l)} /></span>
+      {#if viewOptions.length}
+        <span class="views"><SegmentedToggle options={viewOptions} value={kind} onselect={switchView} /></span>
       {/if}
-    {/each}
-    {#if filt.layout === 'gallery'}
-      <label class="filter">
-        Sortierung
-        <select value={activeSort} onchange={(e) => { filt.sortCol = e.currentTarget.value; }}>
-          <option value="name">Name</option>
-          {#each columnIds as id}<option value={id}>{spec.columns[id].title ?? spec.columns[id].label}</option>{/each}
-        </select>
-        <button type="button" class="dir" title={filt.sortAsc ? 'Aufsteigend' : 'Absteigend'} onclick={() => (filt.sortAsc = !filt.sortAsc)}>
-          {filt.sortAsc ? '▲' : '▼'}
-        </button>
-      </label>
-    {/if}
-    <span class="count">{loading ? 'Laden…' : `${shown.length} von ${rows.length}`}</span>
-  </div>
+    {/snippet}
+  </CatalogFilterBar>
 
   {#if filt.layout === 'gallery'}
     <CatalogGallery {spec} rows={shown} showGroup={!group} {groupLabel} {loading} {entryOf} onopen={open} />
@@ -193,57 +142,5 @@
     background: var(--bg);
   }
 
-  .controls {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.6rem 1rem;
-    border-bottom: 1px solid var(--surface);
-  }
-
   .views { font-size: 0.8rem; }
-
-  .search {
-    flex: 0 1 18rem;
-    background: var(--bg-raised);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--ink);
-    padding: 0.3rem 0.6rem;
-    font: inherit;
-    font-size: 0.85rem;
-  }
-  .search:focus { outline: none; border-color: var(--red); }
-
-  .filter {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.8rem;
-    color: var(--ink-muted);
-  }
-  .filter select {
-    background: var(--bg-raised);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--ink);
-    padding: 0.25rem 0.4rem;
-    font: inherit;
-  }
-
-  .count {
-    margin-left: auto;
-    font-size: 0.78rem;
-    color: var(--ink-muted);
-  }
-
-  .dir {
-    background: none;
-    border: none;
-    color: var(--ink-soft);
-    cursor: pointer;
-    font-size: 0.7rem;
-    padding: 0 0.2rem;
-  }
-  .dir:hover { color: var(--red); }
 </style>

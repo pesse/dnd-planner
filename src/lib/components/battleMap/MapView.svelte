@@ -427,6 +427,7 @@
     background: var(--bg-panel);
   }
   .left {
+    position: relative;
     width: 16rem;
     display: flex;
     flex-direction: column;
