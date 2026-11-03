@@ -1,5 +1,6 @@
 <script lang="ts">
   /** Das ausgewählte Token: Einstellungen, SL-Notiz und dahinter Werteblock oder Charakter. */
+  import RichTextEditor from '../../RichTextEditor.svelte';
   import type { Token } from '../../../schemas/battleMap';
   import type { Encounter } from '../../../schemas/encounter';
   import type { Monster } from '../../../types';
@@ -87,13 +88,11 @@
   {#if t.kind !== 'marker'}
     <ConditionPicker {editor} token={t} />
   {/if}
-  <textarea
-    rows={t.kind === 'marker' ? 6 : 3}
-    placeholder="Notiz (nur für dich) …"
-    value={t.note}
-    onfocus={() => editor.checkpoint()}
-    oninput={(e) => editor.updateToken(t.id, { note: e.currentTarget.value })}
-  ></textarea>
+  <div class="note" class:tall={t.kind === 'marker'} onfocusin={() => editor.checkpoint()}>
+    {#key t.id}
+      <RichTextEditor value={t.note} placeholder="Notiz (nur für dich) …" onChange={(note) => editor.updateToken(t.id, { note })} />
+    {/key}
+  </div>
 </div>
 
 {#if t.kind === 'monster' && (t.hpMax || monster)}
@@ -142,10 +141,25 @@
     font-size: 0.78rem;
     color: var(--ink-muted);
   }
-  textarea {
+  .note {
+    display: flex;
+    height: 7rem;
+    min-height: 4rem;
     resize: vertical;
-    font-family: inherit;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+  .note.tall {
+    height: 13rem;
+  }
+  .note :global(.toolbar) {
+    padding: 0.1rem 0.3rem;
+  }
+  .note :global(.ProseMirror) {
+    padding: 0.4rem 0.6rem;
     font-size: 0.85rem;
+    line-height: 1.5;
   }
   button {
     background: none;
