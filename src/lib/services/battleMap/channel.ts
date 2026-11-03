@@ -2,17 +2,20 @@
  * Draht zwischen SL- und Spielerfenster: Tauri-Events in der App, `BroadcastChannel` im
  * Browser-Dev. Die SL sendet Zustand; das Spielerfenster fragt ihn mit `hello` an, meldet
  * gezogene Tokens (`done` beim Loslassen) und schaltet Zustände seiner Charaktere um.
+ * `dice` zeigt den letzten Wurf der SL, solange sie ihre Würfe teilt.
  */
 import { emit, listen } from '@tauri-apps/api/event';
 import { isTauri } from '../httpFetch';
 import type { PlayerState } from './playerState';
 import type { Badge } from '../../conditionIcon';
+import type { Roll } from './diceLog.svelte';
 
 /** `hp`: nur die Änderung als aufsteigende Zahl — Spieler führen die TP ihrer Charaktere selbst. */
 export type ToPlayer =
   | { type: 'state'; state: PlayerState }
   | { type: 'hp'; id: string; delta: number }
-  | { type: 'tips'; tips: Record<string, string> };
+  | { type: 'tips'; tips: Record<string, string> }
+  | { type: 'dice'; shown: boolean; roll: Roll | null };
 export type ToGm =
   | { type: 'hello' }
   | { type: 'move'; id: string; x: number; y: number; done: boolean }

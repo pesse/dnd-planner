@@ -3,6 +3,8 @@
   import { onMount } from 'svelte';
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import MapStage from '$lib/components/battleMap/MapStage.svelte';
+  import DiceStage from '$lib/components/battleMap/DiceStage.svelte';
+  import type { Roll } from '$lib/services/battleMap/diceLog.svelte';
   import PlayerBadgeMenu from '$lib/components/battleMap/PlayerBadgeMenu.svelte';
   import { onGmMessage, sendToGm } from '$lib/services/battleMap/channel';
   import { hpPops, popHp } from '$lib/services/battleMap/hpPops.svelte';
@@ -21,6 +23,7 @@
   let drag = $state<{ id: string; grab: Point; at: Point; moved: boolean } | null>(null);
   let menuId = $state<string | null>(null);
   let tips = $state<Record<string, string>>({});
+  let dice = $state<{ shown: boolean; roll: Roll | null }>({ shown: false, roll: null });
 
   function wake() {
     idle = false;
@@ -100,6 +103,7 @@
         shown = msg.state;
       } else if (msg.type === 'hp') popHp(msg.id, msg.delta);
       else if (msg.type === 'tips') tips = msg.tips;
+      else if (msg.type === 'dice') dice = msg;
     });
     sendToGm({ type: 'hello' });
     return () => {
@@ -166,6 +170,11 @@
         style:height="{view.h * camera.zoom}px"
       ></div>
     {/if}
+    {#if dice.shown}
+      <aside class="dice" aria-label="Würfe der Spielleitung">
+        <DiceStage roll={dice.roll ?? undefined} empty="Noch kein Wurf" size={64} />
+      </aside>
+    {/if}
   {:else}
     <p class="waiting">Warte auf die Spielleitung…</p>
   {/if}
@@ -190,6 +199,14 @@
   .mask {
     position: absolute;
     box-shadow: 0 0 0 200vmax #000;
+    pointer-events: none;
+  }
+  .dice {
+    position: absolute;
+    right: 1rem;
+    bottom: 1rem;
+    width: 20rem;
+    filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.7));
     pointer-events: none;
   }
   .player.idle {

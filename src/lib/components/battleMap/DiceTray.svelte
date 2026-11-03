@@ -5,11 +5,12 @@
 </script>
 
 <script lang="ts">
-  /** Verdeckte Würfe der SL als frei verschiebbare Box über der Karte; der letzte Wurf rollt in 3D. */
+  /** Würfe der SL — verdeckt oder für die Spieler sichtbar — als frei verschiebbare Box über der Karte; der letzte Wurf rollt in 3D. */
   import { pinnableTip } from './tips/pinnableTip';
   import { withRule } from '../ruleTips.svelte';
   import { addToPool, EMPTY_POOL, parsePool, poolDe, throwDice } from '../../utils/dice';
-  import Dice from '../ui/die/Dice.svelte';
+  import DiceStage from './DiceStage.svelte';
+  import EyeIcon from '../ui/EyeIcon.svelte';
   import { diceLog, logRoll, type Roll } from '../../services/battleMap/diceLog.svelte';
   import { critOf, diceTray, rollFormula } from '../../services/battleMap/diceTray.svelte';
   import type { MapEditor } from '../../services/battleMap/mapEditor.svelte';
@@ -18,7 +19,6 @@
   let { editor, campaignDir, onclose }: { editor: MapEditor; campaignDir: string; onclose: () => void } = $props();
 
   const QUICK = [4, 6, 8, 10, 12, 20, 100];
-  const SOLIDS = [4, 6, 8, 10, 12, 20];
   const GLYPHS: Record<number, string> = {
     4: '12,2.5 22,20.5 2,20.5',
     6: '3.5,3.5 20.5,3.5 20.5,20.5 3.5,20.5',
@@ -28,8 +28,6 @@
     20: '12,1.5 21.5,6.8 21.5,17.2 12,22.5 2.5,17.2 2.5,6.8',
     100: '12,1.5 21.5,10 12,22.5 2.5,10',
   };
-  /** Mehr Körper sind im Kasten nicht mehr zu lesen; dann zählt nur die Summe. */
-  const MAX_SOLIDS = 20;
 
   let box = $state<HTMLElement>();
   let invalid = $state(false);
@@ -37,7 +35,6 @@
 
   const history = $derived(diceLog.rolls);
   const latest = $derived(history[0]);
-  const solid = $derived(latest && latest.dice.every((d) => SOLIDS.includes(d.sides)) && latest.dice.length <= MAX_SOLIDS);
   const pool = $derived(diceTray.formula.trim() ? parsePool(diceTray.formula) : EMPTY_POOL);
   const counts = $derived(new Map(pool?.dice.map((d) => [d.sides, d.count])));
 
@@ -97,27 +94,19 @@
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <header onpointerdown={grab} onpointermove={move} onpointerup={() => (drag = null)}>
     <span class="title">Würfel</span>
+    <button class="share" class:on={diceTray.shared} aria-pressed={diceTray.shared} title={diceTray.shared ? 'Spieler sehen die Würfe — verdeckt würfeln' : 'Würfe im Spielerfenster zeigen'} onclick={() => (diceTray.shared = !diceTray.shared)}><EyeIcon closed={!diceTray.shared} /></button>
     {#if history.length}<button title="Verlauf leeren" onclick={() => (diceLog.rolls = [])}>🧹</button>{/if}
     <button title="Würfel schließen (W)" onclick={onclose}>✕</button>
   </header>
 
-  <div class="stage">
-    {#if latest}
-      {#if solid}
-        <Dice dice={latest.dice.map((d) => ({ ...d, dim: latest.kept != null && d.value !== latest.kept }))} roll={latest.id} size={52} gap={4} />
-      {/if}
-      <span class="sum" class:hit={latest.crit === 'hit'} class:miss={latest.crit === 'miss'}>{latest.total}</span>
-      <span class="what">{latest.label}</span>
-    {:else}
-      <span class="what">Würfel wählen, dann werfen</span>
-    {/if}
+  <DiceStage roll={latest} empty="Würfel wählen, dann werfen">
     {#if latest}
       <div class="apply">
         <button class="hurt" disabled={!target} title={target ? `${latest.total} Schaden auf ${target.name}` : 'Erst ein Token auswählen'} onclick={() => applyHp(-1)}>⚔</button>
         <button class="mend" disabled={!target} title={target ? `${latest.total} TP Heilung für ${target.name}` : 'Erst ein Token auswählen'} onclick={() => applyHp(1)}>✚</button>
       </div>
     {/if}
-  </div>
+  </DiceStage>
 
   <div class="content">
     <div class="quick">
@@ -196,24 +185,14 @@
     color: #f0d68e;
     text-shadow: 0 1px 2px #000;
   }
+  header .share.on {
+    color: #9df0a0;
+  }
   header button {
     background: none;
     border: none;
     color: #f0d68e;
     padding: 0.1rem 0.35rem;
-  }
-  .stage {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.1rem;
-    position: relative;
-    min-height: 7.5rem;
-    padding: 0.3rem;
-    text-align: center;
-    border: 12px solid #5a3a1e;
-    border-image: url('/branding/dice/tray.webp') 32 fill / 12px stretch;
   }
   .apply {
     position: absolute;
@@ -243,25 +222,6 @@
   .apply button:disabled {
     opacity: 0.35;
     cursor: default;
-  }
-  .sum {
-    font-family: var(--font-display);
-    font-size: 2.2rem;
-    font-weight: 700;
-    line-height: 1;
-    color: #f6dc8c;
-    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
-  }
-  .sum.hit {
-    color: #9df0a0;
-  }
-  .sum.miss {
-    color: #ff9c8a;
-  }
-  .what {
-    font-size: 0.72rem;
-    color: rgba(246, 230, 190, 0.85);
-    text-shadow: 0 1px 2px #000;
   }
   .content {
     display: flex;

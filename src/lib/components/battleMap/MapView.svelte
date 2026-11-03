@@ -27,6 +27,7 @@
   import PinnedTips from './tips/PinnedTips.svelte';
   import { mapRefs } from './tips/mapRefs';
   import { diceTray } from '../../services/battleMap/diceTray.svelte';
+  import { shareDice } from '../../services/battleMap/diceShare.svelte';
   import MapDetailsPanel from './details/MapDetailsPanel.svelte';
   import { isMapTemplatePath, mapFromTemplate, saveAsMapTemplate } from '../../services/battleMap/mapTemplates';
   import { campaignTree } from '../sidebar/campaign/campaignTreeState.svelte';
@@ -52,6 +53,7 @@
   });
 
   onDestroy(() => void editor.destroy());
+  onDestroy(shareDice());
   onDestroy(interceptNavigation((entry) => editor.details.show({ kind: 'entry', entry })));
 
   const FOG_TOOLS: MapTool[] = ['reveal-rect', 'reveal-brush', 'cover-rect', 'cover-brush'];

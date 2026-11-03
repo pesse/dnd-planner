@@ -2,7 +2,8 @@
 import { parsePool, poolDe, throwPool, type DicePool } from '../../utils/dice';
 import { logRoll, type Roll } from './diceLog.svelte';
 
-export const diceTray = $state({ open: false, formula: '' });
+/** `shared`: Würfe erscheinen auch im Spielerfenster. */
+export const diceTray = $state({ open: false, formula: '', shared: false });
 
 const LIMIT = { count: 100, sides: 1000 };
 
