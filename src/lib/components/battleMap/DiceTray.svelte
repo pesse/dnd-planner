@@ -12,8 +12,10 @@
   import { addToPool, EMPTY_POOL, parsePool, poolDe, throwDice, throwPool } from '../../utils/dice';
   import Dice from '../ui/die/Dice.svelte';
   import { diceLog, logRoll, type Roll } from '../../services/battleMap/diceLog.svelte';
+  import type { MapEditor } from '../../services/battleMap/mapEditor.svelte';
+  import { hpAfter } from '../../services/battleMap/tokenDetails';
 
-  let { onclose }: { onclose: () => void } = $props();
+  let { editor, campaignDir, onclose }: { editor: MapEditor; campaignDir: string; onclose: () => void } = $props();
 
   const QUICK = [4, 6, 8, 10, 12, 20, 100];
   const LIMIT = { count: 100, sides: 1000 };
@@ -64,6 +66,16 @@
     formula = '';
   }
 
+  const target = $derived(editor.selected?.kind === 'monster' ? editor.selected : null);
+
+  async function applyHp(sign: 1 | -1) {
+    if (!target || !latest) return;
+    const next = await hpAfter(target, campaignDir, sign * latest.total);
+    if (!next) return;
+    editor.checkpoint();
+    editor.updateToken(target.id, next);
+  }
+
   function grab(e: PointerEvent) {
     if ((e.target as HTMLElement).closest('button') || !box) return;
     const r = box.getBoundingClientRect();
@@ -106,6 +118,12 @@
       <span class="what">{latest.label}</span>
     {:else}
       <span class="what">Würfel wählen, dann werfen</span>
+    {/if}
+    {#if latest}
+      <div class="apply">
+        <button class="hurt" disabled={!target} title={target ? `${latest.total} Schaden auf ${target.name}` : 'Erst ein Monster-Token auswählen'} onclick={() => applyHp(-1)}>⚔</button>
+        <button class="mend" disabled={!target} title={target ? `${latest.total} TP Heilung für ${target.name}` : 'Erst ein Monster-Token auswählen'} onclick={() => applyHp(1)}>✚</button>
+      </div>
     {/if}
   </div>
 
@@ -198,11 +216,41 @@
     align-items: center;
     justify-content: center;
     gap: 0.1rem;
+    position: relative;
     min-height: 7.5rem;
     padding: 0.3rem;
     text-align: center;
     border: 12px solid #5a3a1e;
     border-image: url('/branding/dice/tray.webp') 32 fill / 12px stretch;
+  }
+  .apply {
+    position: absolute;
+    right: 0.15rem;
+    bottom: 0.1rem;
+    display: flex;
+    gap: 0.2rem;
+  }
+  .apply button {
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    font-size: 0.8rem;
+    line-height: 1;
+    color: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.4);
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+  }
+  .apply .hurt {
+    background: #8e1c12;
+  }
+  .apply .mend {
+    background: #2f6b2a;
+  }
+  .apply button:disabled {
+    opacity: 0.35;
+    cursor: default;
   }
   .sum {
     font-family: var(--font-display);

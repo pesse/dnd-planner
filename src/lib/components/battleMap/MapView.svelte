@@ -227,7 +227,7 @@
 
       <MapCanvas bind:this={canvas} {editor} />
 
-      {#if diceOpen}<DiceTray onclose={() => (diceOpen = false)} />{/if}
+      {#if diceOpen}<DiceTray {editor} campaignDir={campaignDirOf(editor.path)} onclose={() => (diceOpen = false)} />{/if}
 
       <aside class="panel right" aria-label="Details">
         <MapDetailsPanel {editor} campaignDir={campaignDirOf(editor.path)} {center} onleave={leaveTo} />

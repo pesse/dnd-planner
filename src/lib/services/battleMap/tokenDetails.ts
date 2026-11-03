@@ -47,3 +47,10 @@ export function adjustHp(token: Pick<Token, 'hp' | 'hpMax'>, fallbackMax: number
   const hp = Math.max(0, Math.min(hpMax, (token.hp ?? hpMax) + delta));
   return { hp, hpMax };
 }
+
+/** Wie `adjustHp`, holt aber das Maximum aus dem Werteblock, solange das Token noch keine gezählten TP hat. */
+export async function hpAfter(token: Token, campaignDir: string, delta: number): Promise<Pick<Token, 'hp' | 'hpMax'> | null> {
+  if (token.hpMax != null) return adjustHp(token, token.hpMax, delta);
+  const monster = token.kind === 'monster' && token.ref ? await loadTokenMonster(token, campaignDir) : null;
+  return monster ? adjustHp(token, monster.hit_points, delta) : null;
+}
