@@ -2,17 +2,19 @@
   import { activeFile } from '../stores/campaign';
   import { renameFile, renameStartValue } from '../services/renameFile';
 
-  let { label, titleClass = '', renamable = false }: {
+  let { label, titleClass = '', renamable = false, onrename }: {
     label: string;
     titleClass?: string;
     renamable?: boolean;
+    /** Ersetzt das dateibasierte Umbenennen; der Startwert ist dann `label`. */
+    onrename?: (value: string) => Promise<void>;
   } = $props();
 
   let renaming = $state(false);
   let value = $state('');
 
   function start() {
-    value = renameStartValue($activeFile);
+    value = onrename ? label : renameStartValue($activeFile);
     renaming = true;
   }
 
@@ -21,7 +23,8 @@
     renaming = false;
     const file = $activeFile;
     if (!file || !value.trim()) return;
-    await renameFile(file, value);
+    if (onrename) await onrename(value.trim());
+    else await renameFile(file, value);
   }
 
   function onkeydown(e: KeyboardEvent) {

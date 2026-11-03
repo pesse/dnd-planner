@@ -60,7 +60,7 @@
 
   function onkeydown(e: KeyboardEvent) {
     // Die Bildvorschau der Tabelle schließt zuerst.
-    if (!open || e.key !== 'Escape' || e.defaultPrevented || document.querySelector('[role="dialog"]')) return;
+    if (!open || e.key !== 'Escape' || e.defaultPrevented || section?.querySelector('[role="dialog"]')) return;
     e.preventDefault();
     onclose();
   }

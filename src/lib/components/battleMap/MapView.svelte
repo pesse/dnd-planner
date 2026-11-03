@@ -8,7 +8,7 @@
   import { activeFile } from '../../stores/campaign';
   import FileTitle from '../FileTitle.svelte';
   import { deleteActiveEntry } from '../../services/deleteEntry';
-  import { navigateBack, navigateHome, navigateTo } from '../../services/navigation';
+  import { navigateBack, navigateHome, navigateTo, replaceActive } from '../../services/navigation';
   import { interceptNavigation } from '../../services/entryPeek';
   import { campaignDirOf } from '../../services/battleMap/tokenDetails';
   import type { FileEntry } from '../../types';
@@ -29,7 +29,7 @@
   import { diceTray } from '../../services/battleMap/diceTray.svelte';
   import { shareDice } from '../../services/battleMap/diceShare.svelte';
   import MapDetailsPanel from './details/MapDetailsPanel.svelte';
-  import { isMapTemplatePath, mapFromTemplate, saveAsMapTemplate } from '../../services/battleMap/mapTemplates';
+  import { askMapPlacement, isMapTemplatePath, mapFromTemplate, renameMap, saveAsMapTemplate, type MapPlacement } from '../../services/battleMap/mapTemplates';
   import { campaignTree } from '../sidebar/campaign/campaignTreeState.svelte';
 
   const editor = new MapEditor();
@@ -95,10 +95,18 @@
     if (isTemplate) cockpit.tab = 'prep';
   });
 
+  async function askPlacement(title: string): Promise<MapPlacement | null> {
+    await editor.saver.flush();
+    if (!campaignTree.campaigns.length) await campaignTree.loadCampaigns();
+    return askMapPlacement(title, editor.map!.name, campaignDirOf(editor.path).split('/').pop()!, campaignTree.campaigns);
+  }
+
   async function saveTemplate() {
     try {
-      await editor.saver.flush();
-      await campaignTree.refreshSectionOf(await saveAsMapTemplate(editor.path, $state.snapshot(editor.map!) as BattleMap));
+      const to = await askPlacement('Als Vorlage speichern');
+      const path = to && (await saveAsMapTemplate(editor.path, $state.snapshot(editor.map!) as BattleMap, to));
+      if (!path) return;
+      await campaignTree.refreshSectionOf(path);
       templateSaved = true;
       setTimeout(() => (templateSaved = false), 3000);
     } catch (e) {
@@ -108,12 +116,28 @@
 
   async function mapFromThis() {
     try {
-      await editor.saver.flush();
-      const path = await mapFromTemplate(editor.path, $state.snapshot(editor.map!) as BattleMap);
+      const to = await askPlacement('Karte aus Vorlage anlegen');
+      const path = to && (await mapFromTemplate(editor.path, $state.snapshot(editor.map!) as BattleMap, to));
+      if (!path) return;
       await campaignTree.refreshSectionOf(path);
-      await navigateTo({ name: editor.map!.name, path, type: 'map' }, { leavePeek: true });
+      await navigateTo({ name: to.name, path, type: 'map' }, { leavePeek: true });
     } catch (e) {
       editor.error = `Karte konnte nicht angelegt werden: ${e}`;
+    }
+  }
+
+  /** Der Editor lädt danach vom neuen Pfad — das Rückgängig der Karte beginnt dabei von vorn. */
+  async function rename(name: string) {
+    if (!editor.map || name === editor.map.name || !$activeFile) return;
+    try {
+      await editor.saver.flush();
+      const oldPath = editor.path;
+      const path = await renameMap(oldPath, $state.snapshot(editor.map) as BattleMap, name);
+      if (!path) return;
+      replaceActive({ ...$activeFile, name, path });
+      await campaignTree.refreshSectionOf(path);
+    } catch (e) {
+      editor.error = `Umbenennen fehlgeschlagen: ${e}`;
     }
   }
 
@@ -186,17 +210,17 @@
 <div class="main map-overlay" role="dialog" aria-modal="true" aria-label="Kampfkarte" use:mapRefs>
   <PinnedTips />
   <div class="toolbar">
-    <FileTitle label={editor.map?.name ?? $activeFile?.name ?? ''} />
+    <FileTitle label={editor.map?.name ?? $activeFile?.name ?? ''} renamable={!!editor.map} onrename={rename} />
     <div class="toolbar-sep"></div>
     <span class="save-state">{SAVE_LABEL[editor.saver.status]}</span>
     {#if isTemplate}
       <span class="template-badge">Vorlage</span>
-      <button disabled={!editor.map} onclick={mapFromThis} title="Legt unter „Karten“ eine neue Karte aus dieser Vorlage an">🗺 Karte daraus anlegen</button>
+      <button disabled={!editor.map} onclick={mapFromThis} title="Legt eine neue Karte aus dieser Vorlage an — Name und Kampagne wählst du im nächsten Schritt">🗺 Karte daraus anlegen</button>
     {:else}
       <button
         disabled={!editor.map}
         onclick={saveTemplate}
-        title="Speichert die Karte unter „Kartenvorlagen“ — ohne Spieler-Charaktere, Monster versteckt und unverletzt, Nebel zu. Eine vorhandene Vorlage dieser Karte wird ersetzt."
+        title="Speichert die Karte unter „Kartenvorlagen“ — ohne Spieler-Charaktere, Monster versteckt und unverletzt, Nebel zu. Name und Kampagne wählst du im nächsten Schritt."
       >{templateSaved ? '✓ Vorlage gespeichert' : '📑 Als Vorlage speichern'}</button>
       <button onclick={openPlayer} title="Spielerfenster öffnen — auf Beamer oder Zweitmonitor ziehen">📺 Spielerfenster</button>
       <button

@@ -2,8 +2,10 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { BattleMap } from '../../schemas/battleMap';
 import { serializeBattleMap } from './mapFiles';
-import { campaignDirOf } from './tokenDetails';
-import { freeName } from '../templates/templates';
+import { confirmAction } from '../../stores/confirmDialog';
+import { openSaveAs } from '../../editor/saveAs';
+import { slugKeepUmlauts } from '../../utils/text';
+import type { Campaign } from '../../types';
 
 export const MAP_TEMPLATES_SUBDIR = 'map-templates';
 
@@ -41,12 +43,71 @@ async function writeMapCopy(srcPath: string, map: BattleMap, targetDir: string, 
   return path;
 }
 
-/** Ein zweites Speichern derselben Karte ersetzt ihre Vorlage. */
-export const saveAsMapTemplate = (mapPath: string, map: BattleMap): Promise<string> =>
-  writeMapCopy(mapPath, asMapTemplate(map), `${campaignDirOf(mapPath)}/${MAP_TEMPLATES_SUBDIR}`, baseOf(mapPath));
+export interface MapPlacement {
+  name: string;
+  /** Ordnername der Kampagne unter `vault/campaigns`. */
+  campaign: string;
+}
 
-export async function mapFromTemplate(templatePath: string, map: BattleMap): Promise<string> {
-  const dir = `${campaignDirOf(templatePath)}/maps`;
-  const taken = await invoke<string[]>('list_json_files', { path: dir }).catch(() => [] as string[]);
-  return writeMapCopy(templatePath, map, dir, freeName(baseOf(templatePath), new Set(taken.map(baseOf))));
+const placeDir = (campaign: string, subdir: string): string => `./vault/campaigns/${campaign}/${subdir}`;
+
+async function takenBases(dir: string): Promise<Set<string>> {
+  const files = await invoke<string[]>('list_json_files', { path: dir }).catch(() => [] as string[]);
+  return new Set(files.map(baseOf));
+}
+
+/** `rename_file` und `write_file_content` überschreiben stillschweigend — vorher fragen. */
+async function mayReplace(dir: string, base: string, what: string): Promise<boolean> {
+  if (!(await takenBases(dir)).has(base)) return true;
+  return confirmAction({
+    title: `${what} ersetzen?`,
+    message: `Es gibt schon ${what === 'Karte' ? 'eine Karte' : 'eine Vorlage'} „${base}". Sie wird überschrieben.`,
+    confirmLabel: 'Ersetzen',
+    danger: true,
+  });
+}
+
+/** Fragt Name und Ziel-Kampagne ab; null bei Abbruch. */
+export async function askMapPlacement(title: string, name: string, campaign: string, campaigns: Campaign[]): Promise<MapPlacement | null> {
+  const result = await openSaveAs({
+    title,
+    name,
+    bucketLabel: 'Kampagne',
+    buckets: campaigns.map((c) => ({ value: c.path, label: c.name })),
+    bucket: campaign,
+  });
+  return result?.bucket ? { name: result.name, campaign: result.bucket } : null;
+}
+
+/** @returns der neue Pfad, oder null, wenn der Nutzer das Überschreiben abgelehnt hat. */
+async function writePlaced(srcPath: string, map: BattleMap, to: MapPlacement, subdir: string, what: string): Promise<string | null> {
+  const dir = placeDir(to.campaign, subdir);
+  const base = slugKeepUmlauts(to.name);
+  if (!base || !(await mayReplace(dir, base, what))) return null;
+  return writeMapCopy(srcPath, { ...map, name: to.name }, dir, base);
+}
+
+export const saveAsMapTemplate = (mapPath: string, map: BattleMap, to: MapPlacement): Promise<string | null> =>
+  writePlaced(mapPath, asMapTemplate(map), to, MAP_TEMPLATES_SUBDIR, 'Vorlage');
+
+export const mapFromTemplate = (templatePath: string, map: BattleMap, to: MapPlacement): Promise<string | null> =>
+  writePlaced(templatePath, map, to, 'maps', 'Karte');
+
+/** Datei und Bild heißen nach dem Namen; das Bild zieht nur mit, wenn es nach der Karte hieß. @returns der neue Pfad, oder null bei Abbruch. */
+export async function renameMap(path: string, map: BattleMap, name: string): Promise<string | null> {
+  const dir = dirOf(path);
+  const oldBase = baseOf(path);
+  const base = slugKeepUmlauts(name);
+  if (!base) return null;
+  if (base !== oldBase && !(await mayReplace(dir, base, isMapTemplatePath(path) ? 'Vorlage' : 'Karte'))) return null;
+  let image = map.image;
+  const ext = image.split('.').pop();
+  if (base !== oldBase && image === `${oldBase}.${ext}`) {
+    image = `${base}.${ext}`;
+    await invoke('rename_file', { oldPath: `${dir}/${map.image}`, newPath: `${dir}/${image}` });
+  }
+  const newPath = `${dir}/${base}.json`;
+  if (newPath !== path) await invoke('rename_file', { oldPath: path, newPath });
+  await invoke('write_file_content', { path: newPath, content: serializeBattleMap({ ...map, name, image }) });
+  return newPath;
 }
