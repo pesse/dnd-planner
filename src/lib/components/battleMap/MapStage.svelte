@@ -124,8 +124,8 @@
           {#each t.conditions as c}<span>{CONDITIONS[c]}</span>{/each}
         </span>
       {/if}
-      {#each pops.filter((p) => p.tokenId === t.id) as p (p.key)}
-        <span class="pop" class:heal={p.delta > 0} style="font-size: {Math.max(14, px * 0.38)}px">{p.delta > 0 ? '+' : '−'}{Math.abs(p.delta)}</span>
+      {#each pops.filter((p) => p.tokenId === t.id) as p, i (p.key)}
+        <span class="pop" class:heal={p.delta > 0} style="font-size: {Math.max(14, px * 0.38)}px; margin-top: {-i * 1.05}em">{p.delta > 0 ? '+' : '−'}{Math.abs(p.delta)}</span>
       {/each}
       <span class="label" style="font-size: {Math.max(10, grid.size * 0.2)}px">{t.name}</span>
     </div>
@@ -290,7 +290,7 @@
       0 0 3px #000,
       0 2px 4px #000;
     pointer-events: none;
-    animation: pop 1.8s ease-out forwards;
+    animation: pop 6s ease-out forwards;
   }
   .pop.heal {
     color: #7dff7a;
@@ -300,16 +300,20 @@
       opacity: 0;
       transform: translate(-50%, 20%) scale(0.6);
     }
-    15% {
+    5% {
       opacity: 1;
-      transform: translate(-50%, -30%) scale(1.15);
+      transform: translate(-50%, -60%) scale(1.15);
     }
-    70% {
+    10% {
+      transform: translate(-50%, -60%) scale(1);
+    }
+    85% {
       opacity: 1;
+      transform: translate(-50%, -60%) scale(1);
     }
     100% {
       opacity: 0;
-      transform: translate(-50%, -140%) scale(1);
+      transform: translate(-50%, -120%) scale(1);
     }
   }
   .token.selected {

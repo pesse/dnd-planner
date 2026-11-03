@@ -7,7 +7,8 @@ import { emit, listen } from '@tauri-apps/api/event';
 import { isTauri } from '../httpFetch';
 import type { PlayerState } from './playerState';
 
-export type ToPlayer = { type: 'state'; state: PlayerState };
+/** `hp`: nur die Änderung als aufsteigende Zahl — Spieler führen die TP ihrer Charaktere selbst. */
+export type ToPlayer = { type: 'state'; state: PlayerState } | { type: 'hp'; id: string; delta: number };
 export type ToGm = { type: 'hello' } | { type: 'move'; id: string; x: number; y: number; done: boolean };
 
 const TO_PLAYER = 'battlemap-to-player';

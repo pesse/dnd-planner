@@ -66,10 +66,11 @@
     diceTray.formula = '';
   }
 
-  const target = $derived(editor.selected?.kind === 'monster' ? editor.selected : null);
+  const target = $derived(editor.selected?.kind === 'marker' ? null : editor.selected);
 
   async function applyHp(sign: 1 | -1) {
     if (!target || !latest) return;
+    if (target.kind === 'character') return editor.showHp(target.id, sign * latest.total);
     const next = await hpAfter(target, campaignDir, sign * latest.total);
     if (!next) return;
     editor.setHp(target.id, next);
@@ -120,8 +121,8 @@
     {/if}
     {#if latest}
       <div class="apply">
-        <button class="hurt" disabled={!target} title={target ? `${latest.total} Schaden auf ${target.name}` : 'Erst ein Monster-Token auswählen'} onclick={() => applyHp(-1)}>⚔</button>
-        <button class="mend" disabled={!target} title={target ? `${latest.total} TP Heilung für ${target.name}` : 'Erst ein Monster-Token auswählen'} onclick={() => applyHp(1)}>✚</button>
+        <button class="hurt" disabled={!target} title={target ? `${latest.total} Schaden auf ${target.name}` : 'Erst ein Token auswählen'} onclick={() => applyHp(-1)}>⚔</button>
+        <button class="mend" disabled={!target} title={target ? `${latest.total} TP Heilung für ${target.name}` : 'Erst ein Token auswählen'} onclick={() => applyHp(1)}>✚</button>
       </div>
     {/if}
   </div>

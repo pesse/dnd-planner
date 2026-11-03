@@ -4,6 +4,7 @@
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import MapStage from '$lib/components/battleMap/MapStage.svelte';
   import { onGmMessage, sendToGm } from '$lib/services/battleMap/channel';
+  import { hpPops, popHp } from '$lib/services/battleMap/hpPops.svelte';
   import { fitRect, pxToCell, snapCell, toImage, type Camera, type Point } from '$lib/services/battleMap/geometry';
   import { clampToView, type PlayerState } from '$lib/services/battleMap/playerState';
   import { isTauri } from '$lib/services/httpFetch';
@@ -72,7 +73,7 @@
       if (msg.type === 'state') {
         if (msg.state.imageUrl !== shown?.imageUrl) img = { w: 0, h: 0 };
         shown = msg.state;
-      }
+      } else if (msg.type === 'hp') popHp(msg.id, msg.delta);
     });
     sendToGm({ type: 'hello' });
     return () => {
@@ -114,6 +115,7 @@
       lighting={shown.lighting}
       {camera}
       turnId={shown.turn}
+      pops={hpPops.list}
       onimagesize={(w, h) => (img = { w, h })}
     />
     {#if img.w}

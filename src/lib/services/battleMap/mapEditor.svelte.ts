@@ -182,8 +182,16 @@ export class MapEditor {
     const before = t.hp ?? next.hpMax ?? next.hp;
     this.checkpoint();
     Object.assign(t, next);
-    popHp(id, next.hp - before);
+    this.showHp(id, next.hp - before);
     this.changed();
+  }
+
+  /** Nur die aufsteigende Zahl, in beiden Fenstern — für Charaktere, deren TP die Spieler führen. */
+  showHp(id: string, delta: number): void {
+    const t = this.map?.tokens.find((x) => x.id === id);
+    if (!t || !delta) return;
+    popHp(id, delta);
+    if (!t.hidden) sendToPlayer({ type: 'hp', id, delta });
   }
 
   removeToken(id: string): void {

@@ -6,7 +6,7 @@ export interface HpPop {
 }
 
 /** Muss zur Animationsdauer von `.pop` in `MapStage.svelte` passen. */
-const SHOWN_MS = 1800;
+const SHOWN_MS = 6000;
 
 let next = 1;
 export const hpPops = $state<{ list: HpPop[] }>({ list: [] });
