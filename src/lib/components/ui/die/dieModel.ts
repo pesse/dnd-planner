@@ -24,30 +24,40 @@ export interface DieModel {
   dispose(): void;
 }
 
-function labelTexture(n: number, sides: number, font: string): THREE.CanvasTexture {
+/** Ein Prozentwürfel ist ein W10 mit anderer Beschriftung: Zehner `00`–`90`, Einer `0`–`9`. */
+export type Percentile = 'tens' | 'units';
+
+function faceText(n: number, percentile?: Percentile): string {
+  if (percentile === 'tens') return String((n % 10) * 10).padStart(2, '0');
+  if (percentile === 'units') return String(n % 10);
+  return String(n);
+}
+
+function labelTexture(n: number, sides: number, font: string, percentile?: Percentile): THREE.CanvasTexture {
+  const text = faceText(n, percentile);
   const c = document.createElement('canvas');
   c.width = c.height = 128;
   const g = c.getContext('2d')!;
-  g.font = `700 ${n >= 10 ? 66 : 84}px ${font}`;
+  g.font = `700 ${text.length > 1 ? 66 : 84}px ${font}`;
   g.textAlign = 'center';
   g.textBaseline = 'middle';
   g.lineWidth = 8;
   g.strokeStyle = 'rgba(30, 10, 40, 0.55)';
   g.fillStyle = '#fff';
-  g.strokeText(String(n), 64, 68);
-  g.fillText(String(n), 64, 68);
+  g.strokeText(text, 64, 68);
+  g.fillText(text, 64, 68);
   // 6 und 9 sind auf jedem Würfel mit beiden Zahlen nur am Strich zu unterscheiden.
-  if ((n === 6 || n === 9) && sides >= 9) g.fillRect(44, 106, 40, 7);
+  if ((text === '6' || text === '9') && sides >= 9) g.fillRect(44, 106, 40, 7);
   const tex = new THREE.CanvasTexture(c);
   tex.anisotropy = 4;
   return tex;
 }
 
-function label(face: DieFace, sides: number, font: string, opacity: number): THREE.Mesh {
+function label(face: DieFace, sides: number, font: string, opacity: number, percentile?: Percentile): THREE.Mesh {
   const size = face.inradius * 1.9;
   const mesh = new THREE.Mesh(
     new THREE.PlaneGeometry(size, size),
-    new THREE.MeshBasicMaterial({ map: labelTexture(face.value, sides, font), transparent: true, opacity, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }),
+    new THREE.MeshBasicMaterial({ map: labelTexture(face.value, sides, font, percentile), transparent: true, opacity, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }),
   );
   const right = new THREE.Vector3().crossVectors(face.up, face.normal);
   mesh.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, face.up, face.normal));
@@ -101,7 +111,8 @@ function halo(color: string): THREE.Sprite {
   return sprite;
 }
 
-export function createDieModel(sides: number, value: number, palette: DiePalette, dim = false): DieModel {
+/** `value` ist die Fläche (1–`sides`); beim Prozentwürfel trägt Fläche 10 die Null. */
+export function createDieModel(sides: number, value: number, palette: DiePalette, dim = false, percentile?: Percentile): DieModel {
   const alpha = dim ? DIM : 1;
   const { geometry, faces } = buildDie(sides);
   const body = new THREE.Color(palette.body);
@@ -111,13 +122,13 @@ export function createDieModel(sides: number, value: number, palette: DiePalette
   })));
   die.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry, 10), new THREE.LineBasicMaterial({ color: palette.gold, transparent: dim, opacity: alpha })));
   const glows = new Map(faces.map((f) => [f, glow(f, body, palette.gold)]));
-  for (const f of faces) die.add(glows.get(f)!, label(f, sides, palette.font, alpha));
+  for (const f of faces) die.add(glows.get(f)!, label(f, sides, palette.font, alpha, percentile));
 
   const hits = faces.filter((f) => f.value === value);
   const face = hits[Math.floor(Math.random() * hits.length)] ?? faces[0];
   const rest = TILT.clone().multiply(restingRotation(face));
   const lit = glows.get(face)!.material as THREE.MeshBasicMaterial;
-  const extreme = dim ? null : value === sides ? palette.gold : value === 1 ? palette.danger : null;
+  const extreme = dim || percentile ? null : value === sides ? palette.gold : value === 1 ? palette.danger : null;
   const shine = extreme ? halo(extreme) : null;
 
   const root = new THREE.Group();

@@ -1,7 +1,8 @@
 <script lang="ts">
   /** Würfel als 3D-Körper, alle in einem Canvas; `roll` wechselt je Wurf, dann taumeln sie und landen mit `value` zur Kamera. */
   import * as THREE from 'three';
-  import { createDieModel, ROLL_MS, type DieModel } from './dieModel';
+  import { untrack } from 'svelte';
+  import { createDieModel, ROLL_MS, type DieModel, type Percentile } from './dieModel';
 
   export interface DieSpec {
     sides: number;
@@ -12,7 +13,7 @@
     landed?: boolean;
   }
 
-  let { dice, roll = 0, color, size = 70, gap = 8, columns }: {
+  let { dice, roll = 0, color, size = 70, gap = 8, columns, onlanded }: {
     dice: DieSpec[];
     roll?: number;
     /** Körperfarbe; ohne sie `--arcane`. */
@@ -21,9 +22,25 @@
     gap?: number;
     /** Höchstens so viele je Reihe; ohne Angabe so viele, wie in die Breite passen. */
     columns?: number;
+    /** Alle Würfel des aktuellen `roll` liegen. */
+    onlanded?: () => void;
   } = $props();
 
   const STAGGER = 90;
+  const TENS_COLOR = '#2f5f7a';
+
+  type Body = DieSpec & { percentile?: Percentile };
+
+  /** Ein W100 liegt als Zehner- und Einer-W10 im Kasten; 100 zeigt „00“ und „0“. */
+  function bodiesOf(spec: DieSpec): Body[] {
+    if (spec.sides !== 100) return [spec];
+    const face = (digit: number) => (digit === 0 ? 10 : digit);
+    return [
+      { ...spec, sides: 10, value: face(Math.floor((spec.value % 100) / 10)), percentile: 'tens' },
+      { ...spec, sides: 10, value: face(spec.value % 10), percentile: 'units' },
+    ];
+  }
+  const bodies = $derived(dice.flatMap(bodiesOf));
 
   let canvas = $state<HTMLCanvasElement>();
   let width = $state(0);
@@ -31,11 +48,11 @@
   let models: DieModel[] = [];
 
   const pitch = $derived(size + gap);
-  const cols = $derived(Math.max(1, Math.min(dice.length, columns ?? Math.floor((width + gap) / pitch))));
-  const rows = $derived(Math.ceil(dice.length / cols));
+  const cols = $derived(Math.max(1, Math.min(bodies.length, columns ?? Math.floor((width + gap) / pitch))));
+  const rows = $derived(Math.ceil(bodies.length / cols));
   const canvasW = $derived(cols * pitch - gap);
   const canvasH = $derived(rows * pitch - gap);
-  const signature = $derived(`${roll}|${color}|${dice.map((d) => `${d.sides}:${d.value}:${d.dim ? 1 : 0}${d.landed ? 'l' : ''}`).join(',')}`);
+  const signature = $derived(`${roll}|${color}|${bodies.map((d) => `${d.sides}:${d.value}:${d.dim ? 1 : 0}${d.landed ? 'l' : ''}`).join(',')}`);
 
   function css(name: string, fallback: string): string {
     return getComputedStyle(canvas!).getPropertyValue(name).trim() || fallback;
@@ -88,21 +105,23 @@
     const s = stage;
     if (!s) return;
     const palette = { body: color || css('--arcane', '#6d3b8e'), gold: css('--gold', '#786012'), danger: css('--danger', '#b3261e'), font: css('--font-display', 'serif') };
-    const built = dice.map((d) => createDieModel(d.sides, d.value, palette, d.dim));
+    const built = bodies.map((d) => createDieModel(d.sides, d.value, d.percentile === 'tens' ? { ...palette, body: TENS_COLOR } : palette, d.dim, d.percentile));
     for (const m of built) s.scene.add(m.root);
     models = built;
     let frame = 0;
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
       for (const m of built) m.pose(ROLL_MS);
       draw();
+      untrack(() => onlanded?.());
     } else {
       const start = performance.now();
-      const first = dice.filter((d) => d.landed).length;
+      const first = bodies.filter((d) => d.landed).length;
       const end = start + Math.max(0, built.length - 1 - first) * STAGGER + ROLL_MS;
       const step = (now: number) => {
-        built.forEach((m, i) => m.pose(dice[i]?.landed ? ROLL_MS : now - start - (i - first) * STAGGER));
+        built.forEach((m, i) => m.pose(bodies[i]?.landed ? ROLL_MS : now - start - (i - first) * STAGGER));
         draw();
         if (now < end) frame = requestAnimationFrame(step);
+        else untrack(() => onlanded?.());
       };
       frame = requestAnimationFrame(step);
     }

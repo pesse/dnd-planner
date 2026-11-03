@@ -6,9 +6,12 @@
 
   let { roll, empty, size = 52, children }: { roll: Roll | undefined; empty: string; size?: number; children?: Snippet } = $props();
 
-  const SOLIDS = [4, 6, 8, 10, 12, 20];
+  const SOLIDS = [4, 6, 8, 10, 12, 20, 100];
   /** Mehr Körper sind im Kasten nicht mehr zu lesen; dann zählt nur die Summe. */
   const MAX_SOLIDS = 20;
+
+  /** Die Summe verrät den Wurf — sie erscheint erst, wenn die Würfel liegen. */
+  let landedId = $state<number | null>(null);
 
   const solid = $derived(roll && roll.dice.every((d) => SOLIDS.includes(d.sides)) && roll.dice.length <= MAX_SOLIDS);
 </script>
@@ -16,9 +19,9 @@
 <div class="stage" style="--size: {size}px">
   {#if roll}
     {#if solid}
-      <Dice dice={roll.dice.map((d, i) => ({ ...d, dim: roll.kept != null && d.value !== roll.kept, landed: i < (roll.landed ?? 0) }))} roll={roll.id} {size} gap={4} />
+      <Dice dice={roll.dice.map((d, i) => ({ ...d, dim: roll.kept != null && d.value !== roll.kept, landed: i < (roll.landed ?? 0) }))} roll={roll.id} {size} gap={4} onlanded={() => (landedId = roll.id)} />
     {/if}
-    <span class="sum" class:hit={roll.crit === 'hit'} class:miss={roll.crit === 'miss'}>{roll.total}</span>
+    <span class="sum" class:pending={solid && landedId !== roll.id} class:hit={roll.crit === 'hit'} class:miss={roll.crit === 'miss'}>{roll.total}</span>
     <span class="what">{roll.label}</span>
   {:else}
     <span class="what">{empty}</span>
@@ -47,6 +50,9 @@
     line-height: 1;
     color: #f6dc8c;
     text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+  }
+  .sum.pending {
+    visibility: hidden;
   }
   .sum.hit {
     color: #9df0a0;
