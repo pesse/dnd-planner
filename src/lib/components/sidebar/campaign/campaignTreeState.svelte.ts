@@ -97,9 +97,9 @@ export class CampaignTreeState {
   }
 
   /** @returns false, wenn das Kopieren scheitert. */
-  async createFromTemplate(template: CampaignTemplateRef, withCharacters: boolean): Promise<boolean> {
+  async createFromTemplate(template: CampaignTemplateRef, characters: string[]): Promise<boolean> {
     try {
-      await this.openCreated(await instantiateCampaignTemplate(template, withCharacters));
+      await this.openCreated(await instantiateCampaignTemplate(template, characters));
       return true;
     } catch (err) {
       console.error('Kampagne konnte nicht aus der Vorlage erstellt werden:', err);

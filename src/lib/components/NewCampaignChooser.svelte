@@ -7,17 +7,26 @@
 
   let { oncreate, ontemplate, oncancel }: {
     oncreate: (name: string) => Promise<boolean>;
-    ontemplate: (t: CampaignTemplateRef, withCharacters: boolean) => Promise<boolean>;
+    ontemplate: (t: CampaignTemplateRef, characters: string[]) => Promise<boolean>;
     oncancel: () => void;
   } = $props();
 
-  let view = $state<'options' | 'name' | 'templates'>('options');
+  type Role = 'gm' | 'player';
+
+  let view = $state<'options' | 'name' | 'templates' | 'setup'>('options');
   let templates = $state<CampaignTemplateRef[] | null>(null);
   let characters = $state(new Map<string, CharacterTemplateRef>());
   let name = $state('');
-  let withCharacters = $state(true);
+  let chosen = $state<CampaignTemplateRef | null>(null);
+  let role = $state<Role>('gm');
+  let picked = $state(new Set<string>());
   let busy = $state('');
   let error = $state('');
+
+  const edition = $derived(chosen && role === 'player' ? (chosen.player ?? chosen) : chosen);
+  const cast = $derived(
+    (edition?.characters ?? []).map((id) => characters.get(id)).filter((c): c is CharacterTemplateRef => !!c),
+  );
 
   $effect(() => {
     void listCampaignTemplates().then((t) => (templates = t)).catch(() => (templates = []));
@@ -35,11 +44,33 @@
 
   const createEmpty = () => run('name', () => oncreate(name), 'Die Kampagne konnte nicht angelegt werden.');
 
-  const pick = (t: CampaignTemplateRef) =>
-    run(t.id, () => ontemplate(t, withCharacters && t.characters.length > 0), 'Die Vorlage konnte nicht kopiert werden.');
+  function choose(t: CampaignTemplateRef) {
+    chosen = t;
+    setRole('gm');
+    view = 'setup';
+  }
+
+  /** Die Spielleitung bekommt die ganze Gruppe, ein Spieler sucht sich seine Figur selbst aus. */
+  function setRole(r: Role) {
+    role = r;
+    picked = new Set(r === 'gm' ? (chosen?.characters ?? []) : []);
+  }
+
+  function toggle(id: string) {
+    const next = new Set(picked);
+    if (!next.delete(id)) next.add(id);
+    picked = next;
+  }
+
+  function create() {
+    const t = edition;
+    if (!t) return;
+    const ids = t.characters.filter((id) => picked.has(id));
+    void run(t.id, () => ontemplate(t, ids), 'Die Vorlage konnte nicht kopiert werden.');
+  }
 
   function back() {
-    view = 'options';
+    view = view === 'setup' ? 'templates' : 'options';
     error = '';
   }
 </script>
@@ -55,7 +86,7 @@
         <span class="title">Aus Vorlage erstellen</span>
         <span class="sub">
           {#if templates === null}Vorlagen werden gesucht…
-          {:else if templates.length}Ein vorbereitetes Abenteuer mit Karten, Encountern und Charakteren
+          {:else if templates.length}Ein vorbereitetes Abenteuer – als Spielleitung oder als Spieler
           {:else}Keine Vorlagen — sie kommen mit Inhaltspaketen wie „Hellfire Club"{/if}
         </span>
       </button>
@@ -67,30 +98,51 @@
       <input bind:value={name} placeholder="Name der Kampagne…" autofocus />
       <button type="submit" class="primary-btn" disabled={!name.trim() || !!busy}>Anlegen</button>
     </form>
-  {:else}
+  {:else if view === 'templates'}
     <button class="back" onclick={back}>← Zurück</button>
     <div class="list">
       {#each templates ?? [] as t (t.id)}
-        {@const cast = t.characters.map((id) => characters.get(id)).filter((c) => !!c)}
-        <button class="option template" disabled={!!busy} onclick={() => pick(t)}>
-          <span class="title">{busy === t.id ? 'Wird angelegt…' : t.name}</span>
+        <button class="option" onclick={() => choose(t)}>
+          <span class="title">{t.name}</span>
           {#if t.description}<span class="sub">{t.description}</span>{/if}
-          {#if cast.length}
-            <span class="cast">
-              {#each cast as c (c.id)}
-                {#if c.portraitSrc}<img src={c.portraitSrc} alt={c.name} title={c.name} />
-                {:else}<span class="placeholder" title={c.name}>{c.name.slice(0, 1)}</span>{/if}
-              {/each}
-            </span>
-          {/if}
+          {#if t.player}<span class="sub">Mit spoilerfreier Ausgabe für Spieler</span>{/if}
         </button>
       {/each}
     </div>
-    {#if templates?.some((t) => t.characters.length)}
-      <label class="with-characters">
-        <input type="checkbox" bind:checked={withCharacters} /> Vorgefertigte Charaktere mit anlegen
-      </label>
+  {:else if chosen && edition}
+    <button class="back" onclick={back}>← Zurück</button>
+    <h3 class="title">{chosen.name}</h3>
+    {#if chosen.player}
+      <div class="roles" role="radiogroup" aria-label="Rolle">
+        <button class="option" role="radio" aria-checked={role === 'gm'} onclick={() => setRole('gm')}>
+          <span class="title">Als Spielleitung</span>
+          <span class="sub">Das ganze Abenteuer: Akte, Encounter, Karten mit versteckten Tokens, NSCs und Handouts</span>
+        </button>
+        <button class="option" role="radio" aria-checked={role === 'player'} onclick={() => setRole('player')}>
+          <span class="title">Als Spieler</span>
+          <span class="sub">{chosen.player.description || 'Nur was ihr vor dem ersten Spielabend wissen dürft'}</span>
+        </button>
+      </div>
     {/if}
+    {#if cast.length}
+      <p class="cast-label">
+        {role === 'player' ? 'Wen spielst du? Die Figur kommt mit Bogen und Hintergrundgeschichte.' : 'Vorgefertigte Charaktere mit anlegen'}
+      </p>
+      <div class="cast">
+        {#each cast as c (c.id)}
+          <button class="figure" aria-pressed={picked.has(c.id)} title={c.classLevel} onclick={() => toggle(c.id)}>
+            {#if c.portraitSrc}<img src={c.portraitSrc} alt="" />
+            {:else}<span class="placeholder">{c.name.slice(0, 1)}</span>{/if}
+            <span class="figure-name">{c.name}</span>
+          </button>
+        {/each}
+      </div>
+    {/if}
+    <div class="actions">
+      <button class="primary-btn" disabled={!!busy} onclick={create}>
+        {busy ? 'Wird angelegt…' : 'Kampagne anlegen'}
+      </button>
+    </div>
   {/if}
   {#if error}<p class="error" role="alert">{error}</p>{/if}
 </Modal>
@@ -100,6 +152,11 @@
   .list {
     display: flex;
     flex-direction: column;
+    gap: 0.6rem;
+  }
+  .roles {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 0.6rem;
   }
   .option {
@@ -114,16 +171,25 @@
     color: var(--ink);
     cursor: pointer;
   }
-  .option:hover:not(:disabled) {
+  .option:hover:not(:disabled),
+  .option[aria-checked='true'] {
     border-color: var(--red);
+  }
+  .option[aria-checked='true'] {
+    box-shadow: inset 0 0 0 1px var(--red);
   }
   .option:disabled {
     cursor: default;
     opacity: 0.55;
   }
   .title {
+    margin: 0;
     font-family: var(--font-display);
     font-size: 1.05rem;
+    font-weight: normal;
+  }
+  h3.title {
+    margin-bottom: 0.7rem;
   }
   .sub {
     font-size: 0.8rem;
@@ -146,15 +212,41 @@
   .naming input {
     flex: 1;
   }
+  .cast-label {
+    margin: 1rem 0 0.5rem;
+    font-size: 0.85rem;
+  }
   .cast {
     display: flex;
-    gap: 0.3rem;
-    margin-top: 0.4rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
-  .cast img,
+  .figure {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    width: 84px;
+    padding: 0.4rem 0.2rem;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--ink);
+    cursor: pointer;
+    opacity: 0.5;
+  }
+  .figure:hover {
+    opacity: 0.8;
+  }
+  .figure[aria-pressed='true'] {
+    border-color: var(--red);
+    background: var(--surface);
+    opacity: 1;
+  }
+  .figure img,
   .placeholder {
-    width: 36px;
-    height: 36px;
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
     object-fit: cover;
   }
@@ -164,12 +256,15 @@
     justify-content: center;
     background: var(--bg-deep);
   }
-  .with-characters {
+  .figure-name {
+    font-size: 0.75rem;
+    line-height: 1.15;
+    text-align: center;
+  }
+  .actions {
     display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    margin-top: 0.8rem;
-    font-size: 0.85rem;
+    justify-content: flex-end;
+    margin-top: 1rem;
   }
   .error {
     margin: 0.8rem 0 0;

@@ -16,6 +16,8 @@ const MANIFEST = 'template.json';
 
 export interface CampaignTemplateRef extends CampaignTemplate {
   id: string;
+  /** Spoilerfreie Ausgabe für Spieler, falls die Vorlage eine mitbringt. */
+  player?: CampaignTemplateRef;
 }
 
 interface EntryInfo {
@@ -32,8 +34,25 @@ async function subdirs(path: string): Promise<string[]> {
   }
 }
 
-/** Ordner ohne lesbares `template.json` sind keine Vorlage und fehlen in der Liste. */
+/**
+ * Ordner ohne lesbares `template.json` sind keine Vorlage und fehlen in der Liste. Eine
+ * Spieler-Ausgabe hängt an ihrer Spielleiter-Vorlage; fehlt die, steht sie für sich.
+ */
 export async function listCampaignTemplates(): Promise<CampaignTemplateRef[]> {
+  const all = await readCampaignTemplates();
+  const byId = new Map(all.map((t) => [t.id, t]));
+  const attached = new Set<string>();
+  for (const t of all) {
+    const gm = t.playerEditionOf ? byId.get(t.playerEditionOf) : undefined;
+    if (gm && !gm.playerEditionOf) {
+      gm.player = t;
+      attached.add(t.id);
+    }
+  }
+  return all.filter((t) => !attached.has(t.id));
+}
+
+async function readCampaignTemplates(): Promise<CampaignTemplateRef[]> {
   const refs = await Promise.all(
     (await subdirs(CAMPAIGN_TEMPLATES)).map(async (id) => {
       try {
@@ -104,14 +123,17 @@ export function freeName(base: string, taken: Set<string>): string {
   return `${base}-${n}`;
 }
 
-/** Legt die Kampagne an und liefert ihren Ordnernamen. */
-export async function instantiateCampaignTemplate(template: CampaignTemplateRef, withCharacters: boolean): Promise<string> {
+/**
+ * Legt die Kampagne an und liefert ihren Ordnernamen. `characters` sind Charakter-Vorlagen,
+ * in der Reihenfolge, in der sie in der Kampagne stehen sollen.
+ */
+export async function instantiateCampaignTemplate(template: CampaignTemplateRef, characters: string[]): Promise<string> {
   const slug = freeName(template.id, new Set(await subdirs(CAMPAIGNS_PATH)));
   const dir = `${CAMPAIGNS_PATH}/${slug}`;
   await invoke('copy_dir', { from: `${CAMPAIGN_TEMPLATES}/${template.id}`, to: dir });
   await invoke('delete_path', { path: `${dir}/${MANIFEST}` });
 
-  const uids = withCharacters ? await Promise.all(template.characters.map(instantiateCharacterTemplate)) : [];
+  const uids = await Promise.all(characters.map(instantiateCharacterTemplate));
   const campaignMd = `${dir}/campaign.md`;
   const md = await invoke<string>('read_file_content', { path: campaignMd });
   await invoke('write_file_content', { path: campaignMd, content: replaceFrontmatterCharacters(md, uids) });

@@ -8,6 +8,10 @@ export const campaignTemplateSchema = z.object({
     .array(z.string())
     .default([])
     .describe('Ordnernamen unter `templates/characters/`: vorgefertigte Charaktere, die mitkopiert werden können'),
+  playerEditionOf: z
+    .string()
+    .optional()
+    .describe('Ordnername der Spielleiter-Vorlage, zu der dies die spoilerfreie Spieler-Ausgabe ist'),
 });
 
 export type CampaignTemplate = z.infer<typeof campaignTemplateSchema>;

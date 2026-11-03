@@ -58,7 +58,7 @@ describe('Kampagnen-Vorlagen', () => {
 
   it('kopiert neben eine vorhandene Kampagne, ohne Kopfdatei, mit neuen Charakter-UIDs', async () => {
     const [template] = await listCampaignTemplates();
-    const slug = await instantiateCampaignTemplate(template, true);
+    const slug = await instantiateCampaignTemplate(template, ['hfc-will']);
 
     expect(slug).toBe('hfc-2');
     expect(files.get('./vault/campaigns/hfc/campaign.md')).toBe('# schon gespielt\n');
@@ -74,8 +74,25 @@ describe('Kampagnen-Vorlagen', () => {
 
   it('legt ohne Charaktere keine an', async () => {
     const [template] = await listCampaignTemplates();
-    await instantiateCampaignTemplate(template, false);
+    await instantiateCampaignTemplate(template, []);
     expect(under('./vault/characters')).toEqual([]);
+  });
+
+  it('hängt die Spieler-Ausgabe an ihre Spielleiter-Vorlage und kopiert nur sie', async () => {
+    files.set(`${T}/campaigns/hfc-spieler/template.json`, JSON.stringify({ name: 'Hellfire (Spieler)', playerEditionOf: 'hfc', characters: ['hfc-will'] }));
+    files.set(`${T}/campaigns/hfc-spieler/campaign.md`, '---\ncharacters: []\n---\n# Spoilerfrei\n');
+
+    const list = await listCampaignTemplates();
+    expect(list.map((t) => t.id)).toEqual(['hfc']);
+    expect(list[0].player?.id).toBe('hfc-spieler');
+
+    const slug = await instantiateCampaignTemplate(list[0].player!, []);
+    expect(under(`./vault/campaigns/${slug}`)).toEqual([`./vault/campaigns/${slug}/campaign.md`]);
+  });
+
+  it('zeigt eine Spieler-Ausgabe ohne Spielleiter-Vorlage für sich', async () => {
+    files.set(`${T}/campaigns/waise/template.json`, JSON.stringify({ name: 'Waise', playerEditionOf: 'fehlt' }));
+    expect((await listCampaignTemplates()).map((t) => t.id)).toEqual(['hfc', 'waise']);
   });
 
   it('zählt den Ordnernamen hoch', () => {

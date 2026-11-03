@@ -64,7 +64,7 @@
 {#if tree.showChooser}
   <NewCampaignChooser
     oncreate={(name) => tree.createNamedCampaign(name)}
-    ontemplate={(t, withCharacters) => tree.createFromTemplate(t, withCharacters)}
+    ontemplate={(t, characters) => tree.createFromTemplate(t, characters)}
     oncancel={() => (tree.showChooser = false)}
   />
 {/if}

@@ -3,5 +3,6 @@
   "description": "string",
   "characters": [
     "string"
-  ]
+  ],
+  "playerEditionOf": "string"
 }
