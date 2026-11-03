@@ -304,7 +304,7 @@
         <div class="tab" role="tabpanel" hidden={!isTemplate && cockpit.tab !== 'prep'}>
           <TokenPanel {editor} {center} />
           <TokenListPanel {editor} />
-          <MapSettingsPanel {editor} {isTemplate} />
+          <MapSettingsPanel {editor} />
         </div>
         <div class="tab" role="tabpanel" hidden={isTemplate || cockpit.tab !== 'play'}>
           <InitiativePanel {editor} campaignDir={campaignDirOf(editor.path)} />
@@ -505,6 +505,7 @@
     display: none;
   }
   .right {
+    position: relative;
     width: clamp(20rem, 26vw, 28rem);
     display: flex;
     flex-direction: column;

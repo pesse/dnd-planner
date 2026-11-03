@@ -1,23 +1,22 @@
 <script lang="ts">
-  /** Tokens einsetzen: Gruppe, Charakter, Encounter, Monster, Falle, Markierung. */
-  import { activeCampaign } from '../../stores/campaign';
-  import { campaignCharacterData, encounterSummaries } from '../../stores/context';
+  /** Tokens einsetzen: Gruppe, Charakter, Monster, Falle, Markierung. */
+  import { campaignCharacterData } from '../../stores/context';
   import type { MapEditor } from '../../services/battleMap/mapEditor.svelte';
   import { pxToCell, type Point } from '../../services/battleMap/geometry';
   import {
     characterDraft,
-    encounterDrafts,
     libraryMonsterDraft,
     markerDraft,
     trapDraft,
     type TokenDraft,
   } from '../../services/battleMap/tokenSources';
-  import { encounterPath, mapEncounters } from '../../services/battleMap/tokenDetails';
-  import { isMapTemplatePath } from '../../services/battleMap/mapTemplates';
   import PanelSection from './PanelSection.svelte';
   import CatalogDrawer from '../catalog/CatalogDrawer.svelte';
   import type { CatalogRow } from '../../services/catalog/catalogTypes';
   import { getTraps, trapDisplayName } from '../../trapsLibrary';
+  import { getMonsterLibrary } from '../../monsterLibrary';
+  import type { Monster } from '../../types';
+  import MonsterTooltip from '../MonsterTooltip.svelte';
 
   let { editor, center }: { editor: MapEditor; center: () => Point } = $props();
 
@@ -31,38 +30,24 @@
   let drawer = $state<LibraryKind | null>(null);
   /** Einmal geöffnet, bleibt eine Schublade aufgebaut. */
   let built = $state<LibraryKind[]>([]);
-  let libraryButtons = $state<HTMLElement>();
-  let encounterKey = $state('');
+  let monsters = $state<Map<string, Monster>>(new Map());
   let markerName = $state('');
   let trapName = $state('');
-  let busy = $state(false);
 
   const map = $derived(editor.map!);
-  const encounters = $derived(mapEncounters($encounterSummaries, map, isMapTemplatePath(editor.path)));
   const originCell = () => pxToCell(map.grid, center());
 
   async function run(job: () => Promise<void>) {
-    busy = true;
     editor.error = '';
     try {
       await job();
     } catch (e) {
       editor.error = String(e);
-    } finally {
-      busy = false;
     }
   }
 
   const addParty = () =>
     editor.addTokens($campaignCharacterData.map((c) => characterDraft(c.slug, c.name)), originCell());
-
-  const addEncounter = () =>
-    run(async () => {
-      const key = encounters.find((e) => e.key === encounterKey)?.key;
-      if (!key || !$activeCampaign) return;
-      editor.addTokens(await encounterDrafts(encounterPath(`./vault/campaigns/${$activeCampaign.path}`, key), key), originCell());
-      editor.details.show({ kind: 'encounter', key });
-    });
 
   const PICK: Record<LibraryKind, (row: CatalogRow) => Promise<TokenDraft | null>> = {
     character: async (row) => characterDraft(row.dirPath!.slice(row.dirPath!.lastIndexOf('/') + 1), row.name),
@@ -83,6 +68,7 @@
   function toggle(kind: LibraryKind) {
     drawer = drawer === kind ? null : kind;
     if (drawer && !built.includes(drawer)) built.push(drawer);
+    if (drawer === 'monster' && !monsters.size) void getMonsterLibrary().then((lib) => (monsters = new Map(lib.map((m) => [m.slug, m.monster]))));
   }
 
   /** Ohne Bibliothekseintrag: die Werte stehen in der Notiz. */
@@ -104,20 +90,10 @@
     Gruppe der Kampagne ({$campaignCharacterData.length})
   </button>
 
-  <div class="libraries" bind:this={libraryButtons}>
+  <div class="libraries">
     {#each LIBRARIES as l (l.kind)}
       <button class:active={drawer === l.kind} title="{l.title} — aus der Bibliothek" onclick={() => toggle(l.kind)}>{l.label}</button>
     {/each}
-  </div>
-
-  <div class="row">
-    <select bind:value={encounterKey} aria-label="Encounter">
-      <option value="">Encounter wählen…</option>
-      {#each encounters as e (e.key)}
-        <option value={e.key}>{e.name}</option>
-      {/each}
-    </select>
-    <button disabled={!encounterKey || busy} onclick={addEncounter}>+</button>
   </div>
 
   <div class="row">
@@ -131,8 +107,21 @@
   </div>
 </PanelSection>
 
-{#each libraryButtons ? LIBRARIES.filter((l) => built.includes(l.kind)) : [] as l (l.kind)}
-  <CatalogDrawer kind={l.kind} title={l.title} columns={l.columns} open={drawer === l.kind} anchor={libraryButtons!} onpick={(row) => pick(l.kind, row)} onclose={() => (drawer = null)} />
+{#snippet monsterTip({ row, x, y }: { row: CatalogRow | null; x: number; y: number })}
+  <MonsterTooltip monster={row ? (monsters.get(row.entryName) ?? null) : null} {x} {y} />
+{/snippet}
+
+{#each LIBRARIES.filter((l) => built.includes(l.kind)) as l (l.kind)}
+  <CatalogDrawer
+    kind={l.kind}
+    title={l.title}
+    columns={l.columns}
+    side="right"
+    open={drawer === l.kind}
+    tip={l.kind === 'monster' ? monsterTip : undefined}
+    onpick={(row) => pick(l.kind, row)}
+    onclose={() => (drawer = null)}
+  />
 {/each}
 
 <style>

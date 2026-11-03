@@ -1,4 +1,4 @@
-import { derived, writable, type Writable } from 'svelte/store';
+import { derived, get, writable, type Writable } from 'svelte/store';
 import { activeFile, activeCampaign, fileContent } from './campaign';
 import type { FileEntry, Monster } from '../types';
 import {
@@ -103,6 +103,16 @@ export async function loadEncounterContext(campaignPath: string): Promise<void> 
 
 export async function loadEncounterMonsters(encounterContent: string, encounterPath?: string): Promise<void> {
   encounterMonsterDefs.set(await fetchEncounterMonsters(encounterContent, encounterPath));
+}
+
+/** Nach dem Schreiben eines Encounters: liest nur die Übersichten neu, die Bibliothek bleibt. */
+/** Hält die Übersicht beim Bearbeiten aktuell, ohne alle Encounter neu zu lesen. */
+export function patchEncounterSummary(actSlug: string, slug: string, patch: Partial<EncounterSummaryEntry>): void {
+  encounterSummaries.update((list) => list.map((e) => (e.actSlug === actSlug && e.slug === slug ? { ...e, ...patch } : e)));
+}
+
+export async function refreshEncounterSummaries(campaignPath: string): Promise<void> {
+  encounterSummaries.set(await fetchEncounterSummaries(campaignPath, get(monsterLibrary)));
 }
 
 export async function loadActSummaries(campaignPath: string): Promise<void> {

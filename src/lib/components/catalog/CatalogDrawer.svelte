@@ -7,15 +7,24 @@
   import { CatalogQuery } from './catalogFilterState.svelte';
   import CatalogFilterBar from './CatalogFilterBar.svelte';
   import CatalogTable from './CatalogTable.svelte';
+  import type { Snippet } from 'svelte';
+  import { createHoverTip } from '../../utils/hoverTip.svelte';
 
-  let { kind, title, columns, open, anchor, onpick, onclose }: {
+  let { kind, title, columns, extraRows = [], open, side, count, ondecrement, tip, onpick, onclose }: {
     kind: CatalogKind;
     title: string;
     /** Ersetzt das Spaltenset des Katalogs — zum Auswählen reicht meist der Name. */
     columns?: string[];
+    /** Stehen vorn und verdrängen Katalogzeilen gleichen Eintragsnamens. */
+    extraRows?: CatalogRow[];
     open: boolean;
-    /** Die Schublade beginnt unter seiner Unterkante. */
-    anchor: HTMLElement;
+    /** Auf welcher Seite ihres Panels sie über die Karte fährt; das Panel bleibt frei. */
+    side: 'left' | 'right';
+    /** Gewählte Zeilen stehen oben. */
+    count?: (row: CatalogRow) => number;
+    ondecrement?: (row: CatalogRow) => void;
+    /** Schwebe-Tooltip über dem Icon statt der Bildvorschau. */
+    tip?: Snippet<[{ row: CatalogRow | null; x: number; y: number }]>;
     onpick: (row: CatalogRow) => void;
     onclose: () => void;
   } = $props();
@@ -41,22 +50,24 @@
   const groupLabel = (id: string) => groups.find((g) => g.id === id)?.label ?? id;
   let columnIds = $derived(columns ?? columnsFor(spec, group));
   let activeSort = $derived(columnIds.includes(query.sortCol) ? query.sortCol : 'name');
-  let groupRows = $derived(group ? rows.filter((r) => r.group === group) : rows);
-  let shown = $derived(queryRows(groupRows, query, activeSort));
+  let allRows = $derived.by(() => {
+    const own = new Set(extraRows.map((r) => r.entryName));
+    return [...extraRows, ...rows.filter((r) => !own.has(r.entryName))];
+  });
+  let groupRows = $derived(group ? allRows.filter((r) => r.group === group) : allRows);
+  let shown = $derived.by(() => {
+    const sorted = queryRows(groupRows, query, activeSort);
+    return count ? [...sorted.filter((r) => count(r) > 0), ...sorted.filter((r) => !count(r))] : sorted;
+  });
+  const hover = createHoverTip<CatalogRow>();
+  $effect(() => {
+    if (!open) hover.hide();
+  });
+  const onhover = (e: MouseEvent, row: CatalogRow | null) => (row ? hover.show(e, row) : hover.hide());
 
   const entryOf = (row: CatalogRow) => ({ name: row.entryName, path: row.path, type: spec.type, dirPath: row.dirPath });
 
   let section = $state<HTMLElement>();
-  let top = $state(0);
-
-  function place() {
-    const base = section?.offsetParent?.getBoundingClientRect().top ?? 0;
-    top = anchor.getBoundingClientRect().bottom - base + 6;
-  }
-
-  $effect(() => {
-    if (open) place();
-  });
 
   function onkeydown(e: KeyboardEvent) {
     // Die Bildvorschau der Tabelle schließt zuerst.
@@ -66,9 +77,9 @@
   }
 </script>
 
-<svelte:window {onkeydown} onresize={() => open && place()} />
+<svelte:window {onkeydown} />
 
-<section bind:this={section} class="drawer" class:closed={!open} inert={!open} style:top="{top}px" aria-label={title}>
+<section bind:this={section} class="drawer {side}" class:closed={!open} inert={!open} aria-label={title}>
   <header>
     <h2>{title}</h2>
     <button class="close" title="Schließen (Esc)" onclick={onclose}>✕</button>
@@ -79,7 +90,7 @@
     {groups}
     {group}
     {groupRows}
-    count={loading ? 'Laden…' : `${shown.length} von ${rows.length}`}
+    count={loading ? 'Laden…' : `${shown.length} von ${allRows.length}`}
     onsetgroup={(id) => (group = id)}
   />
   <CatalogTable
@@ -94,25 +105,37 @@
     {entryOf}
     inPage={false}
     openLabel="Einsetzen"
+    {count}
+    {ondecrement}
+    onhover={tip ? onhover : undefined}
     onsort={(col) => query.sortBy(col, activeSort)}
     onopen={onpick}
   />
 </section>
 
+{#if tip && open}{@render tip({ row: hover.data, x: hover.x, y: hover.y })}{/if}
+
 <style>
   .drawer {
     position: absolute;
+    top: 0;
     bottom: 0;
-    left: 0;
     z-index: 20;
-    width: calc(100% + 14rem);
+    width: min(30rem, 60vw);
     display: flex;
     flex-direction: column;
     background: var(--bg);
-    border-top: 1px solid var(--border);
-    border-right: 1px solid var(--border);
     transition: opacity 0.12s, visibility 0.12s;
+  }
+  .drawer.right {
+    left: 100%;
+    border-right: 1px solid var(--border);
     box-shadow: 4px 0 16px color-mix(in srgb, var(--ink) 18%, transparent);
+  }
+  .drawer.left {
+    right: 100%;
+    border-left: 1px solid var(--border);
+    box-shadow: -4px 0 16px color-mix(in srgb, var(--ink) 18%, transparent);
   }
   /* visibility statt display: none — sonst verwirft der Browser die Scrollposition. */
   .closed {

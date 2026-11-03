@@ -9,6 +9,7 @@ import { AutosaveFile } from '../../utils/autosaveFile.svelte';
 import { newUid } from '../../utils/uid';
 import { onPlayerMessage, sendToPlayer, type ToGm } from './channel';
 import { DetailHistory } from './detailHistory.svelte';
+import { cockpit } from './cockpitTab.svelte';
 import { gridFromCell, snapCell, type Point } from './geometry';
 import { advanceTurn, startCombat } from './initiative';
 import { loadBattleMap, mapImageUrl, pickMapImage, serializeBattleMap } from './mapFiles';
@@ -58,13 +59,26 @@ export class MapEditor {
     });
   }
 
+  #focusId = $state<string | null>(null);
+
   get selectedId(): string | null {
     const d = this.details.current;
-    return d.kind === 'token' ? d.id : null;
+    if (d.kind === 'token') return d.id;
+    return d.kind === 'encounter' && this.#ownToken(this.#focusId, d.key) ? this.#focusId : null;
   }
 
+  /** In der Vorbereitung bleibt ein offener Encounter stehen, solange seine eigenen Tokens gewählt werden — die SL stellt sie gerade auf. */
   set selectedId(id: string | null) {
+    const d = this.details.current;
+    if (cockpit.tab === 'prep' && d.kind === 'encounter' && (!id || this.#ownToken(id, d.key))) {
+      this.#focusId = id;
+      return;
+    }
     this.details.show(id ? { kind: 'token', id } : { kind: 'overview' });
+  }
+
+  #ownToken(id: string | null, encounter: string): boolean {
+    return !!id && !!this.map?.tokens.some((t) => t.id === id && t.encounter === encounter);
   }
 
   get selected(): Token | null {

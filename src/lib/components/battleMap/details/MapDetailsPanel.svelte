@@ -1,6 +1,6 @@
 <script lang="ts">
   /** Rechte Seite des Cockpits: was gerade ausgewählt oder verlinkt ist, mit eigenem Zurück. */
-  import { encounterSummaries } from '../../../stores/context';
+  import { actSummaries, encounterSummaries } from '../../../stores/context';
   import type { MapEditor } from '../../../services/battleMap/mapEditor.svelte';
   import { encounterKeyOf, mapEncounters } from '../../../services/battleMap/tokenDetails';
   import { isMapTemplatePath } from '../../../services/battleMap/mapTemplates';
@@ -9,6 +9,12 @@
   import EntryCard from '../../ui/EntryCard.svelte';
   import TokenDetails from './TokenDetails.svelte';
   import EncounterDetails from './EncounterDetails.svelte';
+  import NewEncounterForm from './NewEncounterForm.svelte';
+  import MapActsSection from './MapActsSection.svelte';
+  import { cockpit } from '../../../services/battleMap/cockpitTab.svelte';
+  import { provideEncounterPicker } from '../../../services/battleMap/encounterPicker.svelte';
+  import CatalogDrawer from '../../catalog/CatalogDrawer.svelte';
+  import MonsterTooltip from '../../MonsterTooltip.svelte';
 
   let { editor, campaignDir, center, onleave }: {
     editor: MapEditor;
@@ -17,6 +23,7 @@
     onleave: (entry: FileEntry) => void;
   } = $props();
 
+  const picker = provideEncounterPicker();
   const detail = $derived(editor.details.current);
   const token = $derived(detail.kind === 'token' ? (editor.map?.tokens.find((t) => t.id === detail.id) ?? null) : null);
   const placed = $derived(new Set(editor.map?.tokens.map((t) => t.encounter).filter(Boolean)));
@@ -54,6 +61,7 @@
     <div class="entry"><EntryCard entry={detail.entry} /></div>
     <button class="leave" onclick={() => onleave(detail.entry)}>Seite öffnen (verlässt die Karte)</button>
   {:else}
+    {#if editor.map && !isMapTemplatePath(editor.path) && $actSummaries.length}<MapActsSection {editor} />{/if}
     <section>
       <h3>Encounter</h3>
       {#each encounters as e (e.key)}
@@ -64,10 +72,32 @@
       {:else}
         <p class="hint">{isMapTemplatePath(editor.path) ? 'Diese Kampagne hat noch keine Encounter.' : 'Die Akte dieser Karte und die Kampagne haben keine Encounter.'}</p>
       {/each}
+      {#if cockpit.tab === 'prep' && editor.map}
+        <NewEncounterForm {editor} {campaignDir} isTemplate={isMapTemplatePath(editor.path)} />
+      {/if}
     </section>
     <p class="hint">Klicke ein Token an, um seine Werte, Notizen und seinen Encounter zu sehen.</p>
   {/if}
 </div>
+
+{#if picker.built}
+  <CatalogDrawer
+    kind="monster"
+    title={picker.target?.title ?? 'Monster'}
+    columns={['cr']}
+    extraRows={picker.target?.ownRows ?? []}
+    side="left"
+    open={picker.open && !!picker.target && cockpit.tab === 'prep'}
+    count={(row) => picker.target?.count(row.entryName) ?? 0}
+    ondecrement={(row) => picker.target?.remove(row.entryName)}
+    onpick={(row) => picker.target?.add(row.entryName)}
+    onclose={() => (picker.open = false)}
+  >
+    {#snippet tip({ row, x, y })}
+      <MonsterTooltip monster={row ? (picker.target?.monster(row.entryName) ?? null) : null} {x} {y} />
+    {/snippet}
+  </CatalogDrawer>
+{/if}
 
 <style>
   .nav {

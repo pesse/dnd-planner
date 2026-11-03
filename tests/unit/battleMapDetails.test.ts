@@ -7,6 +7,10 @@ import { toPlayerState } from '../../src/lib/services/battleMap/playerState';
 import { asMapTemplate, isMapTemplatePath } from '../../src/lib/services/battleMap/mapTemplates';
 import { ruleIconUrl } from '../../src/lib/conditionIcon';
 import { advanceTurn, initiativeOrder, startCombat } from '../../src/lib/services/battleMap/initiative';
+import { encounterXp, scopeDirOf, withMonsterCount, withRestored } from '../../src/lib/services/battleMap/encounterEdit';
+import { missingMonsters } from '../../src/lib/services/battleMap/tokenSources';
+import { formatMonsterList } from '../../src/lib/services/contextLoad';
+import { encounterSchema } from '../../src/lib/schemas/encounter';
 
 const token = (id: string) => ({ kind: 'token', id }) as const;
 
@@ -229,5 +233,59 @@ describe('Encounter einer Karte', () => {
     });
     expect(mapEncounters(all, map, false).map((e) => e.key)).toEqual(['akt-1/goblins', 'akt-2/ratten', 'akt-2/wexley', 'wegelagerer']);
     expect(mapEncounters(all, { ...map, tokens: [] }, false).map((e) => e.key)).toEqual(['akt-2/ratten', 'akt-2/wexley', 'wegelagerer']);
+  });
+});
+
+describe('withMonsterCount', () => {
+  const base = encounterSchema.parse({ name: 'Hinterhalt', monsters: [{ slug: 'goblin', count: 2, notes: 'im Gebüsch' }] });
+
+  it('zählt hoch und behält die Notiz', () => {
+    expect(withMonsterCount(base, 'goblin', 1).monsters).toEqual([{ slug: 'goblin', count: 3, notes: 'im Gebüsch' }]);
+  });
+
+  it('hängt ein neues Monster ans Ende', () => {
+    expect(withMonsterCount(base, 'wolf', 1).monsters.map((m) => [m.slug, m.count])).toEqual([['goblin', 2], ['wolf', 1]]);
+  });
+
+  it('entfernt bei 0 und ignoriert Abzug bei Fehlendem', () => {
+    expect(withMonsterCount(base, 'goblin', -2).monsters).toEqual([]);
+    expect(withMonsterCount(base, 'wolf', -1).monsters).toEqual(base.monsters);
+  });
+});
+
+describe('Encounter im Cockpit', () => {
+  const enc = encounterSchema.parse({
+    name: 'Brücke',
+    monsters: [
+      { slug: 'goblin', count: 3 },
+      { slug: 'oger', count: 1 },
+    ],
+  });
+
+  it('setzt nur, was noch nicht auf der Karte steht', () => {
+    expect(missingMonsters(enc, [{ ref: 'goblin' }, { ref: 'goblin' }, { ref: 'oger' }])).toEqual([
+      { slug: 'goblin', already: 2, missing: 1 },
+      { slug: 'oger', already: 1, missing: 0 },
+    ]);
+    expect(missingMonsters(enc, [{ ref: 'oger' }, { ref: 'oger' }])[1].missing).toBe(0);
+  });
+
+  it('summiert EP über die Anzahl, Unbekannte zählen nicht', () => {
+    expect(encounterXp(enc.monsters, (s) => ({ goblin: 50, oger: 450 })[s])).toBe(600);
+    expect(encounterXp(enc.monsters, (s) => (s === 'goblin' ? 50 : undefined))).toBe(150);
+  });
+
+  it('setzt einen entfernten Eintrag an seine alte Stelle zurück', () => {
+    const without = withMonsterCount(enc, 'goblin', -3);
+    expect(withRestored(without, enc.monsters[0], 0).monsters).toEqual(enc.monsters);
+  });
+
+  it('formatiert die Monsterliste der Übersicht', () => {
+    expect(formatMonsterList(enc.monsters, (s) => (s === 'goblin' ? { name: 'Goblin', cr: 0.25 } : undefined))).toBe('3× Goblin (HG 1/4), 1× oger');
+  });
+
+  it('kennt den Ordner, dessen Monster den Encounter überschreiben', () => {
+    expect(scopeDirOf('./vault/campaigns/k/acts/a1/encounters/brücke.json')).toBe('./vault/campaigns/k/acts/a1');
+    expect(scopeDirOf('./vault/campaigns/k/encounters/brücke.json')).toBe('./vault/campaigns/k');
   });
 });

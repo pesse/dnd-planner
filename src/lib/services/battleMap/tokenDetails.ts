@@ -14,9 +14,12 @@ export const campaignDirOf = (mapPath: string): string => mapPath.replace(/\/(ma
  */
 export const encounterKey = (actSlug: string, slug: string): string => (actSlug ? `${actSlug}/${slug}` : slug);
 
+export const encounterDir = (campaignDir: string, actSlug: string): string =>
+  actSlug ? `${campaignDir}/acts/${actSlug}/encounters` : `${campaignDir}/encounters`;
+
 export const encounterPath = (campaignDir: string, key: string): string => {
   const [act, slug] = key.includes('/') ? key.split('/') : ['', key];
-  return act ? `${campaignDir}/acts/${act}/encounters/${slug}.json` : `${campaignDir}/encounters/${slug}.json`;
+  return `${encounterDir(campaignDir, act)}/${slug}.json`;
 };
 
 export const encounterKeyOf = (path: string): string => {

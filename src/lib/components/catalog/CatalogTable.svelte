@@ -6,7 +6,7 @@
   import GallerySpotlight from './GallerySpotlight.svelte';
   import { CatalogSpotlight, catalogImages } from './catalogSpotlight.svelte';
 
-  let { spec, rows, columnIds, showGroup, groupLabel, activeSort, sortAsc, loading, entryOf, onsort, onopen, inPage = true, openLabel }: {
+  let { spec, rows, columnIds, showGroup, groupLabel, activeSort, sortAsc, loading, entryOf, onsort, onopen, inPage = true, openLabel, count, ondecrement, onhover }: {
     spec: CatalogSpec;
     rows: CatalogRow[];
     columnIds: string[];
@@ -21,6 +21,11 @@
     /** Nur eine Tabelle, die die Seite ist, gehört in deren Verlauf und markiert den offenen Eintrag. */
     inPage?: boolean;
     openLabel?: string;
+    /** Wie oft die Zeile schon gewählt ist; ab 1 erscheint sie als „×N“ mit „−“. */
+    count?: (row: CatalogRow) => number;
+    ondecrement?: (row: CatalogRow) => void;
+    /** Ersetzt die Bildvorschau am Icon durch einen Schwebe-Tooltip; `null` beim Verlassen. */
+    onhover?: (e: MouseEvent, row: CatalogRow | null) => void;
   } = $props();
 
   let failed = $state<Record<string, true>>({});
@@ -49,9 +54,21 @@
     </thead>
     <tbody>
       {#each rows as row (row.path)}
-        <tr class:active={inPage && $activeFile?.path === row.path} onclick={() => onopen(row)}>
+        <tr class:active={inPage && $activeFile?.path === row.path} class:chosen={!!count?.(row)} onclick={() => onopen(row)}>
           <td class="icon-col">
-            {#if row.icon && !failed[row.icon]}
+            {#if row.icon && !failed[row.icon] && onhover}
+              <span
+                class="icon hover-tip"
+                class:portrait={spec.portraits}
+                style="--ic:{row.iconColor}"
+                role="presentation"
+                onmouseenter={(e) => onhover(e, row)}
+                onmousemove={(e) => onhover(e, row)}
+                onmouseleave={(e) => onhover(e, null)}
+              >
+                <img src={row.icon} alt="" loading="lazy" onerror={() => row.icon && (failed[row.icon] = true)} />
+              </span>
+            {:else if row.icon && !failed[row.icon]}
               <button
                 type="button"
                 class="icon"
@@ -68,6 +85,9 @@
           </td>
           <td class="name">
             {row.name}
+            {#if count?.(row)}
+              <span class="picked">×{count(row)}{#if ondecrement}<button type="button" title="Eins weniger" onclick={(e) => { e.stopPropagation(); ondecrement(row); }}>−</button>{/if}</span>
+            {/if}
             {#if showGroup}<span class="group">{groupLabel(row.group)}</span>{/if}
           </td>
           {#each columnIds as id}
@@ -181,6 +201,8 @@
   tbody tr { cursor: pointer; }
   tbody tr:hover { background: var(--bg-raised); }
   tbody tr.active { background: var(--surface); }
+  tbody tr.chosen { background: color-mix(in srgb, var(--red) 7%, transparent); }
+  tbody tr.chosen:hover { background: color-mix(in srgb, var(--red) 12%, transparent); }
 
   td.name {
     color: var(--ink);
@@ -195,6 +217,28 @@
     color: var(--ink-faint);
   }
 
+  .picked {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    margin-left: 0.4rem;
+    padding: 0 0.1rem 0 0.4rem;
+    border-radius: 0.6rem;
+    background: var(--red);
+    color: var(--on-accent);
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+  .picked button {
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    padding: 0 0.3rem;
+  }
+  .picked button:hover { background: color-mix(in srgb, var(--on-accent) 25%, transparent); border-radius: 0.5rem; }
+
   .icon-col { width: 40px; padding: 0.15rem 0.3rem 0.15rem 0.8rem; }
   .icon {
     display: block;
@@ -207,6 +251,7 @@
     filter: drop-shadow(0 1px 3px color-mix(in srgb, var(--ic) 45%, transparent));
   }
   .icon.selected { visibility: hidden; }
+  .icon.hover-tip { cursor: inherit; }
   .icon img { display: block; width: 100%; height: 100%; }
   .icon.portrait { height: 40px; filter: none; }
   .icon.portrait img {

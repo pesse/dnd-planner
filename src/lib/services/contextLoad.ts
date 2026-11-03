@@ -69,26 +69,44 @@ export async function fetchMonsterLibrary(): Promise<MonsterLibraryEntry[]> {
   }));
 }
 
-/** Eigene Monster eines Akts oder der Kampagne (`scopeDir/monsters`) überschreiben die globalen Einträge. */
+/** Die eigenen Monster eines Akts oder der Kampagne (`scopeDir/monsters`); Unlesbare fehlen. */
+export async function readScopeMonsters(scopeDir: string): Promise<{ slug: string; path: string; monster: Monster }[]> {
+  const files = await invoke<string[]>('list_json_files', { path: `${scopeDir}/monsters` }).catch(() => [] as string[]);
+  const read = await Promise.all(
+    files.map(async (filename) => {
+      const path = `${scopeDir}/monsters/${filename}`;
+      try {
+        const parsed = parseMonster(JSON.parse(await invoke<string>('read_file_content', { path })));
+        return parsed.ok ? { slug: filename.replace(/\.json$/, ''), path, monster: parsed.data } : null;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return read.filter((m) => m !== null);
+}
+
+/** Eigene Monster eines Akts oder der Kampagne überschreiben die globalen Einträge. */
 async function localMonsterOverrides(
   scopeDir: string,
   libraryMap: Map<string, MonsterSummary>,
 ): Promise<Map<string, MonsterSummary>> {
   const localMap = new Map(libraryMap);
-  try {
-    const localFiles = await invoke<string[]>('list_json_files', { path: `${scopeDir}/monsters` });
-    await Promise.all(
-      localFiles.map(async (filename) => {
-        const slug = filename.replace('.json', '');
-        try {
-          const content = await invoke<string>('read_file_content', { path: `${scopeDir}/monsters/${filename}` });
-          const parsed = parseMonster(JSON.parse(content));
-          if (parsed.ok) localMap.set(slug, { name: parsed.data.name, cr: parsed.data.challenge_rating });
-        } catch { /* ignorieren */ }
-      })
-    );
-  } catch { /* kein lokaler monsters-Ordner */ }
+  for (const { slug, monster } of await readScopeMonsters(scopeDir)) localMap.set(slug, { name: monster.name, cr: monster.challenge_rating });
   return localMap;
+}
+
+/** „2× Goblin (HG 1/4), 1× Oger (HG 2)“ — Unbekannte stehen mit ihrem Slug da. */
+export function formatMonsterList(
+  monsters: ReadonlyArray<{ count: number; slug: string }>,
+  lookup: (slug: string) => MonsterSummary | undefined,
+): string {
+  return monsters
+    .map((m) => {
+      const lib = lookup(m.slug);
+      return `${m.count}× ${lib ? `${lib.name} (HG ${crLabel(lib.cr)})` : m.slug}`;
+    })
+    .join(', ');
 }
 
 async function readEncounters(
@@ -102,13 +120,7 @@ async function readEncounters(
       files.map(async (filename) => {
         const content = await invoke<string>('read_file_content', { path: `${scopeDir}/encounters/${filename}` });
         const enc = JSON.parse(content);
-        const monsterList = (enc.monsters as Array<{ count: number; slug: string }>)
-          .map((m) => {
-            const lib = monsters.get(m.slug);
-            const label = lib ? `${lib.name} (HG ${crLabel(lib.cr)})` : m.slug;
-            return `${m.count}× ${label}`;
-          })
-          .join(', ');
+        const monsterList = formatMonsterList(enc.monsters, (slug) => monsters.get(slug));
         return {
           slug: filename.replace('.json', ''),
           actSlug,

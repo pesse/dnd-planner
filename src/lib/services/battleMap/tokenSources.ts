@@ -3,7 +3,6 @@ import { invoke } from '@tauri-apps/api/core';
 import { artUrl, availableArt } from '../../artUrl';
 import { monsterArtSlug, trapArtUrl } from '../../libraryArt';
 import type { Token, TokenKind } from '../../schemas/battleMap';
-import { encounterSchema } from '../../schemas/encounter';
 import type { Monster } from '../../types';
 import { newUid } from '../../utils/uid';
 import { normalizeCharacter } from '../../utils/schemaValidation';
@@ -138,16 +137,36 @@ export const trapDraft = (name: string, ref = ''): TokenDraft => ({
   color: KIND_COLOR.trap,
 });
 
-/** Monster sind zunächst versteckt — die SL deckt sie auf, wenn sie auftauchen. */
-export async function encounterDrafts(encounterPath: string, key: string): Promise<TokenDraft[]> {
-  const raw = await invoke<string>('read_file_content', { path: encounterPath });
-  const encounter = encounterSchema.parse(JSON.parse(raw));
+type EncounterMonsters = { monsters: ReadonlyArray<{ slug: string; count: number }> };
+
+/** Wie viele Monster je Eintrag noch nicht als Token des Encounters auf der Karte stehen. */
+export function missingMonsters(
+  encounter: EncounterMonsters,
+  placed: ReadonlyArray<Pick<Token, 'ref'>>,
+): { slug: string; already: number; missing: number }[] {
+  return encounter.monsters.map(({ slug, count }) => {
+    const already = placed.filter((t) => t.ref === slug).length;
+    return { slug, already, missing: Math.max(0, count - already) };
+  });
+}
+
+/**
+ * Nur was noch fehlt; die Nummern laufen hinter den gesetzten weiter.
+ * Monster sind zunächst versteckt — die SL deckt sie auf, wenn sie auftauchen.
+ */
+export async function encounterDrafts(
+  encounter: EncounterMonsters,
+  encounterPath: string,
+  key: string,
+  placed: ReadonlyArray<Pick<Token, 'ref'>> = [],
+): Promise<TokenDraft[]> {
   const drafts: TokenDraft[] = [];
-  for (const entry of encounter.monsters) {
+  for (const { slug, already, missing } of missingMonsters(encounter, placed)) {
+    if (!missing) continue;
     // Einzeln aufgelöst: `fetchEncounterMonsters` lässt Unauflösbare weg, die Zuordnung zum Eintrag ginge verloren.
-    const [monster] = await fetchEncounterMonsters(JSON.stringify({ monsters: [entry] }), encounterPath);
+    const [monster] = await fetchEncounterMonsters(JSON.stringify({ monsters: [{ slug }] }), encounterPath);
     if (!monster) continue;
-    for (const name of numberedNames(monster.name, entry.count)) drafts.push(monsterDraft(monster, entry.slug, name, key));
+    for (const name of numberedNames(monster.name, already + missing).slice(already)) drafts.push(monsterDraft(monster, slug, name, key));
   }
   return drafts;
 }

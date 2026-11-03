@@ -1,14 +1,15 @@
 <script lang="ts">
-  /** Ein Encounter im Cockpit: Vorlesetext, Beschreibung, SL-Notizen und seine Tokens auf der Karte. */
+  /** Ein Encounter im Cockpit: in der Vorbereitung bearbeitbar, im Spiel Vorlesetext, Notizen und seine Tokens auf der Karte. */
   import type { Encounter } from '../../../schemas/encounter';
   import type { MapEditor } from '../../../services/battleMap/mapEditor.svelte';
-  import { encounterDrafts } from '../../../services/battleMap/tokenSources';
+  import { encounterDrafts, missingMonsters } from '../../../services/battleMap/tokenSources';
   import { encounterPath, loadEncounter } from '../../../services/battleMap/tokenDetails';
   import { rollMonsterInitiatives } from '../../../services/battleMap/initiative';
   import { pxToCell, type Point } from '../../../services/battleMap/geometry';
   import { cockpit } from '../../../services/battleMap/cockpitTab.svelte';
   import Markdown from '../../Markdown.svelte';
   import EyeIcon from '../../ui/EyeIcon.svelte';
+  import EncounterEditor from './EncounterEditor.svelte';
 
   let { editor, key, campaignDir, center }: { editor: MapEditor; key: string; campaignDir: string; center: () => Point } = $props();
 
@@ -19,6 +20,7 @@
   const path = $derived(encounterPath(campaignDir, key));
   const tokens = $derived(editor.map?.tokens.filter((t) => t.encounter === key) ?? []);
   const anyHidden = $derived(tokens.some((t) => t.hidden));
+  const missing = $derived(encounter ? missingMonsters(encounter, tokens).reduce((n, m) => n + m.missing, 0) : 0);
 
   $effect(() => {
     const p = path;
@@ -46,7 +48,7 @@
     busy = true;
     try {
       const at = pxToCell(editor.map!.grid, center());
-      editor.addTokens(await encounterDrafts(path, key), at);
+      editor.addTokens(await encounterDrafts(encounter!, path, key, tokens), at);
     } catch (e) {
       editor.error = String(e);
     } finally {
@@ -55,7 +57,15 @@
   }
 </script>
 
-{#if encounter}
+{#if encounter && cockpit.tab === 'prep'}
+  {#key path}<EncounterEditor bind:encounter {key} {path} {editor} {center} />{/key}
+  {#if missing}
+    <p class="warn">
+      {missing} Monster dieses Encounters {missing === 1 ? 'steht' : 'stehen'} nicht auf der Karte.
+      <button class="place" disabled={busy} onclick={place}>{busy ? 'Wird gesetzt…' : 'Setzen'}</button>
+    </p>
+  {/if}
+{:else if encounter}
   <header>
     <h2>{encounter.name}</h2>
     <p class="meta">
@@ -70,39 +80,31 @@
     <section><h3>Worum es geht</h3><Markdown source={encounter.description} /></section>
   {/if}
 
-  {#if cockpit.tab === 'prep'}
-    <section>
-      <h3>Auf der Karte</h3>
-      <button class="place" disabled={busy} onclick={place}>{busy ? 'Wird gesetzt…' : 'Monster auf die Karte setzen'}</button>
-      {#if tokens.length}<p class="hint">Schon gesetzt: {tokens.length} Token{tokens.length === 1 ? '' : 's'} — zu sehen im Tab Spiel.</p>{/if}
-    </section>
-  {:else}
-    <section>
-      <h3>
-        Monster
-        {#if tokens.length}
-          <button class="bulk" disabled={busy} title="W20 + GES für alle Monster dieses Encounters ohne Initiative" onclick={rollInitiative}>🎲 Initiative</button>
-          <button class="bulk2" onclick={() => editor.setEncounterHidden(key, !anyHidden)}>
-            <EyeIcon closed={!anyHidden} /> {anyHidden ? 'Alle zeigen' : 'Alle verstecken'}
-          </button>
-        {/if}
-      </h3>
+  <section>
+    <h3>
+      Monster
       {#if tokens.length}
-        <ul>
-          {#each tokens as t (t.id)}
-            <li>
-              <button class="eye" title={t.hidden ? 'Für Spieler versteckt — zeigen' : 'Für Spieler sichtbar — verstecken'} onclick={() => editor.toggleHidden(t.id)}><EyeIcon closed={t.hidden} /></button>
-              <button class="link" class:dim={t.hidden} onclick={() => (editor.selectedId = t.id)}>{t.name}</button>
-              {#if t.initiative != null}<span class="tag">Ini {t.initiative}</span>{/if}
-              {#if t.hpMax != null && t.hp != null}<span class="tag" class:dead={t.hp === 0}>{t.hp === 0 ? 'besiegt' : `${t.hp}/${t.hpMax} TP`}</span>{/if}
-            </li>
-          {/each}
-        </ul>
-      {:else}
-        <p class="hint">Noch keine Monster dieses Encounters auf der Karte — sie werden im Tab Vorbereitung gesetzt.</p>
+        <button class="bulk" disabled={busy} title="W20 + GES für alle Monster dieses Encounters ohne Initiative" onclick={rollInitiative}>🎲 Initiative</button>
+        <button class="bulk2" onclick={() => editor.setEncounterHidden(key, !anyHidden)}>
+          <EyeIcon closed={!anyHidden} /> {anyHidden ? 'Alle zeigen' : 'Alle verstecken'}
+        </button>
       {/if}
-    </section>
-  {/if}
+    </h3>
+    {#if tokens.length}
+      <ul>
+        {#each tokens as t (t.id)}
+          <li>
+            <button class="eye" title={t.hidden ? 'Für Spieler versteckt — zeigen' : 'Für Spieler sichtbar — verstecken'} onclick={() => editor.toggleHidden(t.id)}><EyeIcon closed={t.hidden} /></button>
+            <button class="link" class:dim={t.hidden} onclick={() => (editor.selectedId = t.id)}>{t.name}</button>
+            {#if t.initiative != null}<span class="tag">Ini {t.initiative}</span>{/if}
+            {#if t.hpMax != null && t.hp != null}<span class="tag" class:dead={t.hp === 0}>{t.hp === 0 ? 'besiegt' : `${t.hp}/${t.hpMax} TP`}</span>{/if}
+          </li>
+        {/each}
+      </ul>
+    {:else}
+      <p class="hint">Noch keine Monster dieses Encounters auf der Karte — sie werden im Tab Vorbereitung gesetzt.</p>
+    {/if}
+  </section>
 
   {#if encounter.notes}
     <section><h3>SL-Notizen</h3><Markdown source={encounter.notes} /></section>
@@ -197,6 +199,17 @@
   }
   .link.dim {
     color: var(--ink-muted);
+  }
+  .warn {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0 1rem 1rem;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--danger);
+    border-radius: 4px;
+    font-size: 0.8rem;
+    color: var(--danger);
   }
   .place {
     width: 100%;

@@ -1,18 +1,11 @@
 <script lang="ts">
   /** Kartenbild, Raster, Nebel-Pinsel und Licht. */
   import type { MapEditor } from '../../services/battleMap/mapEditor.svelte';
-  import { actSummaries } from '../../stores/context';
   import PanelSection from './PanelSection.svelte';
 
-  let { editor, isTemplate }: { editor: MapEditor; isTemplate: boolean } = $props();
+  let { editor }: { editor: MapEditor } = $props();
 
   const map = $derived(editor.map!);
-
-  function toggleAct(act: string, on: boolean) {
-    editor.checkpoint();
-    map.acts = on ? [...map.acts, act] : map.acts.filter((a) => a !== act);
-    editor.changed();
-  }
 
   function num(e: Event): number {
     return Number((e.currentTarget as HTMLInputElement).value);
@@ -32,19 +25,6 @@
     </label>
   {/if}
 </PanelSection>
-
-{#if !isTemplate && $actSummaries.length}
-  <PanelSection title={`Akte (${map.acts.length})`} open={false}>
-    {#each $actSummaries as a (a.name)}
-      {@const last = map.acts.length === 1 && map.acts.includes(a.name)}
-      <label title={last ? 'Eine Karte gehört zu mindestens einem Akt' : undefined}>
-        <span>{a.title || a.name}</span>
-        <input type="checkbox" checked={map.acts.includes(a.name)} disabled={last} onchange={(e) => toggleAct(a.name, e.currentTarget.checked)} />
-      </label>
-    {/each}
-    <p class="hint">Encounter dieser Akte und der ganzen Kampagne stehen zur Auswahl.</p>
-  </PanelSection>
-{/if}
 
 <PanelSection title="Raster" open={false}>
   <label>
