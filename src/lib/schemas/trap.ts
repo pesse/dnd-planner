@@ -36,7 +36,7 @@ const trapTierSchema = z.object({
 export type TrapTier = z.infer<typeof trapTierSchema>;
 
 export const trapSchema = z.object({
-  key: z.string().describe('{source}_{slug(name)}, z.B. "dmg-2024_hidden-pit".'),
+  key: z.string().describe('{source}_{slug(name)}, z.B. "srd-2024_hidden-pit".'),
   source: sourceField(),
   name: z.string(),
   nameDe: z.string().optional(),

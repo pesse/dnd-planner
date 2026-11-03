@@ -54,7 +54,7 @@
       <input class="ef num-wide" bind:value={trap.levels} oninput={mark} placeholder="1–4" />
     </label>
     <label class="lbl-inline">Schlüssel
-      <input class="ef key-input" bind:value={trap.key} oninput={mark} placeholder="z.B. dmg-2024_hidden-pit" />
+      <input class="ef key-input" bind:value={trap.key} oninput={mark} placeholder="z.B. srd-2024_hidden-pit" />
     </label>
   {/snippet}
 </LibraryFormHeader>
