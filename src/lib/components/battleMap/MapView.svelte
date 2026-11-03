@@ -285,6 +285,21 @@
 </div>
 
 <style>
+  /* :where hält die Spezifität bei null — Komponenten-Styles der Felder gehen vor. */
+  :global(:where(.map-overlay) :where(input:not([type='color'], [type='range'], [type='checkbox']), select, textarea)) {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--ink);
+    font-family: inherit;
+    outline: none;
+  }
+  :global(:where(.map-overlay) :where(input, select, textarea):focus) {
+    border-color: var(--arcane);
+  }
+  :global(:where(.map-overlay) :where(input, textarea)::placeholder) {
+    color: var(--ink-muted);
+  }
   .map-overlay {
     position: fixed;
     inset: 0;
