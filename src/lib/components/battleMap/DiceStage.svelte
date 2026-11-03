@@ -6,7 +6,7 @@
 
   let { roll, empty, size = 52, children }: { roll: Roll | undefined; empty: string; size?: number; children?: Snippet } = $props();
 
-  const SOLIDS = [4, 6, 8, 10, 12, 20, 100];
+  const SOLIDS = [3, 4, 6, 8, 10, 12, 20, 100];
   /** Mehr Körper sind im Kasten nicht mehr zu lesen; dann zählt nur die Summe. */
   const MAX_SOLIDS = 20;
 
