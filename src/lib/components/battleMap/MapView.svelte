@@ -12,6 +12,7 @@
   import { interceptNavigation } from '../../services/entryPeek';
   import { campaignDirOf } from '../../services/battleMap/tokenDetails';
   import type { FileEntry } from '../../types';
+  import type { BattleMap } from '../../schemas/battleMap';
   import { navHistoryState } from '../../stores/navigationHistory';
   import { cockpit } from '../../services/battleMap/cockpitTab.svelte';
   import { MapEditor, type MapTool } from '../../services/battleMap/mapEditor.svelte';
@@ -27,6 +28,8 @@
   import { mapRefs } from './tips/mapRefs';
   import { diceTray } from '../../services/battleMap/diceTray.svelte';
   import MapDetailsPanel from './details/MapDetailsPanel.svelte';
+  import { isMapTemplatePath, mapFromTemplate, saveAsMapTemplate } from '../../services/battleMap/mapTemplates';
+  import { campaignTree } from '../sidebar/campaign/campaignTreeState.svelte';
 
   const editor = new MapEditor();
   let canvas = $state<MapCanvas>();
@@ -79,6 +82,36 @@
       await openPlayerWindow();
     } catch (e) {
       editor.error = `Spielerfenster konnte nicht geöffnet werden: ${e}`;
+    }
+  }
+
+  const isTemplate = $derived(isMapTemplatePath(editor.path));
+  let templateSaved = $state(false);
+
+  // Auch die Detailansichten fragen den Tab ab; an einer Vorlage wird nicht gespielt.
+  $effect(() => {
+    if (isTemplate) cockpit.tab = 'prep';
+  });
+
+  async function saveTemplate() {
+    try {
+      await editor.saver.flush();
+      await campaignTree.refreshSectionOf(await saveAsMapTemplate(editor.path, $state.snapshot(editor.map!) as BattleMap));
+      templateSaved = true;
+      setTimeout(() => (templateSaved = false), 3000);
+    } catch (e) {
+      editor.error = `Vorlage konnte nicht gespeichert werden: ${e}`;
+    }
+  }
+
+  async function mapFromThis() {
+    try {
+      await editor.saver.flush();
+      const path = await mapFromTemplate(editor.path, $state.snapshot(editor.map!) as BattleMap);
+      await campaignTree.refreshSectionOf(path);
+      await navigateTo({ name: editor.map!.name, path, type: 'map' }, { leavePeek: true });
+    } catch (e) {
+      editor.error = `Karte konnte nicht angelegt werden: ${e}`;
     }
   }
 
@@ -154,13 +187,23 @@
     <FileTitle label={editor.map?.name ?? $activeFile?.name ?? ''} />
     <div class="toolbar-sep"></div>
     <span class="save-state">{SAVE_LABEL[editor.saver.status]}</span>
-    <button onclick={openPlayer} title="Spielerfenster öffnen — auf Beamer oder Zweitmonitor ziehen">📺 Spielerfenster</button>
-    <button
-      disabled={!editor.map}
-      onclick={() => editor.setPlayerView(canvas?.visible() ?? null)}
-      title="Die Spieler sehen genau meinen aktuellen Ausschnitt — fein einstellen mit dem Werkzeug 📺 (S)"
-    >Meine Ansicht senden</button>
-    <button disabled={!editor.map} onclick={() => editor.setPlayerView(null)} title="Die Spieler sehen die ganze Karte">Ganze Karte</button>
+    {#if isTemplate}
+      <span class="template-badge">Vorlage</span>
+      <button disabled={!editor.map} onclick={mapFromThis} title="Legt unter „Karten“ eine neue Karte aus dieser Vorlage an">🗺 Karte daraus anlegen</button>
+    {:else}
+      <button
+        disabled={!editor.map}
+        onclick={saveTemplate}
+        title="Speichert die Karte unter „Kartenvorlagen“ — ohne Spieler-Charaktere, Monster versteckt und unverletzt, Nebel zu. Eine vorhandene Vorlage dieser Karte wird ersetzt."
+      >{templateSaved ? '✓ Vorlage gespeichert' : '📑 Als Vorlage speichern'}</button>
+      <button onclick={openPlayer} title="Spielerfenster öffnen — auf Beamer oder Zweitmonitor ziehen">📺 Spielerfenster</button>
+      <button
+        disabled={!editor.map}
+        onclick={() => editor.setPlayerView(canvas?.visible() ?? null)}
+        title="Die Spieler sehen genau meinen aktuellen Ausschnitt — fein einstellen mit dem Werkzeug 📺 (S)"
+      >Meine Ansicht senden</button>
+      <button disabled={!editor.map} onclick={() => editor.setPlayerView(null)} title="Die Spieler sehen die ganze Karte">Ganze Karte</button>
+    {/if}
     <button class="delete-entry" onclick={remove}>🗑 Löschen</button>
     <button onclick={close} title="Karte schließen">✕</button>
   </div>
@@ -212,16 +255,18 @@
       </div>
 
       <aside class="panel left" aria-label="Werkzeuge und Einstellungen">
-        <div class="tabs" role="tablist">
-          <button role="tab" aria-selected={cockpit.tab === 'prep'} onclick={() => (cockpit.tab = 'prep')}>Vorbereitung</button>
-          <button role="tab" aria-selected={cockpit.tab === 'play'} onclick={() => (cockpit.tab = 'play')}>Spiel</button>
-        </div>
-        <div class="tab" role="tabpanel" hidden={cockpit.tab !== 'prep'}>
+        {#if !isTemplate}
+          <div class="tabs" role="tablist">
+            <button role="tab" aria-selected={cockpit.tab === 'prep'} onclick={() => (cockpit.tab = 'prep')}>Vorbereitung</button>
+            <button role="tab" aria-selected={cockpit.tab === 'play'} onclick={() => (cockpit.tab = 'play')}>Spiel</button>
+          </div>
+        {/if}
+        <div class="tab" role="tabpanel" hidden={!isTemplate && cockpit.tab !== 'prep'}>
           <TokenPanel {editor} {center} />
           <TokenListPanel {editor} />
           <MapSettingsPanel {editor} />
         </div>
-        <div class="tab" role="tabpanel" hidden={cockpit.tab !== 'play'}>
+        <div class="tab" role="tabpanel" hidden={isTemplate || cockpit.tab !== 'play'}>
           <InitiativePanel {editor} campaignDir={campaignDirOf(editor.path)} />
           <TokenListPanel {editor} />
           <RulesPanel />
@@ -370,6 +415,13 @@
     flex-direction: column;
     min-height: 0;
     border-right: 1px solid var(--surface);
+  }
+  .template-badge {
+    padding: 0.05rem 0.5rem;
+    font-size: 0.75rem;
+    color: var(--gold);
+    border: 1px solid var(--gold);
+    border-radius: 999px;
   }
   .tabs {
     display: flex;

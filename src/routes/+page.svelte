@@ -137,7 +137,7 @@
       <CharacterSheet dirPath={$activeFile!.dirPath!} />
     {:else if catalog}
       <CatalogView kind={catalog.kind} group={catalog.group} />
-    {:else if $activeFile?.type === 'map'}
+    {:else if $activeFile?.type === 'map' || $activeFile?.type === 'mapTemplate'}
       <MapView />
     {:else if cardType}
       <CardHost type={cardType} />

@@ -4,6 +4,7 @@ import { OVERVIEW_ONLY, forgetToken, popDetail, pushDetail } from '../../src/lib
 import { adjustHp, campaignDirOf, encounterKeyOf, encounterPath, isBloodied } from '../../src/lib/services/battleMap/tokenDetails';
 import { shortName } from '../../src/lib/services/battleMap/tokenSources';
 import { toPlayerState } from '../../src/lib/services/battleMap/playerState';
+import { asMapTemplate, isMapTemplatePath } from '../../src/lib/services/battleMap/mapTemplates';
 import { advanceTurn, initiativeOrder, startCombat } from '../../src/lib/services/battleMap/initiative';
 
 const token = (id: string) => ({ kind: 'token', id }) as const;
@@ -127,5 +128,34 @@ describe('Beschriftung und Zustand eines Tokens', () => {
     expect(isBloodied({ hp: 35, hpMax: 68 })).toBe(false);
     expect(isBloodied({ hp: 0, hpMax: 68 })).toBe(false);
     expect(isBloodied({ hp: null, hpMax: null })).toBe(false);
+  });
+});
+
+describe('Karte als Vorlage', () => {
+  const map = battleMapSchema.parse({
+    name: 'Gruft',
+    tokens: [
+      { id: 'c', name: 'Ada Prüfling', kind: 'character', ref: 'abc', x: 1, y: 1, initiative: 17 },
+      { id: 'g', name: 'Goblin', kind: 'monster', x: 2, y: 1, hp: 2, hpMax: 7, conditions: ['prone'], initiative: 12, encounter: 'akt-1/goblins' },
+      { id: 'm', name: 'Falltür', kind: 'marker', x: 3, y: 3, hidden: true, note: 'Geheimgang' },
+    ],
+    fog: { enabled: true, ops: [{ shape: 'rect', mode: 'reveal', x: 0, y: 0, w: 5, h: 5 }] },
+    combat: { round: 3, turn: 'g' },
+  });
+
+  it('lässt Spieler-Charaktere und Spielgeschehen weg, Vorbereitung bleibt', () => {
+    const t = asMapTemplate(map);
+    expect(t.tokens.map((x) => x.id)).toEqual(['g', 'm']);
+    expect(t.tokens[0]).toMatchObject({ hp: 7, hpMax: 7, conditions: [], initiative: null, hidden: true, encounter: 'akt-1/goblins' });
+    expect(t.tokens[1]).toMatchObject({ hidden: true, note: 'Geheimgang' });
+    expect(t.fog).toEqual({ enabled: true, ops: [] });
+    expect(t.combat).toEqual({ round: 0, turn: '' });
+  });
+
+  it('löst Encounter auch aus einer Vorlage in derselben Kampagne auf', () => {
+    const path = './vault/campaigns/hellfire-club/map-templates/gruft.json';
+    expect(isMapTemplatePath(path)).toBe(true);
+    expect(isMapTemplatePath('./vault/campaigns/hellfire-club/maps/gruft.json')).toBe(false);
+    expect(campaignDirOf(path)).toBe('./vault/campaigns/hellfire-club');
   });
 });

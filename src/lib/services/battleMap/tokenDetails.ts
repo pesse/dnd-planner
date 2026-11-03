@@ -6,7 +6,7 @@ import type { FileEntry, Monster } from '../../types';
 import { CHARACTERS_PATH } from '../characterDirectory';
 import { fetchEncounterMonsters } from '../contextLoad';
 
-export const campaignDirOf = (mapPath: string): string => mapPath.replace(/\/maps\/[^/]+$/, '');
+export const campaignDirOf = (mapPath: string): string => mapPath.replace(/\/(maps|map-templates)\/[^/]+$/, '');
 
 /** `<akt>/<encounter>` — derselbe Schlüssel wie in `encounterSummaries`, unabhängig vom Kampagnenordner. */
 export const encounterPath = (campaignDir: string, key: string): string => {
