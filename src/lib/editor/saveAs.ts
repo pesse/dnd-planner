@@ -7,8 +7,6 @@ export interface SaveAsBucket {
 }
 
 export interface SaveAsRequest {
-  /** Fehlt → „Speichern unter". */
-  title?: string;
   /** Vorbelegter Name (noch nicht slugged). */
   name: string;
   /** Beschriftung des Bucket-Selektors ("Schule"/"Kategorie"/…). Fehlt → kein Selektor. */

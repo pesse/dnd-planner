@@ -33,7 +33,7 @@
 <svelte:window onkeydown={onKey} />
 
 {#if $saveAsPrompt}
-  <PromptDialog title={$saveAsPrompt.title ?? 'Speichern unter'} accent="var(--gold)" titleGap="1rem" onbackdrop={cancel}>
+  <PromptDialog title="Speichern unter" accent="var(--gold)" titleGap="1rem" onbackdrop={cancel}>
     <label class="field">
       <span>Name</span>
       <!-- svelte-ignore a11y_autofocus -->

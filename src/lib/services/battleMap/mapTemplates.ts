@@ -3,9 +3,8 @@ import { invoke } from '@tauri-apps/api/core';
 import type { BattleMap } from '../../schemas/battleMap';
 import { serializeBattleMap } from './mapFiles';
 import { confirmAction } from '../../stores/confirmDialog';
-import { openSaveAs } from '../../editor/saveAs';
 import { slugKeepUmlauts } from '../../utils/text';
-import type { Campaign } from '../../types';
+import type { MapPlacement } from './mapPlacement';
 import { campaignDirOf } from './tokenDetails';
 import { copyMapEncounters } from './mapEncounterCopy';
 
@@ -16,9 +15,10 @@ export const isMapTemplatePath = (path: string): boolean => path.includes(`/${MA
 const dirOf = (path: string): string => path.slice(0, path.lastIndexOf('/'));
 const baseOf = (path: string): string => path.slice(path.lastIndexOf('/') + 1).replace(/\.json$/, '');
 
-/** Spieler-Charaktere fliegen raus; Monster und Fallen stehen wieder versteckt und unverletzt bzw. scharf da, der Nebel ist zu. */
+/** Spieler-Charaktere fliegen raus; Monster und Fallen stehen wieder versteckt und unverletzt bzw. scharf da, der Nebel ist zu. Eine Vorlage gehört keinem Akt. */
 export const asMapTemplate = (map: BattleMap): BattleMap => ({
   ...map,
+  acts: [],
   tokens: map.tokens
     .filter((t) => t.kind !== 'character')
     .map((t) =>
@@ -45,12 +45,6 @@ async function writeMapCopy(srcPath: string, map: BattleMap, targetDir: string, 
   return path;
 }
 
-export interface MapPlacement {
-  name: string;
-  /** Ordnername der Kampagne unter `vault/campaigns`. */
-  campaign: string;
-}
-
 const campaignDir = (campaign: string): string => `./vault/campaigns/${campaign}`;
 const placeDir = (campaign: string, subdir: string): string => `${campaignDir(campaign)}/${subdir}`;
 
@@ -70,25 +64,13 @@ async function mayReplace(dir: string, base: string, what: string): Promise<bool
   });
 }
 
-/** Fragt Name und Ziel-Kampagne ab; null bei Abbruch. */
-export async function askMapPlacement(title: string, name: string, campaign: string, campaigns: Campaign[]): Promise<MapPlacement | null> {
-  const result = await openSaveAs({
-    title,
-    name,
-    bucketLabel: 'Kampagne',
-    buckets: campaigns.map((c) => ({ value: c.path, label: c.name })),
-    bucket: campaign,
-  });
-  return result?.bucket ? { name: result.name, campaign: result.bucket } : null;
-}
-
 /** @returns der neue Pfad, oder null, wenn der Nutzer das Überschreiben abgelehnt hat. */
 async function writePlaced(srcPath: string, map: BattleMap, to: MapPlacement, subdir: string, what: string): Promise<string | null> {
   const dir = placeDir(to.campaign, subdir);
   const base = slugKeepUmlauts(to.name);
   if (!base || !(await mayReplace(dir, base, what))) return null;
-  await copyMapEncounters(map, campaignDirOf(srcPath), campaignDir(to.campaign));
-  return writeMapCopy(srcPath, { ...map, name: to.name }, dir, base);
+  const placed = await copyMapEncounters(map, campaignDirOf(srcPath), campaignDir(to.campaign), to.act);
+  return writeMapCopy(srcPath, { ...placed, name: to.name, acts: to.act ? [to.act] : [] }, dir, base);
 }
 
 export const saveAsMapTemplate = (mapPath: string, map: BattleMap, to: MapPlacement): Promise<string | null> =>

@@ -1,8 +1,8 @@
-/** Zieht eine Karte in eine andere Kampagne, kommen ihre Encounter samt akt-eigener Monsterwerte mit. */
+/** Zieht eine Karte in eine andere Kampagne oder einen anderen Akt, kommen ihre Encounter samt eigener Monsterwerte mit. */
 import { invoke } from '@tauri-apps/api/core';
 import type { BattleMap } from '../../schemas/battleMap';
 import { extractActTitle } from '../../utils/actExtract';
-import { encounterPath } from './tokenDetails';
+import { encounterKey, encounterPath } from './tokenDetails';
 
 const baseOf = (path: string): string => path.slice(path.lastIndexOf('/') + 1).replace(/\.json$/, '');
 
@@ -37,22 +37,36 @@ async function copyMissing(from: string, to: string, taken: Set<string>): Promis
   if (content !== null) await invoke('write_file_content', { path: to, content });
 }
 
-/** `fromDir`/`toDir` sind Kampagnenordner (`./vault/campaigns/<kampagne>`). */
-export async function copyMapEncounters(map: Pick<BattleMap, 'tokens'>, fromDir: string, toDir: string): Promise<void> {
-  if (fromDir === toDir) return;
-  for (const key of encounterKeysOf(map)) {
-    const act = key.includes('/') ? key.split('/')[0] : '';
-    const source = await readOrNull(encounterPath(fromDir, key));
-    if (source === null) continue;
-    if (act) await ensureAct(fromDir, toDir, act);
-    const target = encounterPath(toDir, key);
-    await copyMissing(encounterPath(fromDir, key), target, await jsonBases(target.slice(0, target.lastIndexOf('/'))));
+const actOf = (key: string): string => (key.includes('/') ? key.split('/')[0] : '');
+const slugOf = (key: string): string => key.split('/').pop()!;
+const scopeDir = (campaignDir: string, act: string): string => (act ? `${campaignDir}/acts/${act}` : campaignDir);
 
-    const monsters = (JSON.parse(source) as { monsters?: { slug: string }[] }).monsters ?? [];
-    const monsterDir = (dir: string) => (act ? `${dir}/acts/${act}/monsters` : `${dir}/monsters`);
-    const taken = await jsonBases(monsterDir(toDir));
-    for (const { slug } of monsters) {
-      await copyMissing(`${monsterDir(fromDir)}/${slug}.json`, `${monsterDir(toDir)}/${slug}.json`, taken);
-    }
+async function copyEncounter(fromDir: string, fromKey: string, toDir: string, toKey: string): Promise<void> {
+  if (fromDir === toDir && fromKey === toKey) return;
+  const source = await readOrNull(encounterPath(fromDir, fromKey));
+  if (source === null) return;
+  const toAct = actOf(toKey);
+  if (toAct) await ensureAct(fromDir, toDir, toAct);
+  const target = encounterPath(toDir, toKey);
+  await copyMissing(encounterPath(fromDir, fromKey), target, await jsonBases(target.slice(0, target.lastIndexOf('/'))));
+
+  const monsters = (JSON.parse(source) as { monsters?: { slug: string }[] }).monsters ?? [];
+  const from = `${scopeDir(fromDir, actOf(fromKey))}/monsters`;
+  const to = `${scopeDir(toDir, toAct)}/monsters`;
+  const taken = await jsonBases(to);
+  for (const { slug } of monsters) await copyMissing(`${from}/${slug}.json`, `${to}/${slug}.json`, taken);
+}
+
+/**
+ * `fromDir`/`toDir` sind Kampagnenordner (`./vault/campaigns/<kampagne>`). Mit `act` ziehen
+ * Encounter fremder Akte in diesen Akt um, und die Tokens zeigen danach dorthin.
+ */
+export async function copyMapEncounters<M extends Pick<BattleMap, 'tokens'>>(map: M, fromDir: string, toDir: string, act = ''): Promise<M> {
+  const moved = new Map<string, string>();
+  for (const key of encounterKeysOf(map)) {
+    const toKey = act && actOf(key) && actOf(key) !== act ? encounterKey(act, slugOf(key)) : key;
+    await copyEncounter(fromDir, key, toDir, toKey);
+    moved.set(key, toKey);
   }
+  return { ...map, tokens: map.tokens.map((t) => (t.encounter ? { ...t, encounter: moved.get(t.encounter) ?? t.encounter } : t)) };
 }

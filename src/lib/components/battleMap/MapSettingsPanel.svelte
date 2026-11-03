@@ -4,7 +4,7 @@
   import { actSummaries } from '../../stores/context';
   import PanelSection from './PanelSection.svelte';
 
-  let { editor }: { editor: MapEditor } = $props();
+  let { editor, isTemplate }: { editor: MapEditor; isTemplate: boolean } = $props();
 
   const map = $derived(editor.map!);
 
@@ -33,15 +33,16 @@
   {/if}
 </PanelSection>
 
-{#if $actSummaries.length > 1}
-  <PanelSection title={map.acts.length ? `Akte (${map.acts.length})` : 'Akte'} open={false}>
+{#if !isTemplate && $actSummaries.length}
+  <PanelSection title={`Akte (${map.acts.length})`} open={false}>
     {#each $actSummaries as a (a.name)}
-      <label>
+      {@const last = map.acts.length === 1 && map.acts.includes(a.name)}
+      <label title={last ? 'Eine Karte gehört zu mindestens einem Akt' : undefined}>
         <span>{a.title || a.name}</span>
-        <input type="checkbox" checked={map.acts.includes(a.name)} onchange={(e) => toggleAct(a.name, e.currentTarget.checked)} />
+        <input type="checkbox" checked={map.acts.includes(a.name)} disabled={last} onchange={(e) => toggleAct(a.name, e.currentTarget.checked)} />
       </label>
     {/each}
-    <p class="hint">Nur Encounter dieser Akte stehen zur Auswahl. Keiner gewählt: alle.</p>
+    <p class="hint">Encounter dieser Akte und der ganzen Kampagne stehen zur Auswahl.</p>
   </PanelSection>
 {/if}
 

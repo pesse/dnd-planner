@@ -21,6 +21,7 @@
   import TokenPanel from './TokenPanel.svelte';
   import TokenListPanel from './TokenListPanel.svelte';
   import MapSettingsPanel from './MapSettingsPanel.svelte';
+  import MapActBanner from './MapActBanner.svelte';
   import InitiativePanel from './InitiativePanel.svelte';
   import RulesPanel from './RulesPanel.svelte';
   import DiceTray from './DiceTray.svelte';
@@ -29,7 +30,9 @@
   import { diceTray } from '../../services/battleMap/diceTray.svelte';
   import { shareDice } from '../../services/battleMap/diceShare.svelte';
   import MapDetailsPanel from './details/MapDetailsPanel.svelte';
-  import { askMapPlacement, isMapTemplatePath, mapFromTemplate, renameMap, saveAsMapTemplate, type MapPlacement } from '../../services/battleMap/mapTemplates';
+  import { isMapTemplatePath, mapFromTemplate, renameMap, saveAsMapTemplate } from '../../services/battleMap/mapTemplates';
+  import { askMapPlacement, type MapPlacement } from '../../services/battleMap/mapPlacement';
+  import MapPlacementDialog from './MapPlacementDialog.svelte';
   import { campaignTree } from '../sidebar/campaign/campaignTreeState.svelte';
 
   const editor = new MapEditor();
@@ -95,15 +98,21 @@
     if (isTemplate) cockpit.tab = 'prep';
   });
 
-  async function askPlacement(title: string): Promise<MapPlacement | null> {
+  async function askPlacement(title: string, withAct: boolean): Promise<MapPlacement | null> {
     await editor.saver.flush();
     if (!campaignTree.campaigns.length) await campaignTree.loadCampaigns();
-    return askMapPlacement(title, editor.map!.name, campaignDirOf(editor.path).split('/').pop()!, campaignTree.campaigns);
+    return askMapPlacement({
+      title,
+      name: editor.map!.name,
+      campaign: campaignDirOf(editor.path).split('/').pop()!,
+      campaigns: campaignTree.campaigns,
+      withAct,
+    });
   }
 
   async function saveTemplate() {
     try {
-      const to = await askPlacement('Als Vorlage speichern');
+      const to = await askPlacement('Als Vorlage speichern', false);
       const path = to && (await saveAsMapTemplate(editor.path, $state.snapshot(editor.map!) as BattleMap, to));
       if (!path) return;
       await campaignTree.refreshSectionOf(path);
@@ -116,7 +125,7 @@
 
   async function mapFromThis() {
     try {
-      const to = await askPlacement('Karte aus Vorlage anlegen');
+      const to = await askPlacement('Karte aus Vorlage anlegen', true);
       const path = to && (await mapFromTemplate(editor.path, $state.snapshot(editor.map!) as BattleMap, to));
       if (!path) return;
       await campaignTree.refreshSectionOf(path);
@@ -209,13 +218,14 @@
 <!-- `main`: dort hängen die Werkzeugleisten-Regeln aus toolbar.css. -->
 <div class="main map-overlay" role="dialog" aria-modal="true" aria-label="Kampfkarte" use:mapRefs>
   <PinnedTips />
+  <MapPlacementDialog />
   <div class="toolbar">
     <FileTitle label={editor.map?.name ?? $activeFile?.name ?? ''} renamable={!!editor.map} onrename={rename} />
     <div class="toolbar-sep"></div>
     <span class="save-state">{SAVE_LABEL[editor.saver.status]}</span>
     {#if isTemplate}
       <span class="template-badge">Vorlage</span>
-      <button disabled={!editor.map} onclick={mapFromThis} title="Legt eine neue Karte aus dieser Vorlage an — Name und Kampagne wählst du im nächsten Schritt">🗺 Karte daraus anlegen</button>
+      <button disabled={!editor.map} onclick={mapFromThis} title="Legt eine neue Karte aus dieser Vorlage an — Name, Kampagne und Akt wählst du im nächsten Schritt">🗺 Karte daraus anlegen</button>
     {:else}
       <button
         disabled={!editor.map}
@@ -239,6 +249,10 @@
       {editor.error}
       <button onclick={() => (editor.error = '')}>✕</button>
     </div>
+  {/if}
+
+  {#if editor.map && !isTemplate && !editor.map.acts.length}
+    <MapActBanner {editor} />
   {/if}
 
   {#if editor.map}
@@ -290,7 +304,7 @@
         <div class="tab" role="tabpanel" hidden={!isTemplate && cockpit.tab !== 'prep'}>
           <TokenPanel {editor} {center} />
           <TokenListPanel {editor} />
-          <MapSettingsPanel {editor} />
+          <MapSettingsPanel {editor} {isTemplate} />
         </div>
         <div class="tab" role="tabpanel" hidden={isTemplate || cockpit.tab !== 'play'}>
           <InitiativePanel {editor} campaignDir={campaignDirOf(editor.path)} />
