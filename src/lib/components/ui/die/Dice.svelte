@@ -46,6 +46,8 @@
   let width = $state(0);
   let stage = $state.raw<{ renderer: THREE.WebGLRenderer; camera: THREE.Camera; scene: THREE.Scene } | null>(null);
   let models: DieModel[] = [];
+  /** Startzeit je Würfel des laufenden Wurfs — ein `landed`-Würfel rollt damit zu Ende statt zu springen. */
+  let starts: number[] = [];
 
   const pitch = $derived(size + gap);
   const cols = $derived(Math.max(1, Math.min(bodies.length, columns ?? Math.floor((width + gap) / pitch))));
@@ -116,9 +118,12 @@
     } else {
       const start = performance.now();
       const first = bodies.filter((d) => d.landed).length;
-      const end = start + Math.max(0, built.length - 1 - first) * STAGGER + ROLL_MS;
+      const prev = starts;
+      starts = bodies.map((d, i) => (d.landed ? (prev[i] ?? -Infinity) : start + (i - first) * STAGGER));
+      const end = Math.max(start, ...starts) + ROLL_MS;
+      const mine = starts;
       const step = (now: number) => {
-        built.forEach((m, i) => m.pose(bodies[i]?.landed ? ROLL_MS : now - start - (i - first) * STAGGER));
+        built.forEach((m, i) => m.pose(now - mine[i]));
         draw();
         if (now < end) frame = requestAnimationFrame(step);
         else untrack(() => onlanded?.());
