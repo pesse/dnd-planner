@@ -2,6 +2,7 @@
   /** Wurf in Arbeit und Lage der Box überdauern das Schließen der Box und der Karte. */
   let formula = $state('');
   let pos = $state<{ x: number; y: number } | null>(null);
+  let historyOpen = $state(false);
 </script>
 
 <script lang="ts">
@@ -131,6 +132,11 @@
     </div>
 
     {#if history.length > 1}
+      <button class="toggle" aria-expanded={historyOpen} onclick={() => (historyOpen = !historyOpen)}>
+        <span class="caret">▸</span> Verlauf ({history.length - 1})
+      </button>
+    {/if}
+    {#if history.length > 1 && historyOpen}
       <ol class="history">
         {#each history.slice(1) as r (r.id)}
           <li>
@@ -332,13 +338,33 @@
   input.invalid {
     border-color: var(--danger);
   }
+  .toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-top: 0.1rem;
+    padding: 0.25rem 0 0;
+    border: none;
+    border-top: 1px solid var(--border);
+    border-radius: 0;
+    background: none;
+    color: var(--ink-muted);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .caret {
+    transition: transform 0.15s;
+  }
+  .toggle[aria-expanded='true'] .caret {
+    transform: rotate(90deg);
+  }
   .history {
     list-style: none;
-    margin: 0.1rem 0 0;
-    padding: 0.3rem 0 0;
+    margin: 0;
+    padding: 0;
     max-height: 7.5rem;
     overflow-y: auto;
-    border-top: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     gap: 0.1rem;
