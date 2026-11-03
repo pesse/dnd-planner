@@ -82,7 +82,7 @@ export function mapRefs(node: HTMLElement) {
     if (!dice) return;
     e.preventDefault();
     e.stopPropagation();
-    rollNow(dice.formula);
+    rollNow(dice.formula, e.ctrlKey || e.metaKey);
   };
 
   const move = (e: MouseEvent) => {

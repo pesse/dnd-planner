@@ -72,7 +72,7 @@
         <dt>Schaden</dt>
         <dd>
           {damageDe(tier.damage)}
-          <button class="roll" title="{formula} würfeln" onclick={() => rollNow(formula)}>🎲</button>
+          <button class="roll" title="{formula} würfeln (Strg+Klick: zum letzten Wurf addieren)" onclick={(e) => rollNow(formula, e.ctrlKey || e.metaKey)}>🎲</button>
         </dd>
       {/if}
       {#if tier?.noteDe || tier?.note}<dt>Außerdem</dt><dd>{tier.noteDe || tier.note}</dd>{/if}

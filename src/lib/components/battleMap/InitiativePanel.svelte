@@ -56,7 +56,7 @@
       <div class="reminder" use:pinnableTip={badgeTip('burning')}>
         <img src={badgeIconUrl('burning')} alt="" />
         <span>Brand zu Zugbeginn</span>
-        <button title="Feuerschaden würfeln (1W4)" onclick={() => rollNow('1W4')}>🎲 1W4 Feuer</button>
+        <button title="Feuerschaden würfeln (1W4)" onclick={(e) => rollNow('1W4', e.ctrlKey || e.metaKey)}>🎲 1W4 Feuer</button>
         <button title="Brand entfernen" onclick={() => editor.toggleEffect(t.id, 'burning')}>gelöscht</button>
       </div>
     {/if}

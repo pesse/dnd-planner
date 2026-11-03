@@ -12,7 +12,8 @@
   import DiceStage from './DiceStage.svelte';
   import EyeIcon from '../ui/EyeIcon.svelte';
   import { diceLog, logRoll, type Roll } from '../../services/battleMap/diceLog.svelte';
-  import { critOf, diceTray, rollFormula } from '../../services/battleMap/diceTray.svelte';
+  import { diceTray, rollFormula } from '../../services/battleMap/diceTray.svelte';
+  import { critOf } from '../../services/battleMap/rollMath';
   import type { MapEditor } from '../../services/battleMap/mapEditor.svelte';
   import { hpAfter } from '../../services/battleMap/tokenDetails';
 
