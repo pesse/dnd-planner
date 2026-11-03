@@ -115,6 +115,10 @@ export function attackLine(attack: MonsterAttack): string {
   return damage ? `${head}: ${damage}` : head;
 }
 
+/** Die Zahlenzeile ist nur Ersatz für fehlende Prosa — `desc` nennt dieselben Werte schon. */
+export const attacksWithoutProse = (action: MonsterAction): MonsterAttack[] =>
+  action.desc.trim() ? [] : action.attacks;
+
 /** „Aufladung 5–6", „3/Tag" — das Suffix hinter dem Aktionsnamen. */
 export function usageLimitLabel(limits: Monster['actions'][number]['usage_limits']): string {
   if (!limits) return '';

@@ -5,7 +5,7 @@ import { RULE_TEXT_PRINT_CSS } from './printCss';
 import { mod } from '../domain/skills';
 import { ABILITY_ABBR_DE, ABILITY_KEYS } from '../schemas/abilities';
 import {
-  actionGroups, actionTitle, attackLine, conditionLine, crLabel, damageLine, languagesLine,
+  actionGroups, actionTitle, attackLine, attacksWithoutProse, conditionLine, crLabel, damageLine, languagesLine,
   savesLine, sensesLine, skillsLine, speedLine,
 } from '../services/monsterFormat';
 import { sign } from './num';
@@ -57,7 +57,7 @@ function renderStatBlock(pm: PrintMonster): string {
           entry(
             actionTitle(a),
             a.desc,
-            a.attacks.map((at) => `<div class="sb-attack">${esc(at.name)}: ${esc(attackLine(at))}</div>`).join(''),
+            attacksWithoutProse(a).map((at) => `<div class="sb-attack">${esc(at.name)}: ${esc(attackLine(at))}</div>`).join(''),
           ),
         )
         .join('');

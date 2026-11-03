@@ -4,7 +4,7 @@
   import { modStr } from '../domain/skills';
   import { ABILITY_ABBR_DE, ABILITY_KEYS } from '../schemas/abilities';
   import {
-    actionGroups, actionTitle, attackLine, conditionLine, crLabel, damageLine, languagesLine,
+    actionGroups, actionTitle, attackLine, attacksWithoutProse, conditionLine, crLabel, damageLine, languagesLine,
     savesLine, sensesLine, skillsLine, speedLine,
   } from '../services/monsterFormat';
   import Markdown from './Markdown.svelte';
@@ -89,7 +89,7 @@
       <div class="sb-action">
         <span class="sb-action-name">{actionTitle(a)}.</span>
         <Markdown source={a.desc} inline />
-        {#each a.attacks as attack}
+        {#each attacksWithoutProse(a) as attack}
           <div class="sb-attack">{attack.name}: {attackLine(attack)}</div>
         {/each}
       </div>
