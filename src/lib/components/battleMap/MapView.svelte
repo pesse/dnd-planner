@@ -80,6 +80,21 @@
     else await navigateHome();
   }
 
+  /** Maus-Zurück und Alt+← blättern im Detailbereich; die Karte verlässt man nur über ✕ — sonst endet ein Fehlklick mitten in der Session. */
+  function onhistorymouse(e: MouseEvent) {
+    if (e.button !== 3 && e.button !== 4) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.button === 3) editor.details.back();
+  }
+
+  function onhistorykey(e: KeyboardEvent) {
+    if (!e.altKey || e.ctrlKey || e.metaKey || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.key === 'ArrowLeft') editor.details.back();
+  }
+
   function onkeydown(e: KeyboardEvent) {
     const el = e.target as HTMLElement;
     if (el.closest('input, select, textarea, [contenteditable]')) return;
@@ -112,7 +127,7 @@
   }
 </script>
 
-<svelte:window {onkeydown} />
+<svelte:window {onkeydown} onkeydowncapture={onhistorykey} onmousedowncapture={onhistorymouse} />
 
 <!-- `main`: dort hängen die Werkzeugleisten-Regeln aus toolbar.css. -->
 <div class="main map-overlay" role="dialog" aria-modal="true" aria-label="Kampfkarte">
