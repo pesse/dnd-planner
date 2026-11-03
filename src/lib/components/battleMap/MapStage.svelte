@@ -120,7 +120,7 @@
       class:grab={mode === 'gm' || t.movable}
       data-token-id={t.id}
       style="left: {grid.offsetX + t.x * grid.size}px; top: {grid.offsetY + t.y * grid.size}px; width: {px}px; height: {px}px; --tc: {t.color}; --tb: {Math.max(2, px / 22)}px;"
-      title={t.name}
+      title={tips ? undefined : t.name}
     >
       {#if t.imageUrl && !brokenImages[t.id]}
         <img src={t.imageUrl} alt="" draggable="false" onerror={() => (brokenImages[t.id] = true)} />
