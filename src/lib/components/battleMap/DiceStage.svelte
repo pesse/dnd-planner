@@ -12,6 +12,15 @@
 
   /** Die Summe verrät den Wurf — sie erscheint erst, wenn die Würfel liegen. */
   let landedId = $state<number | null>(null);
+  /** Meldet der Würfelkasten nie (kein WebGL), steht die Summe trotzdem da. */
+  const LANDED_FALLBACK_MS = 4000;
+
+  $effect(() => {
+    const id = roll?.id;
+    if (id == null) return;
+    const timer = setTimeout(() => (landedId = id), LANDED_FALLBACK_MS);
+    return () => clearTimeout(timer);
+  });
 
   const solid = $derived(roll && roll.dice.every((d) => SOLIDS.includes(d.sides)) && roll.dice.length <= MAX_SOLIDS);
 </script>
