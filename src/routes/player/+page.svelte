@@ -1,8 +1,9 @@
 <script lang="ts">
-  /** Spieleransicht: zeigt nur, was die SL freigibt; Charaktere lassen sich ziehen. Doppelklick schaltet Vollbild. */
+  /** Spieleransicht: zeigt nur, was die SL freigibt; Charaktere lassen sich ziehen und antippen. Doppelklick schaltet Vollbild. */
   import { onMount } from 'svelte';
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import MapStage from '$lib/components/battleMap/MapStage.svelte';
+  import PlayerBadgeMenu from '$lib/components/battleMap/PlayerBadgeMenu.svelte';
   import { onGmMessage, sendToGm } from '$lib/services/battleMap/channel';
   import { hpPops, popHp } from '$lib/services/battleMap/hpPops.svelte';
   import { fitRect, pxToCell, snapCell, toImage, type Camera, type Point } from '$lib/services/battleMap/geometry';
@@ -15,7 +16,8 @@
   let img = $state({ w: 0, h: 0 });
   let idle = $state(false);
   let idleTimer: ReturnType<typeof setTimeout> | undefined;
-  let drag = $state<{ id: string; grab: Point; at: Point } | null>(null);
+  let drag = $state<{ id: string; grab: Point; at: Point; moved: boolean } | null>(null);
+  let menuId = $state<string | null>(null);
 
   function wake() {
     idle = false;
@@ -34,16 +36,29 @@
     (shown?.tokens ?? []).map((t) => (drag?.id === t.id ? { ...t, ...drag.at } : t)),
   );
 
+  const MENU = { w: 448, h: 320 };
+  const menuToken = $derived(shown?.tokens.find((t) => t.id === menuId) ?? null);
+  const menuAt = $derived.by(() => {
+    if (!menuToken || !shown) return { left: 0, top: 0 };
+    const g = shown.grid;
+    const x0 = camera.tx + (g.offsetX + menuToken.x * g.size) * camera.zoom;
+    const x1 = camera.tx + (g.offsetX + (menuToken.x + menuToken.size) * g.size) * camera.zoom;
+    const top = camera.ty + (g.offsetY + menuToken.y * g.size) * camera.zoom;
+    const left = x1 + 8 + MENU.w <= vw ? x1 + 8 : x0 - 8 - MENU.w;
+    return { left: Math.max(8, Math.min(left, vw - MENU.w - 8)), top: Math.max(8, Math.min(top, vh - MENU.h - 8)) };
+  });
+
   const cellAt = (e: PointerEvent) => pxToCell(shown!.grid, toImage(camera, { x: e.clientX, y: e.clientY }));
 
   function onpointerdown(e: PointerEvent) {
     e.preventDefault();
+    menuId = null;
     const id = (e.target as Element).closest<HTMLElement>('[data-token-id]')?.dataset.tokenId;
     const t = shown?.tokens.find((x) => x.id === id);
     if (!t?.movable || e.button !== 0) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     const c = cellAt(e);
-    drag = { id: t.id, grab: { x: c.x - t.x, y: c.y - t.y }, at: { x: t.x, y: t.y } };
+    drag = { id: t.id, grab: { x: c.x - t.x, y: c.y - t.y }, at: { x: t.x, y: t.y }, moved: false };
   }
 
   function onpointermove(e: PointerEvent) {
@@ -52,7 +67,10 @@
     const t = shown.tokens.find((x) => x.id === drag!.id);
     if (!t) return;
     const c = cellAt(e);
-    drag.at = clampToView(shown.grid, view, t.size, { x: c.x - drag.grab.x, y: c.y - drag.grab.y });
+    const at = clampToView(shown.grid, view, t.size, { x: c.x - drag.grab.x, y: c.y - drag.grab.y });
+    if (Math.hypot(at.x - t.x, at.y - t.y) < 0.15 && !drag.moved) return;
+    drag.moved = true;
+    drag.at = at;
     sendToGm({ type: 'move', id: t.id, ...drag.at, done: false });
   }
 
@@ -61,6 +79,10 @@
     drag = null;
     const t = d && shown?.tokens.find((x) => x.id === d.id);
     if (!d || !t) return;
+    if (!d.moved) {
+      menuId = t.id;
+      return;
+    }
     const x = snapCell(d.at.x, t.size);
     const y = snapCell(d.at.y, t.size);
     t.x = x;
@@ -118,6 +140,15 @@
       pops={hpPops.list}
       onimagesize={(w, h) => (img = { w, h })}
     />
+    {#if menuToken}
+      <PlayerBadgeMenu
+        name={menuToken.name}
+        active={menuToken}
+        {...menuAt}
+        ontoggle={(badge) => sendToGm({ type: 'badge', id: menuToken.id, badge })}
+        onclose={() => (menuId = null)}
+      />
+    {/if}
     {#if img.w}
       <!-- Was neben dem Ausschnitt noch ins Fenster passt, bleibt den Spielern verborgen. -->
       <div

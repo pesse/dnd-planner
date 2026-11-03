@@ -3,8 +3,8 @@
  * Frame an das Spielerfenster; `checkpoint()` vor einer Änderung macht sie rückgängig-fähig.
  */
 import { popHp } from './hpPops.svelte';
-import type { BattleMap, FogOp, Light, Token, TokenEffect, ViewRect } from '../../schemas/battleMap';
-import type { Condition } from '../../schemas/vocabulary';
+import { TOKEN_EFFECT_KEYS, type BattleMap, type FogOp, type Light, type Token, type TokenEffect, type ViewRect } from '../../schemas/battleMap';
+import { CONDITION_KEYS, type Condition } from '../../schemas/vocabulary';
 import { AutosaveFile } from '../../utils/autosaveFile.svelte';
 import { newUid } from '../../utils/uid';
 import { onPlayerMessage, sendToPlayer, type ToGm } from './channel';
@@ -15,6 +15,8 @@ import { loadBattleMap, mapImageUrl, pickMapImage, serializeBattleMap } from './
 import { toPlayerState } from './playerState';
 import { occupiedCells, placeDrafts, resolveTokenImage, type TokenDraft } from './tokenSources';
 
+const isTokenEffect = (b: string): b is TokenEffect => (TOKEN_EFFECT_KEYS as readonly string[]).includes(b);
+const isCondition = (b: string): b is Condition => (CONDITION_KEYS as readonly string[]).includes(b);
 const toggled = <T>(list: T[], v: T): T[] => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
 export type MapTool = 'select' | 'view' | 'reveal-rect' | 'reveal-brush' | 'cover-rect' | 'cover-brush' | 'light' | 'ruler' | 'grid';
@@ -43,6 +45,7 @@ export class MapEditor {
     this.#unlisten = onPlayerMessage((msg) => {
       if (msg.type === 'hello') this.#broadcastNow();
       else if (msg.type === 'move') this.#playerMove(msg);
+      else if (msg.type === 'badge') this.#playerBadge(msg);
     });
   }
 
@@ -141,6 +144,13 @@ export class MapEditor {
     const x = msg.done ? snapCell(msg.x, t.size) : msg.x;
     const y = msg.done ? snapCell(msg.y, t.size) : msg.y;
     this.updateToken(t.id, { x, y });
+  }
+
+  #playerBadge(msg: Extract<ToGm, { type: 'badge' }>): void {
+    const t = this.map?.tokens.find((x) => x.id === msg.id);
+    if (!t || t.kind !== 'character' || t.hidden) return;
+    if (isTokenEffect(msg.badge)) this.toggleEffect(t.id, msg.badge);
+    else if (isCondition(msg.badge)) this.toggleCondition(t.id, msg.badge);
   }
 
   #broadcastNow(): void {

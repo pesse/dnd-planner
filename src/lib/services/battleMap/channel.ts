@@ -1,15 +1,19 @@
 /**
  * Draht zwischen SL- und Spielerfenster: Tauri-Events in der App, `BroadcastChannel` im
- * Browser-Dev. Die SL sendet Zustand; das Spielerfenster fragt ihn mit `hello` an und meldet
- * gezogene Tokens (`done` beim Loslassen).
+ * Browser-Dev. Die SL sendet Zustand; das Spielerfenster fragt ihn mit `hello` an, meldet
+ * gezogene Tokens (`done` beim Loslassen) und schaltet Zustände seiner Charaktere um.
  */
 import { emit, listen } from '@tauri-apps/api/event';
 import { isTauri } from '../httpFetch';
 import type { PlayerState } from './playerState';
+import type { Badge } from '../../conditionIcon';
 
 /** `hp`: nur die Änderung als aufsteigende Zahl — Spieler führen die TP ihrer Charaktere selbst. */
 export type ToPlayer = { type: 'state'; state: PlayerState } | { type: 'hp'; id: string; delta: number };
-export type ToGm = { type: 'hello' } | { type: 'move'; id: string; x: number; y: number; done: boolean };
+export type ToGm =
+  | { type: 'hello' }
+  | { type: 'move'; id: string; x: number; y: number; done: boolean }
+  | { type: 'badge'; id: string; badge: Badge };
 
 const TO_PLAYER = 'battlemap-to-player';
 const TO_GM = 'battlemap-to-gm';
