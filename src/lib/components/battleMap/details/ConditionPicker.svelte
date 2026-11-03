@@ -1,20 +1,30 @@
 <script lang="ts">
-  /** Zustände eines Tokens zum An- und Abschalten; aktive zuerst, der Rest eingeklappt. */
-  import { CONDITIONS, CONDITION_KEYS } from '../../../schemas/vocabulary';
+  /** Zustände eines Tokens: aktive als abwählbare Chips, weitere über ein Auswahlmenü. */
+  import { CONDITIONS, CONDITION_KEYS, type Condition } from '../../../schemas/vocabulary';
   import type { Token } from '../../../schemas/battleMap';
   import type { MapEditor } from '../../../services/battleMap/mapEditor.svelte';
 
   let { editor, token: t }: { editor: MapEditor; token: Token } = $props();
 
-  let open = $state(false);
-  const shown = $derived(open ? CONDITION_KEYS : t.conditions);
+  const rest = $derived(CONDITION_KEYS.filter((c) => !t.conditions.includes(c)));
+
+  function add(e: Event) {
+    const select = e.currentTarget as HTMLSelectElement;
+    if (select.value) editor.toggleCondition(t.id, select.value as Condition);
+    select.value = '';
+  }
 </script>
 
 <div class="conditions">
-  {#each shown as c (c)}
-    <button class:on={t.conditions.includes(c)} onclick={() => editor.toggleCondition(t.id, c)}>{CONDITIONS[c]}</button>
+  {#each t.conditions as c (c)}
+    <button class="on" title="Zustand entfernen" onclick={() => editor.toggleCondition(t.id, c)}>{CONDITIONS[c]} ✕</button>
   {/each}
-  <button class="more" onclick={() => (open = !open)}>{open ? 'Fertig' : t.conditions.length ? '+ Zustand' : '+ Zustand hinzufügen'}</button>
+  {#if rest.length}
+    <select class="more" aria-label="Zustand hinzufügen" onchange={add}>
+      <option value="">{t.conditions.length ? '+ Zustand' : '+ Zustand hinzufügen'}</option>
+      {#each rest as c (c)}<option value={c}>{CONDITIONS[c]}</option>{/each}
+    </select>
+  {/if}
 </div>
 
 <style>
@@ -23,22 +33,26 @@
     flex-wrap: wrap;
     gap: 0.25rem;
   }
-  button {
+  button,
+  select {
     padding: 0.1rem 0.5rem;
     font-size: 0.75rem;
-    background: var(--bg-raised);
-    border: 1px solid var(--border);
     border-radius: 999px;
-    color: var(--ink-soft);
     cursor: pointer;
   }
   button.on {
     background: #5a1e6e;
-    border-color: #5a1e6e;
+    border: 1px solid #5a1e6e;
     color: #fff;
   }
   .more {
-    border-style: dashed;
+    appearance: none;
+    background: var(--bg-raised);
+    border: 1px dashed var(--border);
     color: var(--ink-muted);
+  }
+  .more option {
+    color: var(--ink);
+    background: var(--bg-panel);
   }
 </style>
