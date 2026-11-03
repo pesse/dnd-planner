@@ -14,7 +14,7 @@ import { slugKeepUmlauts, slugToName } from '../../../utils/text';
 import { npcSchema } from '../../../schemas/npc';
 import { DOCUMENT_TEMPLATES } from '../../../templates';
 import { newBattleMap, serializeBattleMap } from '../../../services/battleMap/mapFiles';
-import { instantiateCampaignTemplate, type CampaignTemplateRef } from '../../../services/templates/templates';
+import { instantiateCampaignTemplate, type CampaignTemplateOptions, type CampaignTemplateRef } from '../../../services/templates/templates';
 import { MAP_TEMPLATES_SUBDIR } from '../../../services/battleMap/mapTemplates';
 
 interface EntryInfo { name: string; is_dir: boolean; }
@@ -97,9 +97,9 @@ export class CampaignTreeState {
   }
 
   /** @returns false, wenn das Kopieren scheitert. */
-  async createFromTemplate(template: CampaignTemplateRef, characters: string[]): Promise<boolean> {
+  async createFromTemplate(template: CampaignTemplateRef, options: CampaignTemplateOptions): Promise<boolean> {
     try {
-      await this.openCreated(await instantiateCampaignTemplate(template, characters));
+      await this.openCreated(await instantiateCampaignTemplate(template, options));
       return true;
     } catch (err) {
       console.error('Kampagne konnte nicht aus der Vorlage erstellt werden:', err);

@@ -7,12 +7,15 @@ import { campaignTemplateSchema, type CampaignTemplate } from '../../schemas/tem
 import { CHARACTERS_PATH, freshCharacterUid } from '../characterDirectory';
 import { replaceFrontmatterCharacters } from '../../utils/frontmatter';
 import { characterAssetSrc } from '../characterSideFiles.svelte';
+import type { CampaignProgress } from '../../schemas/campaignProgress';
+import { setChapterCompleted, writeProgress } from './chapters';
 
 const TEMPLATES_PATH = './vault/templates';
 const CAMPAIGN_TEMPLATES = `${TEMPLATES_PATH}/campaigns`;
 const CHARACTER_TEMPLATES = `${TEMPLATES_PATH}/characters`;
 const CAMPAIGNS_PATH = './vault/campaigns';
 const MANIFEST = 'template.json';
+const LEVELS = 'levels';
 
 export interface CampaignTemplateRef extends CampaignTemplate {
   id: string;
@@ -104,14 +107,19 @@ export async function listCharacterTemplates(): Promise<CharacterTemplateRef[]> 
     .sort((a, b) => a.campaign.localeCompare(b.campaign, 'de') || a.name.localeCompare(b.name, 'de'));
 }
 
-/** Kopiert eine Charakter-Vorlage in einen neuen UID-Ordner und liefert die UID. */
-export async function instantiateCharacterTemplate(id: string): Promise<string> {
+/**
+ * Kopiert eine Charakter-Vorlage in einen neuen UID-Ordner und liefert die UID. Eine Stufe über 1
+ * nimmt `levels/<stufe>.json`, sofern die Vorlage sie führt — sonst bleibt es bei Stufe 1.
+ */
+export async function instantiateCharacterTemplate(id: string, level = 1): Promise<string> {
   const uid = await freshCharacterUid();
   const dir = `${CHARACTERS_PATH}/${uid}`;
   await invoke('copy_dir', { from: `${CHARACTER_TEMPLATES}/${id}`, to: dir });
   const path = `${dir}/character.json`;
-  const json = JSON.parse(await invoke<string>('read_file_content', { path }));
-  await invoke('write_file_content', { path, content: JSON.stringify({ ...json, uid }, null, 2) });
+  const read = (p: string) => invoke<string>('read_file_content', { path: p });
+  const raw = level > 1 ? await read(`${dir}/${LEVELS}/${level}.json`).catch(() => read(path)) : await read(path);
+  await invoke('write_file_content', { path, content: JSON.stringify({ ...JSON.parse(raw), uid }, null, 2) });
+  await invoke('delete_path', { path: `${dir}/${LEVELS}` }).catch(() => {});
   return uid;
 }
 
@@ -123,17 +131,32 @@ export function freeName(base: string, taken: Set<string>): string {
   return `${base}-${n}`;
 }
 
-/**
- * Legt die Kampagne an und liefert ihren Ordnernamen. `characters` sind Charakter-Vorlagen,
- * in der Reihenfolge, in der sie in der Kampagne stehen sollen.
- */
-export async function instantiateCampaignTemplate(template: CampaignTemplateRef, characters: string[]): Promise<string> {
+export interface CampaignTemplateOptions {
+  /** Charakter-Vorlagen, in der Reihenfolge, in der sie in der Kampagne stehen sollen. */
+  characters: string[];
+  /**
+   * `id` des Abenteuers, mit dem die Gruppe einsteigt: Es bestimmt die Stufe der Figuren, und
+   * die Abenteuer davor gelten als abgeschlossen. Fehlt es, beginnt sie beim ersten.
+   */
+  startChapter?: string;
+}
+
+/** Legt die Kampagne an und liefert ihren Ordnernamen. */
+export async function instantiateCampaignTemplate(template: CampaignTemplateRef, options: CampaignTemplateOptions): Promise<string> {
   const slug = freeName(template.id, new Set(await subdirs(CAMPAIGNS_PATH)));
   const dir = `${CAMPAIGNS_PATH}/${slug}`;
   await invoke('copy_dir', { from: `${CAMPAIGN_TEMPLATES}/${template.id}`, to: dir });
   await invoke('delete_path', { path: `${dir}/${MANIFEST}` });
 
-  const uids = await Promise.all(characters.map(instantiateCharacterTemplate));
+  const start = Math.max(0, template.chapters.findIndex((c) => c.id === options.startChapter));
+  const level = template.chapters[start]?.level ?? 1;
+  if (template.chapters.length) {
+    let progress: CampaignProgress = { template: template.id, completed: [] };
+    await writeProgress(slug, progress);
+    for (const chapter of template.chapters.slice(0, start)) progress = await setChapterCompleted(slug, progress, chapter.id, true);
+  }
+
+  const uids = await Promise.all(options.characters.map((id) => instantiateCharacterTemplate(id, level)));
   const campaignMd = `${dir}/campaign.md`;
   const md = await invoke<string>('read_file_content', { path: campaignMd });
   await invoke('write_file_content', { path: campaignMd, content: replaceFrontmatterCharacters(md, uids) });

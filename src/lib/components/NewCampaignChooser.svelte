@@ -2,12 +2,13 @@
   /** Der Einstieg zu „Neue Kampagne": leer mit eigenem Namen oder aus einer Vorlage. */
   import Modal from './ui/Modal.svelte';
   import {
-    listCampaignTemplates, listCharacterTemplates, type CampaignTemplateRef, type CharacterTemplateRef,
+    listCampaignTemplates, listCharacterTemplates,
+    type CampaignTemplateOptions, type CampaignTemplateRef, type CharacterTemplateRef,
   } from '../services/templates/templates';
 
   let { oncreate, ontemplate, oncancel }: {
     oncreate: (name: string) => Promise<boolean>;
-    ontemplate: (t: CampaignTemplateRef, characters: string[]) => Promise<boolean>;
+    ontemplate: (t: CampaignTemplateRef, options: CampaignTemplateOptions) => Promise<boolean>;
     oncancel: () => void;
   } = $props();
 
@@ -20,6 +21,7 @@
   let chosen = $state<CampaignTemplateRef | null>(null);
   let role = $state<Role>('gm');
   let picked = $state(new Set<string>());
+  let startChapter = $state('');
   let busy = $state('');
   let error = $state('');
 
@@ -46,6 +48,7 @@
 
   function choose(t: CampaignTemplateRef) {
     chosen = t;
+    startChapter = t.chapters[0]?.id ?? '';
     setRole('gm');
     view = 'setup';
   }
@@ -65,8 +68,9 @@
   function create() {
     const t = edition;
     if (!t) return;
-    const ids = t.characters.filter((id) => picked.has(id));
-    void run(t.id, () => ontemplate(t, ids), 'Die Vorlage konnte nicht kopiert werden.');
+    const characters = t.characters.filter((id) => picked.has(id));
+    const options = { characters, startChapter: startChapter || undefined };
+    void run(t.id, () => ontemplate(t, options), 'Die Vorlage konnte nicht kopiert werden.');
   }
 
   function back() {
@@ -123,6 +127,23 @@
           <span class="sub">{chosen.player.description || 'Nur was ihr vor dem ersten Spielabend wissen dürft'}</span>
         </button>
       </div>
+    {/if}
+    {#if edition.chapters.length > 1}
+      <label class="start">
+        <span>Einstieg bei</span>
+        <select bind:value={startChapter}>
+          {#each edition.chapters as ch (ch.id)}
+            <option value={ch.id}>{ch.title} (Stufe {ch.level})</option>
+          {/each}
+        </select>
+      </label>
+      {#if startChapter !== edition.chapters[0].id}
+        <p class="sub">
+          Die Figuren kommen auf der Stufe dieses Abenteuers, die Abenteuer davor gelten als gespielt{role === 'player'
+            ? ' – was ihr dort erfahren habt, kommt gleich mit'
+            : ''}.
+        </p>
+      {/if}
     {/if}
     {#if cast.length}
       <p class="cast-label">
@@ -210,6 +231,16 @@
     gap: 0.5rem;
   }
   .naming input {
+    flex: 1;
+  }
+  .start {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 1rem 0 0.3rem;
+    font-size: 0.85rem;
+  }
+  .start select {
     flex: 1;
   }
   .cast-label {

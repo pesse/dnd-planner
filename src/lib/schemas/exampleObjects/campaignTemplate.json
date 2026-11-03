@@ -4,5 +4,12 @@
   "characters": [
     "string"
   ],
-  "playerEditionOf": "string"
+  "playerEditionOf": "string",
+  "chapters": [
+    {
+      "id": "string",
+      "title": "string",
+      "level": 1
+    }
+  ]
 }

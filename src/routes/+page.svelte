@@ -36,6 +36,7 @@
   import { dragPanelWidth } from '$lib/utils/panelResize';
   import { onMount } from 'svelte';
   import CampaignPrintDialog from '$lib/components/campaign/CampaignPrintDialog.svelte';
+  import AdventureProgress from '$lib/components/campaign/AdventureProgress.svelte';
   import { buildPrintHtmlMarkdown } from '$lib/utils/printEncounter';
   import { printHtmlDocument } from '$lib/utils/printFrame';
   import { renderMarkdown } from '$lib/utils/markdown';
@@ -180,6 +181,9 @@
 
       {#if showCharBar}
         <CharacterBadgeBar />
+      {/if}
+      {#if $activeFile?.type === 'campaign' && $activeCampaign}
+        <AdventureProgress campaignPath={$activeCampaign.path} />
       {/if}
 
       <StructureHint />

@@ -21,6 +21,7 @@ vi.mock('@tauri-apps/api/core', () => ({
         return;
       case 'delete_path':
         files.delete(args.path);
+        for (const q of under(args.path)) files.delete(q);
         return;
       case 'get_absolute_path':
         return `/abs/${args.path}`;
@@ -36,6 +37,8 @@ vi.mock('@tauri-apps/api/core', () => ({
 }));
 
 const { listCampaignTemplates, listCharacterTemplates, instantiateCampaignTemplate, freeName } = await import('$lib/services/templates/templates');
+
+const { readProgress, setChapterCompleted } = await import('$lib/services/templates/chapters');
 
 const T = './vault/templates';
 
@@ -58,7 +61,7 @@ describe('Kampagnen-Vorlagen', () => {
 
   it('kopiert neben eine vorhandene Kampagne, ohne Kopfdatei, mit neuen Charakter-UIDs', async () => {
     const [template] = await listCampaignTemplates();
-    const slug = await instantiateCampaignTemplate(template, ['hfc-will']);
+    const slug = await instantiateCampaignTemplate(template, { characters: ['hfc-will'] });
 
     expect(slug).toBe('hfc-2');
     expect(files.get('./vault/campaigns/hfc/campaign.md')).toBe('# schon gespielt\n');
@@ -74,7 +77,7 @@ describe('Kampagnen-Vorlagen', () => {
 
   it('legt ohne Charaktere keine an', async () => {
     const [template] = await listCampaignTemplates();
-    await instantiateCampaignTemplate(template, []);
+    await instantiateCampaignTemplate(template, { characters: [] });
     expect(under('./vault/characters')).toEqual([]);
   });
 
@@ -86,7 +89,7 @@ describe('Kampagnen-Vorlagen', () => {
     expect(list.map((t) => t.id)).toEqual(['hfc']);
     expect(list[0].player?.id).toBe('hfc-spieler');
 
-    const slug = await instantiateCampaignTemplate(list[0].player!, []);
+    const slug = await instantiateCampaignTemplate(list[0].player!, { characters: [] });
     expect(under(`./vault/campaigns/${slug}`)).toEqual([`./vault/campaigns/${slug}/campaign.md`]);
   });
 
@@ -98,6 +101,69 @@ describe('Kampagnen-Vorlagen', () => {
   it('zählt den Ordnernamen hoch', () => {
     expect(freeName('a', new Set())).toBe('a');
     expect(freeName('a', new Set(['a', 'a-2']))).toBe('a-3');
+  });
+});
+
+describe('Abenteuer einer Vorlage', () => {
+  const chapters = [
+    { id: 'eins', title: 'Eins', level: 1 },
+    { id: 'zwei', title: 'Zwei', level: 3 },
+  ];
+
+  beforeEach(() => {
+    files.set(`${T}/campaigns/hfc/template.json`, JSON.stringify({ name: 'Hellfire', characters: ['hfc-will'], chapters }));
+    files.set(`${T}/characters/hfc-will/levels/3.json`, JSON.stringify({ name: 'Will', classLevel: 'Magier 3' }));
+    files.set(`${T}/chapters/hfc/eins/npcs/gnom.md`, '# Gnom\n');
+    files.set(`${T}/chapters/hfc/zwei/npcs/koenig.md`, '# König\n');
+  });
+
+  const willOf = () => {
+    const path = under('./vault/characters').find((p) => p.endsWith('/character.json'))!;
+    return JSON.parse(files.get(path)!);
+  };
+
+  it('beginnt beim ersten Abenteuer auf Stufe 1 und ohne Stufen-Dateien', async () => {
+    const [template] = await listCampaignTemplates();
+    const slug = await instantiateCampaignTemplate(template, { characters: ['hfc-will'] });
+
+    expect(willOf().classLevel).toBeUndefined();
+    expect(under('./vault/characters').some((p) => p.includes('/levels/'))).toBe(false);
+    expect(await readProgress(slug)).toEqual({ template: 'hfc', completed: [] });
+    expect(files.has(`./vault/campaigns/${slug}/npcs/gnom.md`)).toBe(false);
+  });
+
+  it('steigt später ein: Stufe des Abenteuers, frühere gelten als gespielt', async () => {
+    const [template] = await listCampaignTemplates();
+    const slug = await instantiateCampaignTemplate(template, { characters: ['hfc-will'], startChapter: 'zwei' });
+
+    expect(willOf()).toMatchObject({ classLevel: 'Magier 3' });
+    expect(await readProgress(slug)).toEqual({ template: 'hfc', completed: ['eins'] });
+    expect(files.get(`./vault/campaigns/${slug}/npcs/gnom.md`)).toBe('# Gnom\n');
+    expect(files.has(`./vault/campaigns/${slug}/npcs/koenig.md`)).toBe(false);
+  });
+
+  it('liefert beim Abhaken nach, ohne Eigenes zu überschreiben, und löscht beim Zurücknehmen nichts', async () => {
+    const [template] = await listCampaignTemplates();
+    const slug = await instantiateCampaignTemplate(template, { characters: [] });
+    files.set(`./vault/campaigns/${slug}/npcs/gnom.md`, '# Unser Gnom\n');
+
+    let progress = (await readProgress(slug))!;
+    progress = await setChapterCompleted(slug, progress, 'eins', true);
+    expect(files.get(`./vault/campaigns/${slug}/npcs/gnom.md`)).toBe('# Unser Gnom\n');
+
+    progress = await setChapterCompleted(slug, progress, 'zwei', true);
+    expect(files.get(`./vault/campaigns/${slug}/npcs/koenig.md`)).toBe('# König\n');
+
+    await setChapterCompleted(slug, progress, 'zwei', false);
+    expect(await readProgress(slug)).toEqual({ template: 'hfc', completed: ['eins'] });
+    expect(files.has(`./vault/campaigns/${slug}/npcs/koenig.md`)).toBe(true);
+  });
+
+  it('schreibt ohne Abenteuer keinen Fortschritt', async () => {
+    files.set(`${T}/campaigns/hfc/template.json`, JSON.stringify({ name: 'Hellfire' }));
+    const [template] = await listCampaignTemplates();
+    const slug = await instantiateCampaignTemplate(template, { characters: [] });
+    expect(await readProgress(slug)).toBeNull();
   });
 });
 
