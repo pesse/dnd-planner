@@ -163,18 +163,15 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border-radius: 10px;
     filter: drop-shadow(0 8px 12px rgba(20, 8, 0, 0.55));
   }
   header {
     display: flex;
     align-items: center;
     gap: 0.2rem;
-    padding: 0.45rem 0.9rem 0.5rem 1.6rem;
-    background: url('/branding/dice/header.webp') center / 100% 100% no-repeat #331a0d;
-    border: 1px solid #3a2416;
-    border-bottom: none;
-    border-radius: 10px 10px 0 0;
+    aspect-ratio: 1100 / 136;
+    padding: 0.15rem 2.3rem 0 2.6rem;
+    background: url('/branding/dice/header.webp') center / 100% 100% no-repeat;
     cursor: move;
     user-select: none;
     touch-action: none;
@@ -232,8 +229,7 @@
     min-height: 0;
     background: var(--bg-panel);
     border: 1px solid #3a2416;
-    border-top: none;
-    border-radius: 0 0 10px 10px;
+    border-radius: 10px;
   }
   .quick {
     display: grid;
