@@ -1,5 +1,7 @@
 <script lang="ts">
   /** Das ausgewählte Token: Einstellungen, SL-Notiz und dahinter Werteblock oder Charakter. */
+  import { textTip } from '../../textTip.svelte';
+  import { withRule } from '../../ruleTips.svelte';
   import RichTextEditor from '../../RichTextEditor.svelte';
   import type { Token } from '../../../schemas/battleMap';
   import type { Encounter } from '../../../schemas/encounter';
@@ -75,7 +77,7 @@
     </select>
     <input type="color" value={t.color} title="Farbe" onchange={(e) => update({ color: e.currentTarget.value })} />
     {#if t.kind !== 'marker'}
-      <label class="ini" title="Initiative — leer: nimmt nicht am Kampf teil">
+      <label class="ini" use:textTip={withRule('Leer: nimmt nicht am Kampf teil.', 'srd-2024_initiative')}>
         Ini
         <input
           type="number"

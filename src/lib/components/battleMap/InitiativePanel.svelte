@@ -1,5 +1,8 @@
 <script lang="ts">
   /** Initiative-Leiste: Reihenfolge, wer am Zug ist, Runden. */
+  import { textTip } from '../textTip.svelte';
+  import { conditionTip } from '../ruleTips.svelte';
+  import { CONDITIONS } from '../../schemas/vocabulary';
   import type { MapEditor } from '../../services/battleMap/mapEditor.svelte';
   import { initiativeOrder, rollMonsterInitiatives } from '../../services/battleMap/initiative';
   import PanelSection from './PanelSection.svelte';
@@ -41,7 +44,7 @@
         onchange={(e) => setIni(t.id, e.currentTarget.value)}
       />
       <button class="name" onclick={() => (editor.selectedId = t.id)}>{t.name}</button>
-      {#if t.conditions.length}<span class="cond" title={t.conditions.length + ' Zustände'}>◆{t.conditions.length}</span>{/if}
+      {#each t.conditions as c (c)}<span class="cond" use:textTip={conditionTip(c)}>{CONDITIONS[c].slice(0, 3)}</span>{/each}
       {#if t.hp != null && t.hpMax}<span class="hp">{t.hp}/{t.hpMax}</span>{/if}
     </div>
   {:else}
@@ -110,8 +113,12 @@
     color: var(--red);
   }
   .cond {
-    font-size: 0.7rem;
-    color: #7a3a90;
+    padding: 0 0.3em;
+    font-size: 0.65rem;
+    color: #fff;
+    background: #5a1e6e;
+    border-radius: 0.6em;
+    cursor: help;
   }
   .hp {
     font-size: 0.7rem;

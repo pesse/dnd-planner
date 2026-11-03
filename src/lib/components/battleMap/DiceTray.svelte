@@ -7,6 +7,8 @@
 
 <script lang="ts">
   /** Verdeckte Würfe der SL als frei verschiebbare Box über der Karte; der letzte Wurf rollt in 3D. */
+  import { textTip } from '../textTip.svelte';
+  import { withRule } from '../ruleTips.svelte';
   import { addToPool, EMPTY_POOL, parsePool, poolDe, throwDice, throwPool } from '../../utils/dice';
   import Dice from '../ui/die/Dice.svelte';
   import { diceLog, logRoll, type Roll } from '../../services/battleMap/diceLog.svelte';
@@ -127,8 +129,8 @@
       <button type="submit" class="go" disabled={!formula.trim()}>Würfeln</button>
     </form>
     <div class="row">
-      <button class="d20" title="Zwei W20, der höhere zählt" onclick={() => rollD20('adv')}>▲ Vorteil</button>
-      <button class="d20" title="Zwei W20, der niedrigere zählt" onclick={() => rollD20('dis')}>▼ Nachteil</button>
+      <button class="d20" use:textTip={withRule('Zwei W20, der höhere zählt.', 'srd-2024_advantage')} onclick={() => rollD20('adv')}>▲ Vorteil</button>
+      <button class="d20" use:textTip={withRule('Zwei W20, der niedrigere zählt.', 'srd-2024_disadvantage')} onclick={() => rollD20('dis')}>▼ Nachteil</button>
       {#if history.length > 1}
         <button class="toggle" aria-expanded={historyOpen} title="Verlauf {historyOpen ? 'zuklappen' : 'aufklappen'}" onclick={() => (historyOpen = !historyOpen)}>
           <span class="caret">▸</span>{history.length - 1}

@@ -23,6 +23,7 @@
   import TokenListPanel from './TokenListPanel.svelte';
   import MapSettingsPanel from './MapSettingsPanel.svelte';
   import InitiativePanel from './InitiativePanel.svelte';
+  import RulesPanel from './RulesPanel.svelte';
   import DiceTray from './DiceTray.svelte';
   import MapDetailsPanel from './details/MapDetailsPanel.svelte';
 
@@ -220,6 +221,7 @@
         <div class="tab" role="tabpanel" hidden={cockpit.tab !== 'play'}>
           <InitiativePanel {editor} campaignDir={campaignDirOf(editor.path)} />
           <TokenListPanel {editor} />
+          <RulesPanel />
         </div>
       </aside>
 
