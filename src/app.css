@@ -341,7 +341,10 @@ h1, h2, h3, .file-title {
   pointer-events: none;
 }
 
+/* Highlights kennen kein font-weight — das Fett ist ein Schatten in Schriftfarbe. */
 ::highlight(dice-ref) {
   color: var(--arcane);
-  text-decoration: underline dotted;
+  background-color: color-mix(in srgb, var(--arcane) 14%, transparent);
+  text-decoration: underline solid var(--arcane) 1.5px;
+  text-shadow: 0.4px 0 0 var(--arcane), -0.2px 0 0 var(--arcane);
 }
