@@ -3,7 +3,7 @@ import type { FileEntry } from '../../types';
 import { sourceLabel } from '../sourceRegistry';
 
 export const CATALOG_KINDS = [
-  'monster', 'item', 'feat', 'spell-school', 'spell-level', 'character', 'class', 'species', 'background',
+  'monster', 'item', 'feat', 'spell-school', 'spell-level', 'character', 'class', 'species', 'background', 'trap',
 ] as const;
 export type CatalogKind = (typeof CATALOG_KINDS)[number];
 

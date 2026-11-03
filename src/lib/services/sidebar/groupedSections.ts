@@ -294,7 +294,7 @@ export const RULES_SECTION: GroupedSection = {
 
 export const TRAPS_SECTION: GroupedSection = {
   kind: 'trap', type: 'trap', label: 'Fallen', addTitle: 'Neue Falle',
-  emptyLabel: 'Keine Fallen', searchable: true,
+  emptyLabel: 'Keine Fallen', searchable: true, catalog: 'trap',
   loadGroups: loadTrapGroups,
   invalidate: invalidateTrapsCache,
 };

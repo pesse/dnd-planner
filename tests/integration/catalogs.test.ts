@@ -10,7 +10,7 @@ import { rangeSortKey, timeCell, timeSortKey } from '../../src/lib/services/cata
 import { characterRow } from '../../src/lib/services/catalog/characterCatalog';
 import { testCharacter } from '../support/testCharacter';
 
-const SMALL = ['species', 'background'];
+const SMALL = ['species', 'background', 'trap'];
 
 describe.each(Object.values(CATALOGS))('Katalog $label', (spec) => {
   it('jedes Spalten-Set nennt nur bekannte Spalten', () => {

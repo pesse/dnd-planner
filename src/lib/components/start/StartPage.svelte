@@ -3,7 +3,7 @@
   import { characterSection } from '../sidebar/characterSectionState.svelte';
   import { campaignTree } from '../sidebar/campaign/campaignTreeState.svelte';
   import './startCard.css';
-  import { GROUPED_SECTIONS } from '$lib/services/sidebar/groupedSections';
+  import { GROUPED_SECTIONS, TRAPS_SECTION } from '$lib/services/sidebar/groupedSections';
   import { LIBRARY_SECTIONS } from '$lib/services/sidebar/librarySections';
   import { catalogEntry } from '$lib/services/catalog/catalogTypes';
   import { navigateTo } from '$lib/services/navigation';
@@ -18,6 +18,7 @@
     catalogEntry('character', 'Charaktere'),
     ...GROUPED_SECTIONS.flatMap((s) => (s.catalog ? [catalogEntry(s.catalog, s.label)] : [])),
     ...LIBRARY_SECTIONS.map((s) => catalogEntry(s.catalog, s.label)),
+    catalogEntry('trap', TRAPS_SECTION.label),
   ];
 
   const MINIMIZED_KEY = 'start-minimized';
