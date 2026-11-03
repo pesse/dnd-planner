@@ -5,6 +5,7 @@
   import type { MapEditor } from '../../../services/battleMap/mapEditor.svelte';
   import { pinnableTip } from '../tips/pinnableTip';
   import { conditionTip } from '../../ruleTips.svelte';
+  import { conditionIconUrl } from '../conditionIcon';
 
   let { editor, token: t }: { editor: MapEditor; token: Token } = $props();
 
@@ -26,7 +27,7 @@
 
 <div class="conditions" bind:this={root}>
   {#each t.conditions as c (c)}
-    <button class="on" use:pinnableTip={conditionTip(c)} onclick={() => editor.toggleCondition(t.id, c)}>{CONDITIONS[c]} ✕</button>
+    <button class="on" use:pinnableTip={conditionTip(c)} onclick={() => editor.toggleCondition(t.id, c)}><img src={conditionIconUrl(c)} alt="" />{CONDITIONS[c]} ✕</button>
   {/each}
   {#if rest.length}
     <button class="more" aria-haspopup="menu" aria-expanded={open} onclick={() => (open = !open)}>
@@ -36,7 +37,7 @@
   {#if open}
     <div class="menu" role="menu">
       {#each rest as c (c)}
-        <button role="menuitem" use:pinnableTip={conditionTip(c)} onclick={() => add(c)}>{CONDITIONS[c]}</button>
+        <button role="menuitem" use:pinnableTip={conditionTip(c)} onclick={() => add(c)}><img src={conditionIconUrl(c)} alt="" />{CONDITIONS[c]}</button>
       {/each}
     </div>
   {/if}
@@ -57,6 +58,12 @@
     border-radius: 999px;
     color: var(--ink-soft);
     cursor: pointer;
+  }
+  button img {
+    width: 1.1rem;
+    height: 1.1rem;
+    margin: -0.2rem 0.2rem -0.2rem -0.3rem;
+    vertical-align: middle;
   }
   button.on {
     background: #5a1e6e;

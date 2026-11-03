@@ -3,6 +3,7 @@
   import { pinnableTip } from './tips/pinnableTip';
   import { conditionTip } from '../ruleTips.svelte';
   import { CONDITIONS } from '../../schemas/vocabulary';
+  import { conditionIconUrl } from './conditionIcon';
   import { isBloodied } from '../../services/battleMap/tokenDetails';
   import type { MapEditor } from '../../services/battleMap/mapEditor.svelte';
   import { initiativeOrder, rollMonsterInitiatives } from '../../services/battleMap/initiative';
@@ -45,7 +46,7 @@
         onchange={(e) => setIni(t.id, e.currentTarget.value)}
       />
       <button class="name" onclick={() => (editor.selectedId = t.id)}>{t.name}</button>
-      {#each t.conditions as c (c)}<span class="cond" use:pinnableTip={conditionTip(c)}>{CONDITIONS[c].slice(0, 3)}</span>{/each}
+      {#each t.conditions as c (c)}<img class="cond" src={conditionIconUrl(c)} alt={CONDITIONS[c]} use:pinnableTip={conditionTip(c)} />{/each}
       {#if t.hp != null && t.hpMax}<span class="hp" class:bloodied={isBloodied(t)}>{t.hp}/{t.hpMax}</span>{/if}
     </div>
   {:else}
@@ -114,11 +115,8 @@
     color: var(--red);
   }
   .cond {
-    padding: 0 0.3em;
-    font-size: 0.65rem;
-    color: #fff;
-    background: #5a1e6e;
-    border-radius: 0.6em;
+    width: 1.1rem;
+    height: 1.1rem;
     cursor: help;
   }
   .hp.bloodied {

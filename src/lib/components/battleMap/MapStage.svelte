@@ -6,7 +6,8 @@
   import { drawFog, drawLighting } from '../../services/battleMap/overlayRender';
   import { initialsOf, shortName } from '../../services/battleMap/tokenSources';
   import { isBloodied } from '../../services/battleMap/tokenDetails';
-  import { CONDITIONS, type Condition } from '../../schemas/vocabulary';
+  import type { Condition } from '../../schemas/vocabulary';
+  import { conditionIconUrl } from './conditionIcon';
   import type { HpPop } from '../../services/battleMap/hpPops.svelte';
 
   export interface StageToken {
@@ -123,14 +124,14 @@
         <span class="hp-bar" style="height: {Math.max(4, px / 12)}px"><span style="width: {(100 * t.hp) / t.hpMax}%"></span></span>
       {/if}
       {#if t.conditions?.length}
-        <span class="conditions" style="font-size: {Math.max(9, grid.size * 0.16)}px">
-          {#each t.conditions as c}<span>{CONDITIONS[c]}</span>{/each}
+        <span class="conditions" style="--ci: {Math.max(12, grid.size * 0.3)}px">
+          {#each t.conditions as c}<img src={conditionIconUrl(c)} alt="" draggable="false" />{/each}
         </span>
       {/if}
       {#each pops.filter((p) => p.tokenId === t.id) as p, i (p.key)}
         <span class="pop" class:heal={p.delta > 0} style="font-size: {Math.max(14, px * 0.38)}px; margin-top: {-i * 1.05}em">{p.delta > 0 ? '+' : '−'}{Math.abs(p.delta)}</span>
       {/each}
-      <span class="label" style="font-size: {Math.max(10, grid.size * 0.2)}px">{shortName(t.name)}</span>
+      <span class="label" style="font-size: {Math.max(9, grid.size * 0.14)}px">{shortName(t.name)}</span>
     </div>
   {/each}
 
@@ -200,11 +201,11 @@
     top: 100%;
     left: 50%;
     transform: translateX(-50%);
-    margin-top: 2px;
+    margin-top: 1px;
     padding: 0 0.3em;
     white-space: nowrap;
-    color: #fff;
-    background: rgba(0, 0, 0, 0.6);
+    color: rgba(255, 255, 255, 0.85);
+    background: rgba(0, 0, 0, 0.4);
     border-radius: 3px;
     pointer-events: none;
   }
@@ -286,21 +287,20 @@
   }
   .conditions {
     position: absolute;
-    left: 88%;
-    top: 0;
+    left: 82%;
+    top: -4%;
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
+    gap: 1px;
     z-index: 3;
     pointer-events: none;
   }
-  .conditions span {
-    padding: 0 0.35em;
-    white-space: nowrap;
-    color: #fff;
-    background: rgba(90, 30, 110, 0.85);
-    border-radius: 0.6em;
+  .conditions img {
+    width: var(--ci);
+    height: var(--ci);
+    border-radius: 50%;
+    background: rgba(20, 12, 8, 0.75);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
   }
   .pop {
     position: absolute;
