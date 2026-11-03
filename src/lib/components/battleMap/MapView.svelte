@@ -1,6 +1,7 @@
 <script lang="ts" module>
   /** Über das Schließen der Karte hinweg: wer mitten in der Session eine andere Seite ansieht, findet die Würfel wieder offen. */
   let diceOpen = $state(false);
+  let lastFogTool = $state<MapTool>('reveal-rect');
 </script>
 
 <script lang="ts">
@@ -47,6 +48,22 @@
 
   onDestroy(() => void editor.destroy());
   onDestroy(interceptNavigation((entry) => editor.details.show({ kind: 'entry', entry })));
+
+  const FOG_TOOLS: MapTool[] = ['reveal-rect', 'reveal-brush', 'cover-rect', 'cover-brush'];
+  const fogTools = TOOLS.filter((t) => FOG_TOOLS.includes(t.id));
+  const fogShown = $derived(fogTools.find((t) => t.id === (FOG_TOOLS.includes(editor.tool) ? editor.tool : lastFogTool))!);
+  let fogMenu = $state(false);
+
+  $effect(() => {
+    if (FOG_TOOLS.includes(editor.tool)) lastFogTool = editor.tool;
+    else fogMenu = false;
+  });
+
+  /** Erster Klick nimmt das zuletzt benutzte Nebel-Werkzeug, ein zweiter klappt die Auswahl auf. */
+  function fogClick() {
+    if (FOG_TOOLS.includes(editor.tool)) fogMenu = !fogMenu;
+    else editor.tool = lastFogTool;
+  }
 
   const SAVE_LABEL = { saved: 'Gespeichert', saving: 'Speichert…', unsaved: 'Ungespeichert' } as const;
 
@@ -115,6 +132,7 @@
     else if (sel && e.key.toLowerCase() === 'h') editor.toggleHidden(sel.id); else if (e.key.toLowerCase() === 'w') {
       diceOpen = !diceOpen;
     } else if (e.key === 'Escape') {
+      fogMenu = false;
       if (editor.tool === 'select') editor.selectedId = null;
       editor.tool = 'select';
     } else {
@@ -124,7 +142,7 @@
   }
 </script>
 
-<svelte:window {onkeydown} onkeydowncapture={onhistorykey} onmousedowncapture={onhistorymouse} />
+<svelte:window {onkeydown} onpointerdown={(e) => fogMenu && !(e.target as Element).closest('.stack') && (fogMenu = false)} onkeydowncapture={onhistorykey} onmousedowncapture={onhistorymouse} />
 
 <!-- `main`: dort hängen die Werkzeugleisten-Regeln aus toolbar.css. -->
 <div class="main map-overlay" role="dialog" aria-modal="true" aria-label="Kampfkarte">
@@ -154,7 +172,29 @@
     <div class="body">
       <div class="tools" role="toolbar" aria-label="Werkzeuge">
         {#each TOOLS as t}
-          <button class:active={editor.tool === t.id} title="{t.label} ({t.key.toUpperCase()})" onclick={() => (editor.tool = t.id)}>{t.icon}</button>
+          {#if t.id === FOG_TOOLS[0]}
+            <div class="stack">
+              <button
+                class:active={FOG_TOOLS.includes(editor.tool)}
+                aria-haspopup="menu"
+                aria-expanded={fogMenu}
+                title="{fogShown.label} ({fogShown.key.toUpperCase()}) — nochmal klicken für Aufdecken/Zudecken"
+                onclick={fogClick}
+                oncontextmenu={(e) => { e.preventDefault(); fogMenu = !fogMenu; }}
+              >{fogShown.icon}<span class="more" aria-hidden="true"></span></button>
+              {#if fogMenu}
+                <div class="flyout" role="menu">
+                  {#each fogTools as f}
+                    <button role="menuitem" class:active={editor.tool === f.id} onclick={() => { editor.tool = f.id; fogMenu = false; }}>
+                      <span class="icon">{f.icon}</span>{f.label}<kbd>{f.key.toUpperCase()}</kbd>
+                    </button>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          {:else if !FOG_TOOLS.includes(t.id)}
+            <button class:active={editor.tool === t.id} title="{t.label} ({t.key.toUpperCase()})" onclick={() => (editor.tool = t.id)}>{t.icon}</button>
+          {/if}
         {/each}
         <div class="sep"></div>
         <button title="Alles aufdecken" onclick={() => editor.setFogAll(true)}>☀</button>
@@ -260,6 +300,55 @@
     background: var(--surface);
     border-color: var(--red);
     color: var(--red);
+  }
+  .stack {
+    position: relative;
+  }
+  .more {
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    border: 3px solid transparent;
+    border-right-color: currentColor;
+    border-bottom-color: currentColor;
+    opacity: 0.6;
+  }
+  .tools .stack > button {
+    position: relative;
+  }
+  .flyout {
+    position: absolute;
+    left: calc(100% + 0.4rem);
+    top: 0;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    padding: 0.25rem;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    box-shadow: 0 6px 18px rgba(20, 8, 0, 0.35);
+  }
+  .tools .flyout button {
+    width: auto;
+    height: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.82rem;
+    white-space: nowrap;
+    text-align: left;
+  }
+  .flyout .icon {
+    width: 1.2rem;
+    text-align: center;
+  }
+  .flyout kbd {
+    margin-left: auto;
+    padding-left: 0.8rem;
+    font-size: 0.7rem;
+    color: var(--ink-muted);
   }
   .sep {
     height: 1px;
