@@ -67,3 +67,13 @@ Neu gemalte Bilder meldet `job.sh` der Werkbank als „neu gemalt“. Protokoll 
 
 `npm run artlab` (`design/art-lab/`) zeigt Vorschaubilder statt der vollen Dateien (`design/art/.thumbs`, beim Start im Hintergrund vorgewärmt) und meldet neue oder geänderte Bilder und Markierungen per Server-Sent Events: Die Seite aktualisiert sich selbst, der grüne Punkt neben dem Titel zeigt die Verbindung. Auf `/mnt/c` kommen keine Dateisystem-Meldungen an, dort prüft der Server alle 15 s.
 
+
+## Korrekturen aus den Katalog-Markierungen
+
+`fixes/todo.md` hat eine Zeile je markiertes Bild (Status, `edit`/`neu`, Pfad unter `vault/art`, Klickstelle, Notiz). `fixes/job.sh <W> <N>` korrigiert die offenen Zeilen paketweise per Codex-Edit am veröffentlichten AVIF, schreibt das Ergebnis zurück nach `vault/art` und setzt den Status auf `[~]`; das alte Bild bleibt in `design/art/fixes/old/`.
+
+| Schritt | Befehl (aus dem Repo-Root) |
+|---|---|
+| Malen, 4 Worker, Stopp bei `LIMIT` % Kontingent oder `fixes/out/STOP` | `bash design/art-pipeline/fixes/job.sh <W> 4` je Worker |
+| Vorher/Nachher-Blatt (ohne Nummern: alle `[~]`) | `node design/art-pipeline/fixes/sheet.mjs <blatt.png> [nr…]` |
+| Status setzen (`x` erledigt, ` ` nochmal (Edit setzt dann am korrigierten Bild an)) | `node design/art-pipeline/fixes/run.mjs mark <status> <nr>…` |

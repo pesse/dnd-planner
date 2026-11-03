@@ -2,7 +2,7 @@ node_modules/
 out/
 out2/
 codex-ui/
-fixes/
+redraw/fixes/
 *.bak*
 *.log
 *.txt
@@ -11,3 +11,4 @@ review/*.json
 review/prompt-*.md
 review/sub/*.json
 review/sub/prompt-*.md
+.lock
