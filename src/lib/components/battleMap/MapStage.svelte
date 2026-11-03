@@ -17,6 +17,7 @@
     imageUrl: string;
     hidden?: boolean;
     movable?: boolean;
+    down?: boolean;
     hp?: number | null;
     hpMax?: number | null;
     conditions?: Condition[];
@@ -100,7 +101,7 @@
       class="token"
       class:hidden-token={t.hidden}
       class:selected={t.id === selectedId}
-      class:down={t.hp === 0}
+      class:down={t.down || t.hp === 0}
       class:turn={t.id === turnId}
       class:grab={mode === 'gm' || t.movable}
       data-token-id={t.id}

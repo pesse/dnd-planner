@@ -54,6 +54,19 @@ describe('Encounter-Verweis am Token', () => {
     });
     expect(JSON.stringify(toPlayerState(map, '', {}))).not.toMatch(/Geheimgang|akt-1|hp/i);
   });
+
+  it('zeigt den Spielern Besiegte, aber keine TP', () => {
+    const map = battleMapSchema.parse({
+      name: 'x',
+      tokens: [
+        { id: 'g', name: 'Goblin', kind: 'monster', x: 1, y: 1, hp: 0, hpMax: 7 },
+        { id: 'o', name: 'Ork', kind: 'monster', x: 2, y: 1, hp: 4, hpMax: 15 },
+      ],
+    });
+    const { tokens } = toPlayerState(map, '', {});
+    expect(tokens.map((t) => t.down)).toEqual([true, false]);
+    expect(JSON.stringify(tokens)).not.toMatch(/"hp/);
+  });
 });
 
 describe('Trefferpunkte eines Monster-Tokens', () => {
