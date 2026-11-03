@@ -163,10 +163,8 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background: var(--bg-panel);
-    border: 1px solid #3a2416;
     border-radius: 10px;
-    box-shadow: 0 10px 28px rgba(20, 8, 0, 0.5);
+    filter: drop-shadow(0 8px 12px rgba(20, 8, 0, 0.55));
   }
   header {
     display: flex;
@@ -174,6 +172,9 @@
     gap: 0.2rem;
     padding: 0.45rem 0.9rem 0.5rem 1.6rem;
     background: url('/branding/dice/header.webp') center / 100% 100% no-repeat #331a0d;
+    border: 1px solid #3a2416;
+    border-bottom: none;
+    border-radius: 10px 10px 0 0;
     cursor: move;
     user-select: none;
     touch-action: none;
@@ -201,7 +202,6 @@
     min-height: 7.5rem;
     padding: 0.3rem;
     text-align: center;
-    background: linear-gradient(#331a0d 50%, var(--bg-panel) 50%);
     border: 12px solid #5a3a1e;
     border-image: url('/branding/dice/tray.webp') 32 fill / 12px stretch;
   }
@@ -230,6 +230,10 @@
     gap: 0.35rem;
     padding: 0.55rem 0.6rem 0.6rem;
     min-height: 0;
+    background: var(--bg-panel);
+    border: 1px solid #3a2416;
+    border-top: none;
+    border-radius: 0 0 10px 10px;
   }
   .quick {
     display: grid;
