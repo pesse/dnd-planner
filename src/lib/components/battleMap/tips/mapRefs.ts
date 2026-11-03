@@ -1,6 +1,6 @@
 /**
  * Verweise im Karten-Cockpit: Regel-Links öffnen ein angeheftetes Tooltip-Fenster statt die
- * Karte zu verlassen, Würfelangaben („1W4", „2W6 + 3") legen ihren Wurf in die Würfel-Box.
+ * Karte zu verlassen, Würfelangaben („1W4", „2W6 + 3", „Angriffswurf: +4") legen ihren Wurf in die Würfel-Box.
  */
 import { getRuleByKey } from '../../../rulesLibrary';
 import { RULE_REF_SCHEME } from '../../../services/vaultLinks';
@@ -9,36 +9,52 @@ import { prepareRoll } from '../../../services/battleMap/diceTray.svelte';
 import { ruleTipMarkdown } from '../../ruleRefLinks.svelte';
 
 const DICE = /(?<![\p{L}\d])\d*[WwDd]\d+(?:\s*[+−-]\s*\d+(?![\p{L}\d]))?(?![\p{L}\d])/gu;
-const SKIP = 'input, textarea, button, [contenteditable], script, style';
+/** Nur der Bonus wird zum Verweis, geworfen wird ein W20 mit ihm. */
+const ATTACK = /(?<=(?:angriffswurf|attack roll):\s*)[+−-]\d+/giu;
+const SKIP = 'input, textarea, button, [contenteditable], script, style, [data-no-dice-refs]';
 const HIGHLIGHT = 'dice-ref';
 
-function diceRanges(root: HTMLElement): Range[] {
-  const ranges: Range[] = [];
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-    if (n.parentElement?.closest(SKIP)) continue;
-    for (const m of (n.textContent ?? '').matchAll(DICE)) {
-      const r = document.createRange();
-      r.setStart(n, m.index!);
-      r.setEnd(n, m.index! + m[0].length);
-      ranges.push(r);
-    }
-  }
-  return ranges;
+interface DiceRef {
+  range: Range;
+  formula: string;
 }
 
-const formulaOf = (r: Range): string => r.toString().replace(/\s+/g, '').replace('−', '-').toUpperCase().replace('D', 'W');
+const normalize = (s: string): string => s.replace(/\s+/g, '').replace('−', '-').toUpperCase().replace('D', 'W');
+
+function diceRefs(root: HTMLElement): DiceRef[] {
+  const refs: DiceRef[] = [];
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  // „*Angriffswurf:* +4" trennt Markdown in zwei Textknoten; der Bonus braucht den Vorgänger.
+  let tail = '';
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    if (n.parentElement?.closest(SKIP)) continue;
+    const text = n.textContent ?? '';
+    const add = (index: number, length: number, formula: string) => {
+      const range = document.createRange();
+      range.setStart(n!, index);
+      range.setEnd(n!, index + length);
+      refs.push({ range, formula });
+    };
+    for (const m of text.matchAll(DICE)) add(m.index!, m[0].length, normalize(m[0]));
+    for (const m of (tail + text).matchAll(ATTACK)) {
+      const index = m.index! - tail.length;
+      if (index >= 0) add(index, m[0].length, `W20${normalize(m[0])}`);
+    }
+    tail = text.slice(-40);
+  }
+  return refs;
+}
 
 export function mapRefs(node: HTMLElement) {
   const highlights = 'highlights' in CSS ? CSS.highlights : null;
-  let ranges: Range[] = [];
+  let refs: DiceRef[] = [];
   let frame = 0;
   let pointed: HTMLElement | null = null;
 
   const scan = () => {
     frame = 0;
-    ranges = diceRanges(node);
-    highlights?.set(HIGHLIGHT, new Highlight(...ranges));
+    refs = diceRefs(node);
+    highlights?.set(HIGHLIGHT, new Highlight(...refs.map((r) => r.range)));
   };
   const observer = new MutationObserver(() => {
     frame ||= requestAnimationFrame(scan);
@@ -46,10 +62,10 @@ export function mapRefs(node: HTMLElement) {
   observer.observe(node, { childList: true, subtree: true, characterData: true });
   scan();
 
-  const hit = (e: MouseEvent): Range | undefined => {
+  const hit = (e: MouseEvent): DiceRef | undefined => {
     const caret = document.caretRangeFromPoint?.(e.clientX, e.clientY);
     if (!caret) return;
-    return ranges.find((r) => r.isPointInRange(caret.startContainer, caret.startOffset));
+    return refs.find((r) => r.range.isPointInRange(caret.startContainer, caret.startOffset));
   };
 
   const click = (e: MouseEvent) => {
@@ -65,7 +81,7 @@ export function mapRefs(node: HTMLElement) {
     if (!dice) return;
     e.preventDefault();
     e.stopPropagation();
-    prepareRoll(formulaOf(dice));
+    prepareRoll(dice.formula);
   };
 
   const move = (e: MouseEvent) => {

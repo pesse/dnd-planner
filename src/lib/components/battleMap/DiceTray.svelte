@@ -101,7 +101,7 @@
   {/if}
 {/snippet}
 
-<section bind:this={box} class="tray" style={pos ? `left: ${pos.x}px; top: ${pos.y}px; right: auto;` : ''} aria-label="Würfel">
+<section bind:this={box} class="tray" data-no-dice-refs style={pos ? `left: ${pos.x}px; top: ${pos.y}px; right: auto;` : ''} aria-label="Würfel">
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <header onpointerdown={grab} onpointermove={move} onpointerup={() => (drag = null)}>
     <span class="title">Würfel</span>
