@@ -1,8 +1,7 @@
 /** Tokens aus Gruppe, Encounter, Monster- und Fallenbibliothek anlegen und ihre Bilder auflösen. */
 import { invoke } from '@tauri-apps/api/core';
-import { artUrl } from '../../artUrl';
-import { monsterArtSlug } from '../../libraryArt';
-import { TRAP_ICON_URL } from '../../conditionIcon';
+import { artUrl, availableArt } from '../../artUrl';
+import { monsterArtSlug, trapArtUrl } from '../../libraryArt';
 import type { Token, TokenKind } from '../../schemas/battleMap';
 import { encounterSchema } from '../../schemas/encounter';
 import type { Monster } from '../../types';
@@ -169,7 +168,7 @@ export async function resolveTokenImage(token: Token): Promise<string> {
       return '';
     }
   }
-  if (token.kind === 'trap') return TRAP_ICON_URL;
+  if (token.kind === 'trap') return trapArtUrl(token.ref, await availableArt(), token.trapState === 'triggered');
   return token.art ? artUrl(token.art) : '';
 }
 

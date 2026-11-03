@@ -194,6 +194,10 @@ export class MapEditor {
     if (!t) return;
     Object.assign(t, patch);
     this.changed();
+    if (t.kind === 'trap' && patch.trapState) {
+      delete this.tokenImages[t.id];
+      void this.#resolveToken(t).then(() => this.changed());
+    }
   }
 
   /** Schaden oder Heilung: rückgängig-fähig und mit aufsteigender Zahl am Token. */

@@ -2,7 +2,8 @@
   import { TRAP_SEVERITIES, type Trap } from '$lib/schemas/trap';
   import { sourceLabel } from '$lib/services/sourceRegistry';
   import { checkDe, damageDe, saveDe } from '$lib/services/trapFormat';
-  import { TRAP_ICON_URL } from '$lib/conditionIcon';
+  import { availableArt } from '$lib/artUrl';
+  import { trapArtUrl } from '$lib/libraryArt';
   import CardArt from '../ui/CardArt.svelte';
   import LibraryCardFrame from '../ui/LibraryCardFrame.svelte';
   import Markdown from '../Markdown.svelte';
@@ -11,10 +12,13 @@
 
   const desc = $derived(trap.descDe || trap.desc);
   const trigger = $derived(trap.triggerDe || trap.trigger);
+
+  let artNames = $state<Set<string>>(new Set());
+  void availableArt().then((names) => (artNames = names));
 </script>
 
 <LibraryCardFrame accent="var(--danger)" name={trap.name} nameDe={trap.nameDe}>
-  {#snippet art()}<CardArt src={TRAP_ICON_URL} color="var(--danger)" />{/snippet}
+  {#snippet art()}<CardArt src={trapArtUrl(trap.key, artNames)} color="var(--danger)" />{/snippet}
   {#snippet head()}
     <div class="badges">
       <span class="tag">{TRAP_SEVERITIES[trap.severity]}{trap.levels ? ` · Stufe ${trap.levels}` : ''}</span>

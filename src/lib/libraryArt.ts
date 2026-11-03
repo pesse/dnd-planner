@@ -5,6 +5,7 @@ import type { ItemInfo } from './itemLibrary';
 import type { SpellInfo } from './spellLibrary';
 import { keySlug, slugAscii } from './utils/text';
 import { artUrl as artFileUrl } from './artUrl';
+import { TRAP_ICON_URL } from './conditionIcon';
 
 /**
  * Bilder der Bibliothek unter `vault/art/<art>/<slug>.avif`, Slug = Key ohne Quellen-Präfix
@@ -46,3 +47,14 @@ export const itemInfoArtUrl = (item: ItemInfo): string | null => {
 
 const itemKeyArtUrl = (key: string): string | null =>
   artUrl('items', key.startsWith('srd-2024_') ? keySlug(key) : key);
+
+/**
+ * Eine ausgelöste Falle zeigt `<slug>-triggered`; fehlt ein Bild, tritt das nächstallgemeinere
+ * ein, zuletzt das Fangeisen — die Karte braucht immer ein Token-Bild.
+ */
+export function trapArtUrl(key: string | undefined, available: Set<string>, triggered = false): string {
+  const slug = keySlug(key);
+  const names = triggered ? [`traps/${slug}-triggered`, `traps/${slug}`] : [`traps/${slug}`];
+  const hit = slug ? names.find((n) => available.has(n)) : undefined;
+  return hit ? artFileUrl(hit) : TRAP_ICON_URL;
+}

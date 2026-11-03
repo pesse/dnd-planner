@@ -1,5 +1,6 @@
 import { getTraps, invalidateTrapsCache, trapDisplayName } from '../../trapsLibrary';
-import { TRAP_ICON_URL } from '../../conditionIcon';
+import { availableArt } from '../../artUrl';
+import { trapArtUrl } from '../../libraryArt';
 import { TRAP_SEVERITIES, type TrapCheck, type TrapDamage } from '../../schemas/trap';
 import { parsePool } from '../../utils/dice';
 import { checkDe, damageDe, saveDe } from '../trapFormat';
@@ -38,14 +39,14 @@ export const trapCatalog: CatalogSpec = {
   facets: { source: SOURCE_FACET },
   invalidate: invalidateTrapsCache,
   async load() {
-    const traps = await getTraps();
+    const [traps, art] = await Promise.all([getTraps(), availableArt()]);
     const rows = traps.map((t) => ({
       path: t.path,
       entryName: t.path.slice(t.path.lastIndexOf('/') + 1).replace('.json', ''),
       name: trapDisplayName(t),
       altName: t.name,
       group: t.severity,
-      icon: TRAP_ICON_URL,
+      icon: trapArtUrl(t.key, art),
       iconColor: 'var(--danger)',
       cells: {
         levels: { text: t.levels, sort: parseInt(t.levels) || 0 },

@@ -30,5 +30,13 @@
     "isolation": "no figures' faces in detail, hands or objects are fine",
     "heading": "Feats:",
     "refs": ["design/art/classes/wizard.png", "design/art/spells/fireball.png", "design/art/items/defender-longsword.png"]
+  },
+  "traps": {
+    "noun": "trap", "where": "next to the trap name in lists, on trap cards and as the trap's token on a top-down battle map",
+    "series": "trap icons, each trap painted twice: armed (hidden, waiting) and triggered (sprung)", "palette": "with each mechanism in its own material colors (worn flagstone, timber, rope, iron) and one dark-crimson accent for danger",
+    "composition": "the single trap mechanism centered and filling about 80% of the frame, seen from a three-quarter view from above, warm side lighting",
+    "isolation": "only the mechanism and the small piece of floor, wall or object it is built into, cut out as a compact shape; no people, no victims, no blood, no room around it. Each '-triggered' image shows the SAME trap as its armed partner, same angle, same materials, only now sprung; paint the pairs one after the other so they match",
+    "heading": "Traps (armed image first, then its triggered partner):",
+    "refs": ["design/art/classes/wizard.png", "design/art/items/hellfire-club_spiked-shield.png", "design/art/spells/fireball.png"]
   }
 }
