@@ -274,6 +274,7 @@
     border-radius: 0.6em;
   }
   .token.selected {
+    z-index: 2;
     outline: calc(var(--tb) * 1.2) solid #ffd36b;
     outline-offset: 2px;
   }

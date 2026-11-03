@@ -133,13 +133,18 @@
     else drag = { kind: 'rect', a: p, b: p };
   }
 
-  /** Alle Tokens unter dem Zeiger, das oberste zuerst. */
+  /**
+   * Alle Tokens unter dem Zeiger in Kartenreihenfolge, das zuletzt gelegte zuerst — nicht in
+   * Bildschirmreihenfolge, denn das ausgewählte liegt dort immer oben und das Durchschalten käme nie herum.
+   */
   function tokensAt(e: PointerEvent): string[] {
-    const ids = document
-      .elementsFromPoint(e.clientX, e.clientY)
-      .map((el) => (el as HTMLElement).dataset?.tokenId)
-      .filter((id): id is string => !!id);
-    return [...new Set(ids)];
+    const ids = new Set(
+      document
+        .elementsFromPoint(e.clientX, e.clientY)
+        .map((el) => (el as HTMLElement).dataset?.tokenId)
+        .filter((id): id is string => !!id),
+    );
+    return map.tokens.filter((t) => ids.has(t.id)).map((t) => t.id).reverse();
   }
 
   function onpointermove(e: PointerEvent) {
