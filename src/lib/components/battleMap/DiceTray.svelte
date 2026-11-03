@@ -1,27 +1,14 @@
 <script lang="ts" module>
-  /** Verlauf und Lage der Box überdauern das Schließen der Box und der Karte. */
-  interface Roll {
-    id: number;
-    /** Zum erneuten Würfeln per Klick auf den Verlauf; bei Vorteil/Nachteil leer. */
-    formula: string;
-    label: string;
-    dice: { sides: number; value: number }[];
-    kept: number | null;
-    bonus: number;
-    total: number;
-    crit: 'hit' | 'miss' | null;
-  }
-
-  let history = $state<Roll[]>([]);
+  /** Wurf in Arbeit und Lage der Box überdauern das Schließen der Box und der Karte. */
   let formula = $state('');
   let pos = $state<{ x: number; y: number } | null>(null);
-  let nextId = 0;
 </script>
 
 <script lang="ts">
   /** Verdeckte Würfe der SL als frei verschiebbare Box über der Karte; der letzte Wurf rollt in 3D. */
   import { addToPool, EMPTY_POOL, parsePool, poolDe, throwDice, throwPool } from '../../utils/dice';
   import Dice from '../ui/die/Dice.svelte';
+  import { diceLog, logRoll, type Roll } from '../../services/battleMap/diceLog.svelte';
 
   let { onclose }: { onclose: () => void } = $props();
 
@@ -44,16 +31,13 @@
   let invalid = $state(false);
   let drag: { dx: number; dy: number } | null = null;
 
+  const history = $derived(diceLog.rolls);
   const latest = $derived(history[0]);
   const solid = $derived(latest && latest.dice.every((d) => SOLIDS.includes(d.sides)) && latest.dice.length <= MAX_SOLIDS);
   const pool = $derived(formula.trim() ? parsePool(formula) : EMPTY_POOL);
   const counts = $derived(new Map(pool?.dice.map((d) => [d.sides, d.count])));
 
   const critOf = (d20: number): Roll['crit'] => (d20 === 20 ? 'hit' : d20 === 1 ? 'miss' : null);
-
-  function push(roll: Omit<Roll, 'id'>) {
-    history = [{ id: nextId++, ...roll }, ...history].slice(0, 12);
-  }
 
   function pick(sides: number) {
     if (!pool) return void (invalid = true);
@@ -64,7 +48,7 @@
     const { rolls } = throwDice({ count: 2, sides: 20, bonus: 0 });
     const kept = mode === 'adv' ? Math.max(...rolls) : Math.min(...rolls);
     const dice = rolls.map((value) => ({ sides: 20, value }));
-    push({ formula: '', label: mode === 'adv' ? 'W20 Vorteil' : 'W20 Nachteil', dice, kept, bonus: 0, total: kept, crit: critOf(kept) });
+    logRoll({ formula: '', label: mode === 'adv' ? 'W20 Vorteil' : 'W20 Nachteil', dice, kept, bonus: 0, total: kept, crit: critOf(kept) });
   }
 
   function rollPool() {
@@ -73,7 +57,7 @@
     if (invalid) return;
     const t = throwPool(pool!);
     const label = poolDe(pool!);
-    push({ formula: label, label, dice: t.dice, kept: null, bonus: pool!.bonus, total: t.total, crit: t.dice.length === 1 && t.dice[0].sides === 20 ? critOf(t.dice[0].value) : null });
+    logRoll({ formula: label, label, dice: t.dice, kept: null, bonus: pool!.bonus, total: t.total, crit: t.dice.length === 1 && t.dice[0].sides === 20 ? critOf(t.dice[0].value) : null });
     formula = '';
   }
 
@@ -106,7 +90,7 @@
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <header onpointerdown={grab} onpointermove={move} onpointerup={() => (drag = null)}>
     <span class="title">Würfel</span>
-    {#if history.length}<button title="Verlauf leeren" onclick={() => (history = [])}>🧹</button>{/if}
+    {#if history.length}<button title="Verlauf leeren" onclick={() => (diceLog.rolls = [])}>🧹</button>{/if}
     <button title="Würfel schließen (W)" onclick={onclose}>✕</button>
   </header>
 

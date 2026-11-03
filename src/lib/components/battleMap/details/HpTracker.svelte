@@ -3,6 +3,7 @@
   import type { Token } from '../../../schemas/battleMap';
   import type { MapEditor } from '../../../services/battleMap/mapEditor.svelte';
   import { adjustHp } from '../../../services/battleMap/tokenDetails';
+  import { diceLog } from '../../../services/battleMap/diceLog.svelte';
 
   let { editor, token: t, fallbackMax }: { editor: MapEditor; token: Token; fallbackMax: number } = $props();
 
@@ -12,9 +13,11 @@
   } as const;
 
   let dialog = $state<HTMLDialogElement>();
+  let input = $state<HTMLInputElement>();
   let kind = $state<keyof typeof KIND>('damage');
   let amount = $state<number | null>(null);
 
+  const lastRoll = $derived(diceLog.rolls[0]);
   const hpMax = $derived(t.hpMax ?? fallbackMax);
   const hp = $derived(t.hp ?? hpMax);
   const preview = $derived(amount && amount > 0 ? adjustHp(t, hpMax, KIND[kind].sign * amount).hp : null);
@@ -51,7 +54,12 @@
   <form onsubmit={apply}>
     <h3>{KIND[kind].title} · {t.name}</h3>
     <!-- svelte-ignore a11y_autofocus -->
-    <input type="number" min="1" inputmode="numeric" placeholder="Wert" aria-label={KIND[kind].title} autofocus bind:value={amount} />
+    <input type="number" min="1" inputmode="numeric" placeholder="Wert" aria-label={KIND[kind].title} autofocus bind:this={input} bind:value={amount} />
+    {#if lastRoll}
+      <button type="button" class="last" class:on={amount === lastRoll.total} title="Den letzten Wurf der Würfel-Box übernehmen" onclick={() => { amount = lastRoll.total; input?.focus(); }}>
+        🎲 Letzter Wurf: <strong>{lastRoll.total}</strong> <span>{lastRoll.label}</span>
+      </button>
+    {/if}
     <p class="preview">
       {hp} TP{#if preview != null}{' → '}<strong class:zero={preview === 0}>{preview} TP</strong>{preview === 0 ? ' · besiegt' : ''}{/if}
     </p>
@@ -146,6 +154,20 @@
     font-weight: 700;
     text-align: center;
     padding: 0.2rem;
+  }
+  .last {
+    flex: none;
+    display: flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+  }
+  .last span {
+    color: var(--ink-muted);
+    font-size: 0.72rem;
+  }
+  .last.on {
+    border-color: var(--accent);
   }
   .preview {
     margin: 0;
