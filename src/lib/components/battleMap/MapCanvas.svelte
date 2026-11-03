@@ -31,7 +31,7 @@
 
   type Drag =
     | { kind: 'pan'; start: Point; cam: Camera; deselect?: boolean }
-    | { kind: 'token'; id: string; grab: Point; moved: boolean }
+    | { kind: 'token'; id: string; grab: Point; moved: boolean; start: Point; stack: string[]; reselect: boolean }
     | { kind: 'light'; id: string }
     | { kind: 'rect'; a: Point; b: Point }
     | { kind: 'brush'; op: Extract<FogOp, { shape: 'brush' }> }
@@ -93,13 +93,16 @@
         drag = { kind: 'light', id: lightId };
         return;
       }
-      const tokenId = target.closest<HTMLElement>('[data-token-id]')?.dataset.tokenId;
-      if (tokenId && tool === 'select') {
+      const stack = tokensAt(e);
+      if (stack.length && target.closest('[data-token-id]') && tool === 'select') {
+        // Das ausgewählte Token bleibt greifbar, auch wenn ein anderes darüber liegt.
+        const reselect = stack.includes(editor.selectedId ?? '');
+        const tokenId = reselect ? editor.selectedId! : stack[0];
         const t = map.tokens.find((x) => x.id === tokenId)!;
         const cell = pxToCell(map.grid, p);
         editor.selectedId = tokenId;
         editor.checkpoint();
-        drag = { kind: 'token', id: tokenId, grab: { x: cell.x - t.x, y: cell.y - t.y }, moved: false };
+        drag = { kind: 'token', id: tokenId, grab: { x: cell.x - t.x, y: cell.y - t.y }, moved: false, start: local(e), stack, reselect };
         return;
       }
       if (tool === 'light') {
@@ -130,6 +133,15 @@
     else drag = { kind: 'rect', a: p, b: p };
   }
 
+  /** Alle Tokens unter dem Zeiger, das oberste zuerst. */
+  function tokensAt(e: PointerEvent): string[] {
+    const ids = document
+      .elementsFromPoint(e.clientX, e.clientY)
+      .map((el) => (el as HTMLElement).dataset?.tokenId)
+      .filter((id): id is string => !!id);
+    return [...new Set(ids)];
+  }
+
   function onpointermove(e: PointerEvent) {
     const p = imagePoint(e);
     hover = p;
@@ -139,6 +151,8 @@
       if (Math.hypot(s.x - drag.start.x, s.y - drag.start.y) > 4) drag.deselect = false;
       camera = { ...drag.cam, tx: drag.cam.tx + s.x - drag.start.x, ty: drag.cam.ty + s.y - drag.start.y };
     } else if (drag.kind === 'token') {
+      const s = local(e);
+      if (!drag.moved && Math.hypot(s.x - drag.start.x, s.y - drag.start.y) <= 4) return;
       const cell = pxToCell(map.grid, p);
       drag.moved = true;
       editor.updateToken(drag.id, { x: cell.x - drag.grab.x, y: cell.y - drag.grab.y });
@@ -167,7 +181,9 @@
     if (d.kind === 'pan' && d.deselect) editor.selectedId = null;
     else if (d.kind === 'token') {
       const t = map.tokens.find((x) => x.id === d.id);
-      if (t) editor.updateToken(t.id, { x: snapCell(t.x, t.size), y: snapCell(t.y, t.size) });
+      if (t && d.moved) editor.updateToken(t.id, { x: snapCell(t.x, t.size), y: snapCell(t.y, t.size) });
+      // Ein erneuter Klick auf einen Stapel wählt das nächste Token darunter.
+      if (!d.moved && d.reselect && d.stack.length > 1) editor.selectedId = d.stack[(d.stack.indexOf(d.id) + 1) % d.stack.length];
     } else if (d.kind === 'frame') {
       const r = editor.map?.playerView;
       // Ein bloßer Klick daneben soll den bisherigen Ausschnitt nicht zu einem Punkt schrumpfen.
