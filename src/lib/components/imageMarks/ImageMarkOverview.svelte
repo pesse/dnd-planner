@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import Modal from '../ui/Modal.svelte';
   import MarkedImage from './MarkedImage.svelte';
+  import MarkedImageLightbox from './MarkedImageLightbox.svelte';
   import {
     STATUS_LABELS,
     clearImageMarks,
@@ -18,6 +19,8 @@
   let { onclose }: { onclose: () => void } = $props();
 
   let checking = $state(false);
+  let enlargedId = $state<string | null>(null);
+  const enlarged = $derived($imageMarks.find((m) => m.id === enlargedId));
   const openCount = $derived($imageMarks.filter((m) => m.status === 'open').length);
 
   async function recheck() {
@@ -71,16 +74,9 @@
   <ul>
     {#each $imageMarks as mark (mark.id)}
       <li class:fixed={mark.status === 'fixed'}>
-        <div class="thumb">
-          <MarkedImage
-            url={mark.url}
-            width={mark.width}
-            height={mark.height}
-            pins={[{ ...mark, current: true }]}
-            maxHeight="8rem"
-            onpick={(p) => updateImageMark(mark.id, p)}
-          />
-        </div>
+        <button class="thumb" title="Groß anzeigen" onclick={() => (enlargedId = mark.id)}>
+          <MarkedImage url={mark.url} width={mark.width} height={mark.height} pins={[{ ...mark, current: true }]} maxHeight="8rem" />
+        </button>
         <div class="body">
           <div class="address" title="Adresse des Bilds">{mark.address}</div>
           <div class="meta">
@@ -111,6 +107,17 @@
     {/each}
   </ul>
 </Modal>
+
+{#if enlarged}
+  <MarkedImageLightbox
+    url={enlarged.url}
+    width={enlarged.width}
+    height={enlarged.height}
+    pins={[{ ...enlarged, current: true }]}
+    onpick={(p) => updateImageMark(enlarged.id, p)}
+    onclose={() => (enlargedId = null)}
+  />
+{/if}
 
 <style>
   .toolbar {
@@ -144,7 +151,7 @@
     border-radius: 6px;
   }
   li.fixed { border-left-color: var(--gold); opacity: 0.75; }
-  .thumb { display: flex; align-items: flex-start; justify-content: center; }
+  .thumb { display: flex; align-items: flex-start; justify-content: center; padding: 0; border: none; background: none; cursor: zoom-in; }
   .body { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
   .address {
     font-family: var(--font-mono, monospace);
