@@ -5,7 +5,7 @@
   import { loadEntryArt } from '../../../services/libraryEntryArt';
   import { hideHandout, playerHandout, showHandout } from '../../../services/handouts/playerHandout.svelte';
 
-  let { monster }: { monster: Monster } = $props();
+  let { monster, name }: { monster: Monster; name: string } = $props();
 
   let scenes = $state<string[]>([]);
 
@@ -21,7 +21,7 @@
 
   function toggle(url: string) {
     if (shownUrl === url) hideHandout();
-    else void showHandout({ name: monster.name, imageUrl: url });
+    else void showHandout({ name, imageUrl: url });
   }
 </script>
 

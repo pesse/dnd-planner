@@ -98,7 +98,7 @@
     <ConditionPicker {editor} token={t} />
   {/if}
   {#if editor.map}<TokenLightControl {editor} token={t} grid={editor.map.grid} />{/if}
-  {#if monster}<MonsterPresent {monster} />{/if}
+  {#if monster}<MonsterPresent {monster} name={t.name} />{/if}
   <div class="note" class:tall={t.kind === 'marker'} onfocusin={() => editor.checkpoint()}>
     {#key t.id}
       <RichTextEditor value={t.note} placeholder="Notiz (nur für dich) …" collapsedToolbar onChange={(note) => editor.updateToken(t.id, { note })} />
