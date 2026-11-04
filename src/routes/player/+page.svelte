@@ -1,6 +1,8 @@
 <script lang="ts">
   /** Spieleransicht: zeigt nur, was die SL freigibt; Charaktere lassen sich ziehen und antippen. Doppelklick schaltet Vollbild. */
   import { onMount } from 'svelte';
+  import { fade, fly, scale } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import MapStage from '$lib/components/battleMap/MapStage.svelte';
   import DiceStage from '$lib/components/battleMap/DiceStage.svelte';
@@ -184,12 +186,16 @@
     <p class="waiting">Warte auf die Spielleitung…</p>
   {/if}
   {#if handout}
-    <figure class="handout">
-      <div class="handout-body">
-        <img src={handout.imageUrl} alt={handout.name} />
-        {#if handout.text}<p class="handout-text">{handout.text}</p>{/if}
-      </div>
-      <figcaption>{handout.name}</figcaption>
+    <figure class="handout" transition:fade={{ duration: 350 }}>
+      {#key handout.imageUrl}
+        <div class="handout-body" in:scale|global={{ start: 0.92, duration: 450, easing: cubicOut }}>
+          <img src={handout.imageUrl} alt={handout.name} />
+          {#if handout.text}
+            <p class="handout-text" transition:fly={{ x: 60, duration: 400, easing: cubicOut }}>{handout.text}</p>
+          {/if}
+        </div>
+        <figcaption in:fade|global={{ delay: 200, duration: 400 }}>{handout.name}</figcaption>
+      {/key}
     </figure>
   {/if}
 </div>
