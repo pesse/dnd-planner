@@ -15,8 +15,8 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 007 edit · monster-scenes/gelatinous-cube · 68.0/9.2 · Der Gallertwürfel sieht etwas verzerrt aus - die rechte Kante ist unförmig und alles dürfte etwas mehr leuchten + das Skelett im Gallertwürfel sieht sehr komisch aus. Der Schädel ist komplett verdreht auf den Rippen, bzw. dem Brustkorb - einfach beides voneinander (Schädel + Brustkorb) getrennt abbilden ohne Verbindung zueinander
 - [~] 008 neu+ref · monster-scenes/spirit-naga · 75.3/9.5 · Erstelle das Bild komplett neu und passe optisch das dem kleinen Bild an
 - [x] 009 edit · monster-scenes/mind-flayer-arcanist · 11.1/18.5 · Die fliegenden Bücher sehen komplett falsch aus - aufgeschlagene Bücher stehen um 90° verdreht zu den Seiten.. Kippe quasi die Seiten nach hinten, dass es einem aufgeschlagenen Buch optisch passt! + der Umhang sollte etwas mehr rötliche und goldene Elementen haben - bisschen mächtigeres Erscheinungsbild
-- [~] 010 edit · monster-scenes/githzerai-zerth · 48.1/15.4 · rechter hintere Arm ist verdreht + generelle Pose sieht komisch aus + blaue Akzente des Mantels sollen orange sein
-- [~] 011 edit · monster-scenes/gladiator · 18.9/27.1 · Körperbau ist ziemlich männlich - passe den Körperbau zum weiblichen Geschlecht an + der Speer geht durch den Oberkörper durch, was falsch ist - er soll am Körper rechts vorbei gehen, während sie den Speer hält + ändere nichts an der generellen Pose, dem Hintergrund oder Kopf
+- [~] 010 edit · monster-scenes/githzerai-zerth · 48.1/15.4 · rechter hintere Arm ist verdreht + generelle Pose sieht komisch aus + blaue Akzente des Mantels sollen orange sein (Nachprüfung: die Pose ist noch unverändert: Rumpf weniger verdreht, Schwerpunkt über den Knien, der rechte hintere Arm hängt natürlich aus der Schulter; Mantelfarbe orange so lassen)
+- [~] 011 edit · monster-scenes/gladiator · 18.9/27.1 · Körperbau ist ziemlich männlich - passe den Körperbau zum weiblichen Geschlecht an + der Speer geht durch den Oberkörper durch, was falsch ist - er soll am Körper rechts vorbei gehen, während sie den Speer hält + ändere nichts an der generellen Pose, dem Hintergrund oder Kopf (Nachprüfung: der Speerschaft kreuzt noch Brust und Bauch: er verläuft komplett rechts neben ihrem Oberkörper (Bildseite rechts), die Hand hält ihn seitlich; weiblichen Körperbau, Kopf, Pose und Hintergrund lassen)
 - [~] 012 edit · monster-scenes/bugbear-stalker · 22.1/35.8 · überarbeite die Pose und das Gesicht der Kreatur auf dem Dach
 - [~] 013 edit · monster-scenes/hook-horror · 81.8/15.4 · Das Wesen hat 2 rechte Arme - ändere das
 - [~] 014 edit · monster-scenes/ghast-gravecaller · 57.7/24.1 · die Zunge ist zu lang
@@ -33,8 +33,8 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 025 neu · monster-scenes/mule · 64.8/37.5 · Die Körperhaltung des Maultiers passt gar nicht - mache das neu!
 - [~] 026 neu · monster-scenes/medusa · 53.0/47.0 · Die Körperhaltung passt gar nicht! - drehe den Charakter, dass man ihn mehr von vorne sieht (also frontal) + passe die Armhaltung dementsprechend an!
 - [~] 027 edit · monster-scenes/brass-dragon-wyrmling · 54.2/20.9 · Erstelle die hintere Kopfpartie des Drachen neu! Das sieht nach einer komischen großen Fläche aus!
-- [~] 028 edit · monster-scenes/mezzoloth · 42.5/31.2 · Die oberen zwei Arme sind zu sehr verdreht! + die Haltung des Stabs passt nicht genau - passe das an!
-- [~] 029 edit · monster-scenes/myconid-sovereign · 52.9/28.7 · passe die Gesichtspartie an! - das Gesicht passt nicht + da kommt so ein Strahl aus seiner Stirn heraus - ergibt auch keinen Sinn - passe das an!
+- [~] 028 edit · monster-scenes/mezzoloth · 42.5/31.2 · Die oberen zwei Arme sind zu sehr verdreht! + die Haltung des Stabs passt nicht genau - passe das an! (Nachprüfung: beide oberen Arme neu malen: Oberarm vom Schulterpanzer nach oben, Ellbogen nach außen, Unterarm gerade zum Schaft; beide Hände umgreifen den geraden Stab mit sichtbaren Fingern. Kopf, untere Arme und Hintergrund nicht ändern)
+- [~] 029 edit · monster-scenes/myconid-sovereign · 52.9/28.7 · passe die Gesichtspartie an! - das Gesicht passt nicht + da kommt so ein Strahl aus seiner Stirn heraus - ergibt auch keinen Sinn - passe das an! (Nachprüfung: der Sporenstrom setzt noch am Kopf/Hut an: er soll aus der ausgestreckten Hand kommen, Kopf und Hut frei davon; Gesicht so lassen)
 - [~] 030 edit · monster-scenes/needle-blight · 23.7/35.1 · der linke Arm ist zu weit rechts! passe das an!
 - [~] 031 edit · monster-scenes/pixie · 65.9/22.0 · das Gesicht sieht etwas creepy aus, was nicht sein soll! überarbeite das Gesicht / den Gesichtsausdruck! (2. Runde: kaum verändert — Gesicht deutlich neu malen: freundliches, natürliches Lächeln, natürliche kindliche Proportionen, kein übertriebenes Grinsen, weiche Augen)
 - [~] 032 edit · monster-scenes/plesiosaurus · 22.6/57.0 · der Körper ist zu kurz - der Körper muss länger nach hinten gehen + es sieht so aus als hätte er zwei Schwänze auf diesem Bild! - er hat jedoch nur einen Schwanz!
@@ -45,14 +45,14 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 037 edit · monster-scenes/giant-venomous-snake · 80.0/73.0 · der Körper ist Teil der Säule - ergibt keinen Sinn! mache die Stelle komplett zur Säule, dann passt es!
 - [~] 038 edit · monster-scenes/giant-shark · 12.0/42.8 · Ändere nur das: der hintere Teil des Hais ist noch unter Wasser, da er ja aus dem Wasser herausspringt! - sprich der hintere Teil des Körpers inklusive der Schwanzflosse ist nicht sichtbar
 - [~] 039 edit · monster-scenes/giant-octopus · 82.1/42.6 · Oktopusse haben den Teil des Körpers, aus dem das schwarze Zeugs rauskommt, am seitlichen Teil ihres Kopfes, nichts unterhalb des linken Auges! - verschiebe das also + lasse den Rest gleich!
-- [~] 040 edit+ref · monster-scenes/knight · 70.6/35.6 · Ritter soll größer sein + er soll einen Helm trag, wie auf dem kleinen Bild - den Rest nicht verändern!
+- [~] 040 edit+ref · monster-scenes/knight · 70.6/35.6 · Ritter soll größer sein + er soll einen Helm trag, wie auf dem kleinen Bild - den Rest nicht verändern! (Nachprüfung: der Ritter ist kaum größer geworden: deutlich größer, etwa 2/3 der Bildhöhe; Helm so lassen)
 - [~] 041 neu · monster-scenes/sphinx-of-secrets · 56.6/31.3 · erstelle das Bild neu! - Kopfhaltung ist komisch! + es soll nichts lilanes aus dem Auge kommen!
 - [~] 042 edit+ref · monster-scenes/sphinx-of-valor · 73.0/21.1 · ändere es in weiblich mit bräunlichen Haaren - wie auf dem kleinen Bild
 - [~] 043 edit · monster-scenes/sphinx-of-lore · 85.9/34.1 · der Schrank rechts soll nicht kaputt sein + die Aura soll um das Wesen drumherum sein! - erhabeneres Erscheinungsbild
 - [~] 044 edit · monster-scenes/spy-master · 75.3/27.5 · Es muss mehr deutlich werden, dass das der Spionagemeister ist - als Meister! + evlt. mit einer schwarzen Kapuze, sodass nur noch die Augen sichtbar sind?
 - [~] 045 edit+ref · monster-scenes/animal-lord · 47.2/39.8 · Der "Fürst" soll mehr sichtbar sein! - also erhabenere Kleidung bspw. - wie auf dem kleinen Bild
 - [~] 046 edit+ref · monster-scenes/death-slaad · 65.9/38.4 · Mache das Gesicht neu! das passt nicht! - wie auf dem kleinen Bild
-- [~] 047 edit · monster-scenes/troll · 48.4/76.1 · Abstand zwischen dem Troll und dem Menschen muss größer sein
+- [~] 047 edit · monster-scenes/troll · 48.4/76.1 · Abstand zwischen dem Troll und dem Menschen muss größer sein (Nachprüfung: der Troll ist jetzt winzig im Hintergrund: Troll wieder groß im Mittelgrund (etwa halbe Bildhöhe) als Hauptmotiv, den Abstand schafft der Mensch, der weiter nach vorne rechts rückt)
 - [~] 048 edit · monster-scenes/tyrannosaurus-rex · 81.2/72.3 · Der Elf rechts unten muss vom T-Rex wegrennen, nicht zu ihm hin!
 - [~] 049 edit · monster-scenes/vampire-umbral-lord · 51.9/34.7 · Soll mehr nach einem "Fürst" ausschauen - bspw. eine passende Krone hinzufügen oder so etwas in die Richtung
 - [~] 050 neu · monster-scenes/guard-captain · 61.3/36.4 · die Pose ergibt keinen Sinn, mache sie neu + passe das Gesicht an
@@ -75,13 +75,13 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 067 edit · figures/tiefling-feminine/classes/barbarian · 66.8/21.7 · Axt Holzgriff darf nicht durchgebogen sein - soll gerade sein!
 - [~] 068 edit · figures/tiefling-androgynous/classes/barbarian · 67.5/32.2 · Axt sieht komisch aus
 - [~] 069 edit · figures/dragonborn-masculine/classes/bard · 41.7/50.7 · komische Position des rechten Beins + das linke Bein fehlt
-- [~] 070 edit · figures/elf-masculine/classes/bard · 38.8/34.0 · Oberkörper ist total verdreht
+- [~] 070 edit · figures/elf-masculine/classes/bard · 38.8/34.0 · Oberkörper ist total verdreht (Nachprüfung: Oberkörper neu malen, Brust in dieselbe Richtung wie Hüfte und Laufrichtung (Dreiviertelprofil), Schultern über der Hüfte; Kopf, Beine und Mantel lassen)
 - [~] 071 edit · figures/human-feminine/subclasses/celestial-patron · 59.7/52.8 · die linke Hand fehlt
-- [~] 072 edit · figures/human-androgynous/subclasses/celestial-patron · 65.6/52.8 · die linke Hand fehlt
+- [~] 072 edit · figures/human-androgynous/subclasses/celestial-patron · 65.6/52.8 · die linke Hand fehlt (Nachprüfung: beide Hände kommen noch aus demselben Ärmel: der linke Arm kommt sichtbar aus der linken Schulter mit eigenem Ärmel)
 - [~] 073 edit · figures/orc-feminine/subclasses/celestial-patron · 64.1/57.4 · linke Hand passt nicht
 - [~] 074 edit · figures/aasimar-androgynous/subclasses/thief · 77.0/78.2 · linkes Bein ist verdreht
 - [~] 075 edit · figures/aasimar-masculine/subclasses/thief · 54.9/69.2 · linkes Bein ist verdreht
-- [~] 076 edit · figures/dragonborn-feminine/subclasses/thief · 65.6/74.4 · rechtes Bein ist komplett verdreht - genauso wie der ganze linke Arm
+- [~] 076 edit · figures/dragonborn-feminine/subclasses/thief · 65.6/74.4 · rechtes Bein ist komplett verdreht - genauso wie der ganze linke Arm (Nachprüfung: Bein ist gut, so lassen; der linke Arm ist noch unverändert: aus der linken Schulter, Ellbogen gebeugt, Hand hält die Kette vor dem Körper)
 - [~] 077 edit · figures/fairy-feminine/subclasses/thief · 48.5/37.4 · Oberkörper ist verdreht
 - [~] 078 edit · figures/halfling-feminine/subclasses/thief · 57.3/47.1 · Oberkörper und Beine sind verdreht
 - [~] 079 edit · figures/halfling-masculine/subclasses/thief · 47.8/36.9 · Oberkörper verdreht
@@ -93,7 +93,7 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 085 edit · figures/orc-androgynous/subclasses/life-domain · 46.6/64.0 · rechter Arm fehlt
 - [~] 086 edit · figures/dwarf-feminine/subclasses/life-domain · 64.6/59.3 · Arm ergibt dort keinen Sinn
 - [~] 087 edit · figures/dragonborn-feminine/subclasses/draconic-sorcery · 45.1/56.1 · Ort des rechten Beins ist komisch - das linke fehlt komplett
-- [~] 088 edit · figures/human-feminine/subclasses/draconic-sorcery · 13.6/48.4 · rechter Arm ist komisch positioniert
+- [~] 088 edit · figures/human-feminine/subclasses/draconic-sorcery · 13.6/48.4 · rechter Arm ist komisch positioniert (Nachprüfung: ihren rechten Arm sichtbar aus der rechten Schulter führen, Oberarm am Körper, Unterarm leicht abgespreizt nach unten, Hand mit fünf Fingern auf Hüfthöhe; der Arm kommt nicht hinter der Schärpe hervor)
 - [~] 089 edit · figures/fairy-masculine/classes/druid · 58.0/54.6 · Stab muss senkrecht nach unten gehen
 - [~] 090 edit · figures/gnome-androgynous/classes/druid · 87.9/74.4 · ändere die Spinne zu einem anderen Tier
 - [~] 091 edit · figures/human-feminine/classes/druid · 95.2/62.1 · ändere die Spinne zu einem anderen Tier
@@ -148,7 +148,7 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 140 edit · figures/fairy-masculine/classes/fighter · 72.8/40.3 · Arm ist komplett verdreht
 - [~] 141 edit · figures/aasimar-feminine/subclasses/battle-master · 59.7/25.8 · erstelle die Hand + die Schwerthaltung darunter neu
 - [~] 142 edit · figures/dragonborn-feminine/subclasses/battle-master · 6.5/50.6 · generiere die Hand neu + das Schwert, das oben fliegt muss andersherum sein
-- [~] 143 edit · figures/elf-feminine/subclasses/battle-master · 60.0/35.3 · Hand ist falschherum + die rechte Hand sieht ganz komisch aus - neu generieren
+- [~] 143 edit · figures/elf-feminine/subclasses/battle-master · 60.0/35.3 · Hand ist falschherum + die rechte Hand sieht ganz komisch aus - neu generieren (Nachprüfung: die Schwerthand ist kaum verändert: Daumen oben am Parier, Fingerknöchel nach außen, Klinge gerade aus der Faust; ihre rechte Hand mit fünf Fingern neu)
 - [~] 144 edit · figures/elf-masculine/subclasses/battle-master · 3.6/52.3 · Hand muss 5 Finger haben
 - [~] 145 edit · figures/fairy-feminine/subclasses/battle-master · 10.6/43.9 · Hand neu generieren (5 Finger)
 - [~] 146 edit · figures/gnome-feminine/subclasses/battle-master · 8.2/56.2 · Hand neu generieren (5 Finger)
@@ -211,7 +211,7 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 203 edit · figures/aasimar-masculine/subclasses/eldritch-knight · 22.3/80.7 · rechtes Bein fehlt
 - [~] 204 edit · figures/dragonborn-feminine/subclasses/eldritch-knight · 42.5/66.1 · linkes Bein zu groß + rechtes Bein fehlt
 - [~] 205 edit · figures/dragonborn-masculine/subclasses/eldritch-knight · 31.1/77.4 · rechtes Bein fehlt
-- [~] 206 edit · figures/elf-feminine/subclasses/eldritch-knight · 34.2/87.8 · rechtes Bein fehlt + Schwert etwas länger
+- [~] 206 edit · figures/elf-feminine/subclasses/eldritch-knight · 34.2/87.8 · rechtes Bein fehlt + Schwert etwas länger (Nachprüfung: Beine so lassen; nur die Schwertklinge um etwa ein Drittel verlängern, gerade und durchgehend, Griff und Hand unverändert)
 - [~] 207 edit · figures/gnome-feminine/subclasses/eldritch-knight · 57.8/81.0 · beide Beine versinken im Boden - geht nicht! - mache das neu
 - [~] 208 edit · figures/gnome-androgynous/subclasses/eldritch-knight · 59.2/90.1 · beide Beine versinken im Boden - mache das neu
 - [~] 209 edit · figures/halfling-feminine/subclasses/eldritch-knight · 40.5/78.2 · beide Beine versinken im Boden - geht nicht + linke Hand neu generieren
@@ -231,7 +231,7 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 223 edit · figures/gnome-androgynous/subclasses/path-of-the-world-tree · 52.4/52.0 · generiere die Hand neu (5 Finger)
 - [~] 224 edit · figures/goliath-masculine/subclasses/path-of-the-world-tree · 57.0/39.2 · generiere die Hand neu (5 Finger)
 - [~] 225 edit · figures/tiefling-androgynous/subclasses/path-of-the-world-tree · 58.3/52.3 · generiere die Hand neu (5 Finger)
-- [~] 226 edit · figures/tiefling-masculine/subclasses/path-of-the-world-tree · 82.1/34.5 · Arm komplett verdreht + linker Arm des roten Mannes fehlt komplett
+- [~] 226 edit · figures/tiefling-masculine/subclasses/path-of-the-world-tree · 82.1/34.5 · Arm komplett verdreht + linker Arm des roten Mannes fehlt komplett (Nachprüfung: der Monsterarm ist noch verdreht: hängt natürlich vom Schulteransatz, Ellbogen nach hinten; linken Arm des Tieflings so lassen)
 - [~] 227 edit · figures/aasimar-feminine/subclasses/path-of-the-wild-heart · 89.8/25.9 · generiere die Hand neu (5 Finger)
 - [~] 228 edit · figures/dragonborn-feminine/subclasses/path-of-the-wild-heart · 91.3/26.1 · generiere die Hand neu (5 Finger)
 - [~] 229 edit · figures/dragonborn-masculine/subclasses/path-of-the-wild-heart · 90.3/31.0 · generiere die Hand neu (5 Finger)
@@ -337,7 +337,7 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 329 edit · figures/halfling-feminine/classes/sorcerer · 27.2/45.9 · generiere die Hand neu (5 Finger)
 - [~] 330 edit · figures/human-feminine/classes/sorcerer · 92.0/28.0 · generiere die Hand neu (5 Finger)
 - [~] 331 edit · figures/orc-feminine/classes/sorcerer · 11.4/35.0 · generiere beide Hände neu (5 Finger)
-- [~] 332 edit · figures/tiefling-androgynous/classes/sorcerer · 29.6/25.4 · der Oberkörper ist verdreht + der Schwanz muss an der passenden Stelle sein
+- [~] 332 edit · figures/tiefling-androgynous/classes/sorcerer · 29.6/25.4 · der Oberkörper ist verdreht + der Schwanz muss an der passenden Stelle sein (Nachprüfung: Hüfte und Brust zeigen in dieselbe Richtung wie die Beine, keine Drehung in der Taille; der Schwanz setzt hinten am Steiß unter dem Gürtel an und hängt hinter dem Bein herab, nicht auf Brusthöhe; die Blitze an beiden Händen bleiben)
 - [~] 333 edit · figures/tiefling-masculine/classes/sorcerer · 12.1/14.6 · generiere die Hand neu (5 Finger)
 - [~] 334 edit · figures/dwarf-feminine/classes/sorcerer · 24.2/39.9 · generiere die Hand neu (5 Finger)
 - [~] 335 edit · figures/dwarf-androgynous/classes/sorcerer · 22.3/33.9 · generiere beide Hände neu (5 Finger)
@@ -386,7 +386,7 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 378 edit · figures/tiefling-androgynous/backgrounds/noble · 78.7/45.4 · generiere die Hand neu (5 Finger)
 - [~] 379 edit · figures/dwarf-masculine/backgrounds/noble · 87.4/27.6 · generiere die Hand neu (5 Finger)
 - [~] 380 edit · figures/halfling-androgynous/backgrounds/acolyte · 75.5/35.2 · generiere die Hand neu - er hält das zwischen Daumen und Zeigefinger
-- [~] 381 edit · figures/dwarf-masculine/backgrounds/acolyte · 89.8/35.5 · generiere die Hand neu (5 Finger) + etwas weiter weg vom Feuer
+- [~] 381 edit · figures/dwarf-masculine/backgrounds/acolyte · 89.8/35.5 · generiere die Hand neu (5 Finger) + etwas weiter weg vom Feuer (Nachprüfung: die Hand deutlich (eine Handbreite) weiter von der Flamme weg, Kerzen nicht verschieben)
 - [~] 382 edit · figures/elf-feminine/backgrounds/farmer · 39.3/23.3 · lösche den Hut + aus der Seite der Kiste dürfen die 2 Kohlköpfe oberhalb des rechten Arms nicht sein
 - [~] 383 edit · figures/gnome-feminine/backgrounds/farmer · 86.9/53.3 · das Seil muss am rechten Horn fest gemacht sein
 - [~] 384 edit · figures/fairy-feminine/backgrounds/hermit · 42.7/68.5 · das muss ihr linkes Bein und linker Fuß sein
@@ -403,14 +403,14 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 395 edit · figures/tiefling-masculine/backgrounds/charlatan · 79.9/53.3 · generiere die Hand neu (5 Finger)
 - [~] 396 edit · figures/dwarf-masculine/backgrounds/charlatan · 87.4/66.4 · generiere die Hand neu (5 Finger)
 - [~] 397 edit · figures/aasimar-masculine/backgrounds/scribe · 68.5/19.0 · die Pose ergibt keinen Sinn - er soll etwas da im Moment drauf schreiben - Blatt liegt auf dem Tisch - die andere Person schaut gespannt zu
-- [~] 398 edit · figures/dragonborn-masculine/backgrounds/scribe · 84.3/33.2 · die Buchseiten dort ergeben keinen Sinn - wehende Buchseiten sehen anders aus - generiere den Part neu
+- [~] 398 edit · figures/dragonborn-masculine/backgrounds/scribe · 84.3/33.2 · die Buchseiten dort ergeben keinen Sinn - wehende Buchseiten sehen anders aus - generiere den Part neu (Nachprüfung: Buch bleibt aufgeschlagen, er schreibt auf eine offene, flach liegende Seite; nur 1–2 Seiten heben sich leicht im Wind, gebogen wie echtes Papier – nicht auf den Einband schreiben)
 - [~] 399 edit · figures/dragonborn-masculine/backgrounds/sailor · 84.0/60.1 · der Teil des Seils muss weg - ergibt keinen Sinn
 - [~] 400 edit · figures/halfling-feminine/backgrounds/sailor · 51.0/44.1 · das sieht mehr nach einem Knoten aus - das Seil dort soll schöner aussehen
 - [~] 401 edit · figures/dwarf-feminine/backgrounds/sailor · 26.7/20.7 · der Teil des Kopftuchs geht durch die Hand - das soll nicht so sein!
-- [~] 402 edit · figures/dragonborn-feminine/backgrounds/soldier · 77.2/45.9 · der Arm ist komplett falsch verdreht!
+- [~] 402 edit · figures/dragonborn-feminine/backgrounds/soldier · 77.2/45.9 · der Arm ist komplett falsch verdreht! (Nachprüfung: der Arm muss sichtbar an ihrer linken Schulter ansetzen, Oberarm → Ellbogen → Unterarm zur Kiste, Hand flach auf der Kiste; den Arm komplett neu malen, er wächst nicht aus der Brust)
 - [~] 403 edit · figures/aasimar-feminine/backgrounds/entertainer · 52.9/67.6 · die Beine sehen komisch aus - sieht aus wie 2 rechte Beine + das hintere Bein ist irgendwie zu klein und zu kurz - generiere beide Beine neu
 - [~] 404 edit · figures/elf-feminine/backgrounds/entertainer · 17.9/40.8 · das muss ihr linkes Bein sein! - das muss also an eine andere Position! ändere nur das!
-- [~] 405 edit · figures/fairy-masculine/backgrounds/entertainer · 49.0/54.6 · das muss sein linkes Bein und linker Fuß sein! ändere das!
+- [~] 405 edit · figures/fairy-masculine/backgrounds/entertainer · 49.0/54.6 · das muss sein linkes Bein und linker Fuß sein! ändere das! (Nachprüfung: das Standbein setzt an seiner linken Hüfte an (vom Betrachter aus rechts), Fuß darunter auf der Bühne; das hochgeschwungene Bein bleibt sein rechtes)
 - [~] 406 edit · figures/gnome-feminine/backgrounds/entertainer · 60.7/50.2 · beide Beine ergeben so gar keinen Sinn! ändere beide Beine!
 - [~] 407 edit · figures/goliath-feminine/backgrounds/entertainer · 72.8/17.0 · der Ball muss in ihre rechte Hand rüber!
 - [~] 408 edit · figures/goliath-androgynous/backgrounds/entertainer · 46.1/50.9 · beide Beine ergeben so keinen Sinn! generiere die Beine neu!
@@ -418,7 +418,7 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 410 edit · figures/tiefling-masculine/backgrounds/entertainer · 52.2/28.0 · unter der rechten Hand ist etwas Komisches - verändere / lösche das
 - [~] 411 edit · figures/dwarf-feminine/backgrounds/entertainer · 49.5/70.1 · das ist ihr rechtes Bein - das muss weiter nach rechts + das linke Bein fehlt komplett - generiere das
 - [~] 412 edit · figures/elf-feminine/backgrounds/guard · 88.9/42.6 · die Hand und der Arm sind verdreht - korrigiere das
-- [~] 413 edit · figures/dwarf-feminine/backgrounds/guard · 92.3/40.7 · Sie soll die Türe zuschieben, sonst ergibt das Bild keinen Sinn
+- [~] 413 edit · figures/dwarf-feminine/backgrounds/guard · 92.3/40.7 · Sie soll die Türe zuschieben, sonst ergibt das Bild keinen Sinn (Nachprüfung: sie drückt die Handfläche flach gegen die Tür, kein Griff; den neuen Querbalken über der Tür entfernen)
 - [~] 414 edit · figures/aasimar-feminine/backgrounds/guide · 55.8/38.7 · die 2 Hände sehen katastrophal aus - so sehen 2 Hände nicht aus, wovon die eine die andere hochzieht!
 - [~] 415 edit · figures/aasimar-androgynous/backgrounds/guide · 66.0/41.8 · man muss seine Hand sehen, wie er den anderen mit zieht
 - [~] 416 edit · figures/aasimar-masculine/backgrounds/guide · 67.3/44.9 · die eine Hand zieht die andere Hand - generiere die 2 Hände neu
@@ -438,7 +438,7 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 430 edit · figures/dwarf-feminine/backgrounds/guide · 61.7/38.7 · so sehen keine 2 Hände aus, wovon die eine die andere stützt!
 - [~] 431 edit · figures/elf-feminine/backgrounds/sage · 26.7/82.1 · ohne Brille bitte + das hier markiert ist ihr linkes Bein.. das muss weiter nach links aus ihrer Sicht
 - [~] 432 edit · figures/fairy-masculine/backgrounds/sage · 56.6/36.0 · man muss hier die Buchrückseite sehen! - sonst passt es!
-- [~] 433 edit · figures/gnome-feminine/backgrounds/sage · 31.5/35.3 · der Finger hat dort nichts verloren! lösche den + ihr linkes Bein muss weiter nach links
+- [~] 433 edit · figures/gnome-feminine/backgrounds/sage · 31.5/35.3 · der Finger hat dort nichts verloren! lösche den + ihr linkes Bein muss weiter nach links (Nachprüfung: ihr linkes Bein (vom Betrachter aus RECHTS) weiter nach rechts im Bild, klar gespreizter Schritt, ganzer Stiefel sichtbar; den Finger an der Bücherkante entfernen, Hände sonst lassen)
 - [~] 434 edit · figures/gnome-masculine/backgrounds/sage · 65.1/42.5 · generiere das Buch neu! ist komplett verzogen
 - [~] 435 edit · figures/goliath-androgynous/backgrounds/sage · 91.1/35.5 · generiere das Buch neu
 - [~] 436 edit · figures/goliath-masculine/backgrounds/sage · 37.4/63.3 · sein linkes Bein ist verdreht und muss weiter nach links! das passt so gar nicht!
