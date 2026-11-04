@@ -17,6 +17,7 @@
   import { cockpit } from '../../services/battleMap/cockpitTab.svelte';
   import { MapEditor, type MapTool } from '../../services/battleMap/mapEditor.svelte';
   import { openPlayerWindow } from '../../services/battleMap/playerWindow';
+  import { hideHandout, playerHandout } from '../../services/handouts/playerHandout.svelte';
   import MapCanvas from './MapCanvas.svelte';
   import TokenPanel from './TokenPanel.svelte';
   import TokenListPanel from './TokenListPanel.svelte';
@@ -243,6 +244,11 @@
         title="Die Spieler sehen genau meinen aktuellen Ausschnitt — fein einstellen mit dem Werkzeug 📺 (S)"
       >Meine Ansicht senden</button>
       <button disabled={!editor.map} onclick={() => editor.setPlayerView(null)} title="Die Spieler sehen die ganze Karte">Ganze Karte</button>
+      <button
+        disabled={!playerHandout.current}
+        onclick={hideHandout}
+        title="Nimmt Handout oder Monsterbild aus dem Spielerfenster — die Spieler sehen wieder die Karte"
+      >🗺 Karte zeigen</button>
     {/if}
     <button class="delete-entry" onclick={remove}>🗑 Löschen</button>
     <button onclick={close} title="Karte schließen">✕</button>
