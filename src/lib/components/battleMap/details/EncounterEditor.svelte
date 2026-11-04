@@ -15,6 +15,15 @@
   import { crLabel } from '../../../services/monsterFormat';
   import { AutosaveFile } from '../../../utils/autosaveFile.svelte';
   import type { CatalogRow } from '../../../services/catalog/catalogTypes';
+  import RichTextEditor from '../../RichTextEditor.svelte';
+  import InlineNote from './InlineNote.svelte';
+
+  const TEXTS = [
+    { field: 'read_aloud', label: 'Vorlesetext' },
+    { field: 'description', label: 'Worum es geht' },
+    { field: 'notes', label: 'SL-Notizen' },
+    { field: 'loot', label: 'Beute' },
+  ] as const;
 
   let { encounter = $bindable(), key, path, editor, center }: {
     encounter: Encounter;
@@ -154,7 +163,7 @@
           <button title="Eins mehr" onclick={() => setCount(m.slug, 1)}>+</button>
           <button class="remove" title="Aus dem Encounter entfernen" onclick={() => setCount(m.slug, -m.count)}>✕</button>
         </div>
-        <input class="note" bind:value={m.notes} placeholder="Notiz, z. B. Taktik oder Versteck" aria-label="Notiz zu {lib?.name ?? m.slug}" />
+        <InlineNote bind:value={m.notes} placeholder="Notiz, z. B. Taktik oder Versteck" label="Notiz zu {lib?.name ?? m.slug}" />
       </div>
     {:else}
       <p class="hint">Noch keine Monster — über „+ Monster…“ aus der Bibliothek wählen.</p>
@@ -164,10 +173,12 @@
     {/if}
   </section>
 
-  <label>Vorlesetext<textarea rows="3" bind:value={encounter.read_aloud}></textarea></label>
-  <label>Worum es geht<textarea rows="3" bind:value={encounter.description}></textarea></label>
-  <label>SL-Notizen<textarea rows="3" bind:value={encounter.notes}></textarea></label>
-  <label>Beute<textarea rows="2" bind:value={encounter.loot}></textarea></label>
+  {#each TEXTS as t (t.field)}
+    <div class="text">
+      <span class="label">{t.label}</span>
+      <div class="rich"><RichTextEditor value={encounter[t.field]} placeholder="…" collapsedToolbar onChange={(md) => (encounter[t.field] = md)} /></div>
+    </div>
+  {/each}
 </div>
 
 <style>
@@ -238,19 +249,6 @@
     align-items: center;
     gap: 0.15rem;
   }
-  .note {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 0.1rem 0.35rem;
-    font-size: 0.75rem;
-    background: transparent;
-    border: 1px solid transparent;
-    color: var(--ink-soft);
-  }
-  .note:hover,
-  .note:focus {
-    border-color: var(--border);
-  }
   .xp {
     margin-left: 0.5rem;
     text-transform: none;
@@ -304,18 +302,31 @@
   .remove {
     color: var(--danger);
   }
-  label {
+  .text {
     display: flex;
     flex-direction: column;
     gap: 0.2rem;
+  }
+  .label {
     font-size: 0.75rem;
     color: var(--ink-muted);
   }
-  textarea {
+  .rich {
+    display: flex;
+    height: 6rem;
+    min-height: 3rem;
     resize: vertical;
-    padding: 0.3rem 0.4rem;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+  .rich :global(.toolbar) {
+    padding: 0.1rem 0.3rem;
+  }
+  .rich :global(.ProseMirror) {
+    padding: 0.4rem 0.6rem;
     font-size: 0.85rem;
-    line-height: 1.4;
+    line-height: 1.5;
   }
   .hint {
     margin: 0.2rem 0;

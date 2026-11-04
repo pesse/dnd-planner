@@ -11,7 +11,7 @@ import { ruleTipMarkdown } from '../../ruleRefLinks.svelte';
 const DICE = /(?<![\p{L}\d])\d*[WwDd]\d+(?:\s*[+−-]\s*\d+(?![\p{L}\d]))?(?![\p{L}\d])/gu;
 /** Nur der Bonus wird zum Verweis, geworfen wird ein W20 mit ihm. */
 const ATTACK = /(?<=(?:angriffswurf|attack roll):\s*)[+−-]\d+/giu;
-const SKIP = 'input, textarea, button, [contenteditable], script, style, [data-no-dice-refs]';
+const SKIP = 'input, textarea, button, script, style, [data-no-dice-refs]';
 const HIGHLIGHT = 'dice-ref';
 
 interface DiceRef {
@@ -68,6 +68,20 @@ export function mapRefs(node: HTMLElement) {
     return refs.find((r) => r.range.isPointInRange(caret.startContainer, caret.startOffset));
   };
 
+  // In einer Notiz, die gerade bearbeitet wird, setzt ein Klick den Cursor; sonst würfelt er.
+  const editing = (dice: DiceRef): boolean => {
+    const editable = dice.range.startContainer.parentElement?.closest('[contenteditable="true"]');
+    return !!editable && editable.contains(document.activeElement);
+  };
+  const live = (e: MouseEvent): DiceRef | undefined => {
+    const dice = hit(e);
+    return dice && !editing(dice) ? dice : undefined;
+  };
+
+  const press = (e: MouseEvent) => {
+    if (live(e)) e.preventDefault();
+  };
+
   const click = (e: MouseEvent) => {
     const link = (e.target as Element).closest?.<HTMLAnchorElement>(`a[href^="${RULE_REF_SCHEME}"]`);
     if (link) {
@@ -78,7 +92,7 @@ export function mapRefs(node: HTMLElement) {
       void getRuleByKey(key).then((r) => r && pinTip(ruleTipMarkdown(r), spot.x, spot.y));
       return;
     }
-    const dice = hit(e);
+    const dice = live(e);
     if (!dice) return;
     e.preventDefault();
     e.stopPropagation();
@@ -86,19 +100,21 @@ export function mapRefs(node: HTMLElement) {
   };
 
   const move = (e: MouseEvent) => {
-    const over = hit(e) ? (e.target as HTMLElement) : null;
+    const over = live(e) ? (e.target as HTMLElement) : null;
     if (over === pointed) return;
     if (pointed) pointed.style.cursor = '';
     pointed = over;
     if (pointed) pointed.style.cursor = 'pointer';
   };
 
+  node.addEventListener('mousedown', press, true);
   node.addEventListener('click', click, true);
   node.addEventListener('mousemove', move);
   return {
     destroy() {
       observer.disconnect();
       cancelAnimationFrame(frame);
+      node.removeEventListener('mousedown', press, true);
       node.removeEventListener('click', click, true);
       node.removeEventListener('mousemove', move);
       highlights?.delete(HIGHLIGHT);
