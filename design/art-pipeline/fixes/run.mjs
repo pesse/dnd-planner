@@ -44,6 +44,8 @@ async function toPng(avif, png, icon) {
 }
 
 const HAND_RULE = 'Hands: exactly five fingers (one thumb + four fingers), natural joints, the hand continuing the line of its forearm without a twisted wrist. Check handedness: for the figure\'s RIGHT hand the thumb is on the side facing the figure\'s body centre when the palm faces forward. A hand gripping a weapon or staff wraps all four fingers around the shaft with the thumb closing over them.';
+// Ohne diese Geometrie setzt das Modell den gesenkten Bogen neben/hinter das Bein, Sehne zum Körper (Test 2026-11-04: 4 von 4 mit, 0 von 4 ohne).
+const BOW_RULE = 'Bows: one continuous curved stave gripped at its middle, the string a straight line from tip to tip (a V to the drawing hand when drawn). A bow held lowered at the side is on the camera side of the leg, overlapping it, and its string runs along the OUTER side of the forearm, away from the body.';
 const BOOK_RULE = 'Books: the image model draws open books in perspective with impossible geometry. Unless the note insists on readable open pages, replace the book with a CLOSED thick tome (cover, spine and page-block edge clearly readable, a single coherent box shape). If it must stay open, draw it seen straight from the front, spine vertical in the middle, two equal page blocks fanning from the spine, the cover visible only behind both page blocks.';
 
 function itemBrief(it, inputs) {
@@ -63,6 +65,7 @@ function itemBrief(it, inputs) {
   if (inputs.ref) lines.push('Where the note refers to the small/large picture, match that reference image for the named features (face, clothing, colours, armour) while keeping this image\'s own composition and format.');
   if (/hand|finger|halt|arm/i.test(it.note)) lines.push(HAND_RULE);
   if (/buch|bücher/i.test(it.note)) lines.push(BOOK_RULE);
+  if (/bogen|bögen|schütze|sehne/i.test(it.note)) lines.push(BOW_RULE);
   return lines.join('\n');
 }
 

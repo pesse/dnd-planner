@@ -78,6 +78,13 @@ dem Mund, Keule zusätzlich in der Hand), fliegt aus dem Brief, statt genauer be
 Beim jungen grünen Drachen hat „Umhang als Maske" zweimal eine dritte Hand am Gesicht erzeugt, erst
 ohne die Maske stimmte der Schütze.
 
+**Geometrie des Gegenstands ja, Pose nein.** Was der Notiz hilft, ist eine Beschreibung, wie der
+kritisierte Gegenstand zum Körper liegt: Der Bogen sitzt vor dem Bein, die Sehne außen am Unterarm.
+Das hat im Test 4 von 4 Bögen gerettet, die knappe Notiz 0 von 4. Was schadet, ist eine neue
+Handlung oder Haltung („spannt den Bogen", „Faust am Griff"). Ein Ausschnitt als Edit-Grundlage
+brachte nichts gegenüber dem ganzen Bild. Feste Regeln dieser Art stehen in `run.mjs`
+(`HAND_RULE`, `BOW_RULE`, `BOOK_RULE`) und greifen über Stichwörter in der Notiz.
+
 Notizen kurz halten. Je mehr Einzelvorgaben eine Edit-Notiz macht (Fingerstellung, Winkel), desto
 eher erfindet das Modell eine neue falsche Haltung. Lieber den Sollzustand in einem Satz beschreiben
 und die Hand-Regel von `run.mjs` greifen lassen.
