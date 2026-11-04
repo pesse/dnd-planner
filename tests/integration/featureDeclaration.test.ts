@@ -754,21 +754,19 @@ describe('Elfenabstammung: Zweig entscheidet, Stufe staffelt', () => {
 
   it('bleibt für die Prosa-Mechanik im Eingang von Pass C', async () => {
     const f = await lineage();
-    const passed = unredactedChoiceFeatures([f], () => 'High Elf');
+    // Der Vault redigiert jeden Zweig; der nie redigierte Zustand ist ein Zweig ohne `grants`.
+    const unredacted = {
+      ...f,
+      grantsChoice: [featureChoiceGrantSchema.parse({ kind: 'optionList', options: [{ value: 'High Elf' }] })],
+    };
+    const passed = unredactedChoiceFeatures([unredacted], () => 'High Elf');
     expect(passed).toHaveLength(1);
     expect(passed[0].choice, 'die Antwort reist als FINAL mit').toBe('High Elf');
-    expect(unredactedChoiceFeatures([f], () => 'Drow'), 'Drow deklariert seine Dunkelsicht').toEqual([]);
 
     // Sobald der Zweig seine Mechanik deklariert — auch als geprüft-und-leer — gibt es
     // nichts zu deuten und der Call fällt weg.
-    const redacted = {
-      ...f,
-      grantsChoice: [featureChoiceGrantSchema.parse({
-        kind: 'optionList',
-        options: [{ value: 'High Elf', grants: {} }],
-      })],
-    };
-    expect(unredactedChoiceFeatures([redacted], () => 'High Elf')).toEqual([]);
+    expect(unredactedChoiceFeatures([f], () => 'High Elf'), 'Hochelf: geprüft, Zauber über die Quota').toEqual([]);
+    expect(unredactedChoiceFeatures([f], () => 'Drow'), 'Drow deklariert seine Dunkelsicht').toEqual([]);
   });
 });
 
