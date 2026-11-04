@@ -5,7 +5,7 @@
 
   let { editor, token: t, grid }: { editor: MapEditor; token: Token; grid: Grid } = $props();
 
-  /** Gesamtreichweite aus hellem plus dämmrigem Licht (SRD); das Rendern blendet ab etwa der Hälfte aus. */
+  /** Gesamtreichweite aus hellem plus dämmrigem Licht (SRD). */
   const FIRE = '#ffb347';
   const SOURCES = [
     { label: 'Kerze', meters: 3, color: FIRE },

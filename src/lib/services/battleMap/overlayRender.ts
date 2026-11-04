@@ -61,6 +61,15 @@ export function tokenLights(tokens: readonly (Pick<Token, 'x' | 'y' | 'size'> & 
   );
 }
 
+/** Innere Hälfte hell, äußere dämmrig — bei Kerze, Fackel, Laterne und *Licht* (SRD) sind beide gleich breit. */
+const LIGHT_FALLOFF: readonly [at: number, alpha: number][] = [
+  [0, 1],
+  [0.45, 1],
+  [0.55, 0.5],
+  [0.92, 0.5],
+  [1, 0],
+];
+
 /** Dunkelheit mit weichen Lichtkreisen; darüber ein Farbschimmer je Licht. */
 export function drawLighting(
   canvas: HTMLCanvasElement,
@@ -89,9 +98,7 @@ export function drawLighting(
   for (const l of lighting.lights) {
     const r = l.radius * grid.size;
     const g = ctx.createRadialGradient(l.x, l.y, 0, l.x, l.y, r);
-    g.addColorStop(0, 'rgba(0,0,0,1)');
-    g.addColorStop(0.55, 'rgba(0,0,0,0.85)');
-    g.addColorStop(1, 'rgba(0,0,0,0)');
+    for (const [at, alpha] of LIGHT_FALLOFF) g.addColorStop(at, `rgba(0,0,0,${alpha})`);
     ctx.fillStyle = g;
     ctx.fillRect(l.x - r, l.y - r, r * 2, r * 2);
   }
