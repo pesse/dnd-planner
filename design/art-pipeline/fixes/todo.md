@@ -9,441 +9,441 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [x] 001 edit · monster-scenes/mimic · 36.6/48.7 · die Mimik soll etwas bedrohlicher aussehen - Zähne sollen etwas größer sein bspw.
 - [x] 002 edit · monster-scenes/merfolk-skirmisher · 20.2/35.9 · An sich ein schönes Bild, aber der Oberkörper passt nicht zur Armhaltung - alles ist verdreht
 - [~] 003 edit · monster-scenes/behir · 21.4/42.8 · Auf dem Bild hat er zwei Unterkörper, was so nicht sein sollte.
-- [ ] 004 edit · monsters/empyrean-iota · 52.8/24.2 · ändere zum weiblichen Geschlecht
+- [~] 004 edit · monsters/empyrean-iota · 52.8/24.2 · ändere zum weiblichen Geschlecht
 - [~] 005 edit · monster-scenes/awakened-tree · 17.9/29.7 · An sich ein schönes Bild, jedoch ist das Gesicht nicht passend - das sollte mehr 3 dimensionaler sein und mehr nach "Holz" ausschauen anstelle en paar dunklen Flecken als Gesicht
 - [~] 006 edit · monster-scenes/hippopotamus · 28.6/49.1 · Sehr schönes Bild - jedoch haben einige der 3 weißen Vögel im Hintergrund mehr als 2 Beine - das bitte anpassen; den Rest so lassen
 - [~] 007 edit · monster-scenes/gelatinous-cube · 68.0/9.2 · Der Gallertwürfel sieht etwas verzerrt aus - die rechte Kante ist unförmig und alles dürfte etwas mehr leuchten + das Skelett im Gallertwürfel sieht sehr komisch aus. Der Schädel ist komplett verdreht auf den Rippen, bzw. dem Brustkorb - einfach beides voneinander (Schädel + Brustkorb) getrennt abbilden ohne Verbindung zueinander
-- [ ] 008 neu+ref · monster-scenes/spirit-naga · 75.3/9.5 · Erstelle das Bild komplett neu und passe optisch das dem kleinen Bild an
+- [~] 008 neu+ref · monster-scenes/spirit-naga · 75.3/9.5 · Erstelle das Bild komplett neu und passe optisch das dem kleinen Bild an
 - [x] 009 edit · monster-scenes/mind-flayer-arcanist · 11.1/18.5 · Die fliegenden Bücher sehen komplett falsch aus - aufgeschlagene Bücher stehen um 90° verdreht zu den Seiten.. Kippe quasi die Seiten nach hinten, dass es einem aufgeschlagenen Buch optisch passt! + der Umhang sollte etwas mehr rötliche und goldene Elementen haben - bisschen mächtigeres Erscheinungsbild
-- [ ] 010 edit · monster-scenes/githzerai-zerth · 48.1/15.4 · rechter hintere Arm ist verdreht + generelle Pose sieht komisch aus + blaue Akzente des Mantels sollen orange sein
-- [ ] 011 edit · monster-scenes/gladiator · 18.9/27.1 · Körperbau ist ziemlich männlich - passe den Körperbau zum weiblichen Geschlecht an + der Speer geht durch den Oberkörper durch, was falsch ist - er soll am Körper rechts vorbei gehen, während sie den Speer hält + ändere nichts an der generellen Pose, dem Hintergrund oder Kopf
-- [ ] 012 edit · monster-scenes/bugbear-stalker · 22.1/35.8 · überarbeite die Pose und das Gesicht der Kreatur auf dem Dach
-- [ ] 013 edit · monster-scenes/hook-horror · 81.8/15.4 · Das Wesen hat 2 rechte Arme - ändere das
-- [ ] 014 edit · monster-scenes/ghast-gravecaller · 57.7/24.1 · die Zunge ist zu lang
-- [ ] 015 edit · monster-scenes/harpy · 64.8/22.6 · überarbeite das Gesicht - soll nicht schielen + jüngeres Gesicht/Hals
-- [ ] 016 edit · monster-scenes/hunter-shark · 90.6/4.8 · ändere nur folgendes: die Person auf dem Boot sollte mit einem Paddel paddeln und nicht mit einem Speer!
-- [ ] 017 edit · monster-scenes/young-blue-dragon · 79.6/43.7 · Blitz sollte nicht aus der Nase des Drachens kommen
-- [ ] 018 edit · monster-scenes/young-brass-dragon · 82.3/19.5 · ändere nur folgendes: die goldene "Luft" rechts neben des Kopfes soll nicht aus der Nase kommen - einfach weglassen!
-- [ ] 019 edit · monster-scenes/cat · 64.6/51.5 · linke Pfote der Katze fehlt komplett + lösche die menschliche Hand rechts unten
-- [ ] 020 edit · monster-scenes/barbed-devil · 83.0/43.4 · ändere nur folgendes: der linke Unterschenkel mit Fuß fehlt! der kann nicht komplett vom Feuer überdeckt sein!
-- [ ] 021 edit+ref · monsters/shrieker-fungus · 54.6/42.7 · lösche den Mund - mache es so wie beim großen Bild: so Schallwellen um ihm drumherum
-- [ ] 022 edit+ref · monster-scenes/warrior-commander · 61.3/41.9 · Ändere das Geschlecht zu männlich! + der Mantel hat rote Akzente + die Figur soll größere sein (orientiere dich am kleinen schon erstellen Bild) + ändere die Schwerthaltung - sieht unnatürlich aus!
-- [ ] 023 edit+ref · monster-scenes/cultist-hierophant · 43.7/36.1 · nicht hell und goldene Robe, sondern dunkel und rötlich! - wie beim kleinen Bild
-- [ ] 024 edit · monster-scenes/lich · 63.6/23.0 · ändere nur folgendes: vor dem Mund ist ein grüner Schatten - lösche das! das gehört da nicht hin
-- [ ] 025 neu · monster-scenes/mule · 64.8/37.5 · Die Körperhaltung des Maultiers passt gar nicht - mache das neu!
-- [ ] 026 neu · monster-scenes/medusa · 53.0/47.0 · Die Körperhaltung passt gar nicht! - drehe den Charakter, dass man ihn mehr von vorne sieht (also frontal) + passe die Armhaltung dementsprechend an!
-- [ ] 027 edit · monster-scenes/brass-dragon-wyrmling · 54.2/20.9 · Erstelle die hintere Kopfpartie des Drachen neu! Das sieht nach einer komischen großen Fläche aus!
-- [ ] 028 edit · monster-scenes/mezzoloth · 42.5/31.2 · Die oberen zwei Arme sind zu sehr verdreht! + die Haltung des Stabs passt nicht genau - passe das an!
-- [ ] 029 edit · monster-scenes/myconid-sovereign · 52.9/28.7 · passe die Gesichtspartie an! - das Gesicht passt nicht + da kommt so ein Strahl aus seiner Stirn heraus - ergibt auch keinen Sinn - passe das an!
-- [ ] 030 edit · monster-scenes/needle-blight · 23.7/35.1 · der linke Arm ist zu weit rechts! passe das an!
-- [ ] 031 edit · monster-scenes/pixie · 65.9/22.0 · das Gesicht sieht etwas creepy aus, was nicht sein soll! überarbeite das Gesicht / den Gesichtsausdruck!
-- [ ] 032 edit · monster-scenes/plesiosaurus · 22.6/57.0 · der Körper ist zu kurz - der Körper muss länger nach hinten gehen + es sieht so aus als hätte er zwei Schwänze auf diesem Bild! - er hat jedoch nur einen Schwanz!
-- [ ] 033 neu · monster-scenes/pony · 84.7/78.1 · erstelle das ganze Bild neu - das Pony ist komisch proportioniert + keine Schlange auf dem Bild - Pferd steht woanders
-- [ ] 034 edit · monster-scenes/quaggoth · 95.7/42.8 · ändere nur folgendes: die Axt in der rechten Hand soll nicht rechts zur Seite, sondern nach vorne gedreht sein!
-- [ ] 035 edit+ref · monster-scenes/quaggoth-thonot · 55.4/33.3 · passe den Kopf an - das Gesicht ist im Oberkörper drin + er hat noch Stofffetzen an - wie beim kleinen Bild
-- [ ] 036 edit · monster-scenes/raven · 82.3/36.2 · generiere den Kopf + den Schnabel neu! + die Münze hängt nicht so komisch so halb am Schnabel!
-- [ ] 037 edit · monster-scenes/giant-venomous-snake · 80.0/73.0 · der Körper ist Teil der Säule - ergibt keinen Sinn! mache die Stelle komplett zur Säule, dann passt es!
-- [ ] 038 edit · monster-scenes/giant-shark · 12.0/42.8 · Ändere nur das: der hintere Teil des Hais ist noch unter Wasser, da er ja aus dem Wasser herausspringt! - sprich der hintere Teil des Körpers inklusive der Schwanzflosse ist nicht sichtbar
-- [ ] 039 edit · monster-scenes/giant-octopus · 82.1/42.6 · Oktopusse haben den Teil des Körpers, aus dem das schwarze Zeugs rauskommt, am seitlichen Teil ihres Kopfes, nichts unterhalb des linken Auges! - verschiebe das also + lasse den Rest gleich!
-- [ ] 040 edit+ref · monster-scenes/knight · 70.6/35.6 · Ritter soll größer sein + er soll einen Helm trag, wie auf dem kleinen Bild - den Rest nicht verändern!
-- [ ] 041 neu · monster-scenes/sphinx-of-secrets · 56.6/31.3 · erstelle das Bild neu! - Kopfhaltung ist komisch! + es soll nichts lilanes aus dem Auge kommen!
-- [ ] 042 edit+ref · monster-scenes/sphinx-of-valor · 73.0/21.1 · ändere es in weiblich mit bräunlichen Haaren - wie auf dem kleinen Bild
-- [ ] 043 edit · monster-scenes/sphinx-of-lore · 85.9/34.1 · der Schrank rechts soll nicht kaputt sein + die Aura soll um das Wesen drumherum sein! - erhabeneres Erscheinungsbild
-- [ ] 044 edit · monster-scenes/spy-master · 75.3/27.5 · Es muss mehr deutlich werden, dass das der Spionagemeister ist - als Meister! + evlt. mit einer schwarzen Kapuze, sodass nur noch die Augen sichtbar sind?
-- [ ] 045 edit+ref · monster-scenes/animal-lord · 47.2/39.8 · Der "Fürst" soll mehr sichtbar sein! - also erhabenere Kleidung bspw. - wie auf dem kleinen Bild
-- [ ] 046 edit+ref · monster-scenes/death-slaad · 65.9/38.4 · Mache das Gesicht neu! das passt nicht! - wie auf dem kleinen Bild
-- [ ] 047 edit · monster-scenes/troll · 48.4/76.1 · Abstand zwischen dem Troll und dem Menschen muss größer sein
-- [ ] 048 edit · monster-scenes/tyrannosaurus-rex · 81.2/72.3 · Der Elf rechts unten muss vom T-Rex wegrennen, nicht zu ihm hin!
-- [ ] 049 edit · monster-scenes/vampire-umbral-lord · 51.9/34.7 · Soll mehr nach einem "Fürst" ausschauen - bspw. eine passende Krone hinzufügen oder so etwas in die Richtung
-- [ ] 050 neu · monster-scenes/guard-captain · 61.3/36.4 · die Pose ergibt keinen Sinn, mache sie neu + passe das Gesicht an
-- [ ] 051 edit · monster-scenes/revenant · 87.0/54.8 · Die Person rechts unten muss von der Gestalt wegrennen.. nicht zu ihr hin
-- [ ] 052 edit · feats/mounted-combatant · 47.7/19.0 · die Lanze ergibt an dieser Stelle keinen Sinn - eine Fahne kann von der linken Seite (1/3 von unten) nach oben Mitte herausragen - wo oben eben das rot goldene ist, was du erstellt hast - jedoch muss der ganze Stoff nur nach links wehen - in beide Richtungen gleichzeitig geht nicht
-- [ ] 053 edit · figures/elf-feminine/subclasses/assassin · 55.6/40.0 · ändere nur folgendes: die Handhaltung des linken Arms ist falsch (der ganze Arm ist verdreht)
-- [ ] 054 edit · figures/fairy-masculine/subclasses/assassin · 53.9/41.3 · die linke Hand fehlt
-- [ ] 055 edit · figures/goliath-feminine/subclasses/assassin · 22.8/46.0 · die linke Hand dort ergibt keinen Sinn
-- [ ] 056 edit · figures/halfling-feminine/subclasses/assassin · 67.3/55.7 · die Hand ist verdreht + sie sollte dem Soldaten etwas höher treffen
-- [ ] 057 edit · figures/human-masculine/subclasses/assassin · 47.6/40.5 · Hand und Arm ist komplett unnatürlich - mache das neu
-- [ ] 058 edit · figures/orc-feminine/subclasses/assassin · 62.6/39.5 · Hand ist etwas verdreht
-- [ ] 059 edit · figures/tiefling-androgynous/subclasses/assassin · 32.8/22.7 · 1. der Schweif dort oben ergibt keinen Sinn! 2. er sollte den Soldaten höher treffen
-- [ ] 060 edit · figures/dwarf-feminine/subclasses/assassin · 51.0/46.0 · Arm und Hand ist verdreht
-- [ ] 061 edit · figures/dragonborn-androgynous/classes/barbarian · 71.6/45.7 · der Arm gehört dort nicht hin!
-- [ ] 062 edit · figures/fairy-masculine/classes/barbarian · 81.6/16.9 · die Axt ist falsch herum! - die Klinge muss nach unten zeigen
-- [ ] 063 edit · figures/halfling-feminine/classes/barbarian · 70.7/46.3 · die rechte Hand dort unten und vor dem Schild ergibt wenig Sinn!
-- [ ] 064 edit · figures/halfling-masculine/classes/barbarian · 88.1/51.2 · die scharfe Klinge muss nach unten zeigen + der Wolf hat einen falschen Körper - sieht ganz komisch aus - mache das neu
-- [ ] 065 edit · figures/human-androgynous/classes/barbarian · 71.4/30.1 · generiere die Axt neu! - biegt sich zu arg durch + die Klinge sieht komisch aus
-- [ ] 066 edit · figures/orc-masculine/classes/barbarian · 57.0/47.1 · Axt Haltung ist komisch
-- [ ] 067 edit · figures/tiefling-feminine/classes/barbarian · 66.8/21.7 · Axt Holzgriff darf nicht durchgebogen sein - soll gerade sein!
-- [ ] 068 edit · figures/tiefling-androgynous/classes/barbarian · 67.5/32.2 · Axt sieht komisch aus
-- [ ] 069 edit · figures/dragonborn-masculine/classes/bard · 41.7/50.7 · komische Position des rechten Beins + das linke Bein fehlt
-- [ ] 070 edit · figures/elf-masculine/classes/bard · 38.8/34.0 · Oberkörper ist total verdreht
-- [ ] 071 edit · figures/human-feminine/subclasses/celestial-patron · 59.7/52.8 · die linke Hand fehlt
-- [ ] 072 edit · figures/human-androgynous/subclasses/celestial-patron · 65.6/52.8 · die linke Hand fehlt
-- [ ] 073 edit · figures/orc-feminine/subclasses/celestial-patron · 64.1/57.4 · linke Hand passt nicht
-- [ ] 074 edit · figures/aasimar-androgynous/subclasses/thief · 77.0/78.2 · linkes Bein ist verdreht
-- [ ] 075 edit · figures/aasimar-masculine/subclasses/thief · 54.9/69.2 · linkes Bein ist verdreht
-- [ ] 076 edit · figures/dragonborn-feminine/subclasses/thief · 65.6/74.4 · rechtes Bein ist komplett verdreht - genauso wie der ganze linke Arm
-- [ ] 077 edit · figures/fairy-feminine/subclasses/thief · 48.5/37.4 · Oberkörper ist verdreht
-- [ ] 078 edit · figures/halfling-feminine/subclasses/thief · 57.3/47.1 · Oberkörper und Beine sind verdreht
-- [ ] 079 edit · figures/halfling-masculine/subclasses/thief · 47.8/36.9 · Oberkörper verdreht
-- [ ] 080 edit · figures/human-androgynous/subclasses/thief · 68.2/23.3 · linker Arm ist verdreht
-- [ ] 081 neu · figures/orc-androgynous/subclasses/thief · 58.5/46.5 · Beine sind übereinander wtf - nein - neu generieren
-- [ ] 082 neu · figures/tiefling-masculine/subclasses/thief · 65.6/15.7 · wo ist der Arm??? Hilfe?!?! - ganz neu generieren
-- [ ] 083 edit · figures/dwarf-feminine/subclasses/thief · 61.9/49.3 · Oberschenkel (beide) sind zu dick
-- [ ] 084 edit · figures/dwarf-androgynous/subclasses/thief · 66.3/78.2 · Fuß ist verdreht
-- [ ] 085 edit · figures/orc-androgynous/subclasses/life-domain · 46.6/64.0 · rechter Arm fehlt
-- [ ] 086 edit · figures/dwarf-feminine/subclasses/life-domain · 64.6/59.3 · Arm ergibt dort keinen Sinn
-- [ ] 087 edit · figures/dragonborn-feminine/subclasses/draconic-sorcery · 45.1/56.1 · Ort des rechten Beins ist komisch - das linke fehlt komplett
-- [ ] 088 edit · figures/human-feminine/subclasses/draconic-sorcery · 13.6/48.4 · rechter Arm ist komisch positioniert
-- [ ] 089 edit · figures/fairy-masculine/classes/druid · 58.0/54.6 · Stab muss senkrecht nach unten gehen
-- [ ] 090 edit · figures/gnome-androgynous/classes/druid · 87.9/74.4 · ändere die Spinne zu einem anderen Tier
-- [ ] 091 edit · figures/human-feminine/classes/druid · 95.2/62.1 · ändere die Spinne zu einem anderen Tier
-- [ ] 092 edit · figures/fairy-masculine/subclasses/gloom-stalker · 61.4/56.2 · rechter Arm ist verdreht und zu groß
-- [ ] 093 edit · figures/aasimar-androgynous/subclasses/archfey-patron · 91.8/46.3 · beide Hände - die Finger sind falsch!
-- [ ] 094 edit · figures/elf-feminine/subclasses/archfey-patron · 13.6/55.6 · Finger sind komisch
-- [ ] 095 edit · figures/elf-androgynous/subclasses/archfey-patron · 8.2/62.7 · Finger sind komisch
-- [ ] 096 edit · figures/elf-masculine/subclasses/archfey-patron · 9.7/43.9 · Finger sind komisch
-- [ ] 097 edit · figures/gnome-masculine/subclasses/archfey-patron · 10.9/59.5 · Finger sind komisch
-- [ ] 098 edit · figures/human-feminine/subclasses/fey-wanderer · 23.8/35.5 · Arm ist komisch
-- [ ] 099 edit · figures/dragonborn-feminine/subclasses/evoker · 18.9/31.4 · das Buch ergibt keinen Sinn - erstelle das Buch neu
-- [ ] 100 edit · figures/dragonborn-masculine/subclasses/evoker · 11.4/33.2 · erstelle die Buchseiten neu - ergibt so keinen Sinn
-- [ ] 101 edit · figures/fairy-feminine/subclasses/evoker · 20.6/25.6 · erstelle das Buch komplett neu!
-- [ ] 102 edit · figures/gnome-feminine/subclasses/evoker · 20.8/47.0 · erstelle die Buchseiten neu
-- [ ] 103 edit · figures/human-feminine/subclasses/evoker · 18.9/38.7 · erstelle das Buch neu
-- [ ] 104 edit · figures/human-masculine/subclasses/evoker · 17.9/33.5 · erstelle das Buch neu
-- [ ] 105 edit · figures/orc-feminine/subclasses/evoker · 22.3/41.3 · erstelle das Buch neu
-- [ ] 106 edit · figures/orc-androgynous/subclasses/evoker · 22.1/35.2 · erstelle das Buch neu
-- [ ] 107 edit · figures/tiefling-feminine/subclasses/evoker · 11.9/29.5 · erstelle das Buch neu
-- [ ] 108 edit · figures/tiefling-masculine/subclasses/evoker · 19.9/29.0 · erstelle das Buch neu
-- [ ] 109 edit · figures/dwarf-androgynous/subclasses/evoker · 14.3/44.1 · erstelle das Buch neu
-- [ ] 110 edit · classes/warlock · 16.0/44.9 · erstelle die Hand neu
-- [ ] 111 edit · figures/dragonborn-feminine/classes/warlock · 77.2/45.7 · erstelle beide Hände neu
-- [ ] 112 edit · figures/dragonborn-androgynous/classes/warlock · 14.8/32.7 · die Hand gehört da gar nicht hin
-- [ ] 113 edit · figures/elf-feminine/classes/warlock · 26.2/28.2 · erstelle beide Hände neu
-- [ ] 114 edit · figures/elf-androgynous/classes/warlock · 8.5/33.7 · erstelle die Hand neu + das Bein ist komisch + das linke Bein fehlt
-- [ ] 115 edit · figures/elf-masculine/classes/warlock · 11.4/32.7 · erstelle die Hand neu
-- [ ] 116 edit · figures/fairy-feminine/classes/warlock · 21.3/30.8 · erstelle die Hand neu
-- [ ] 117 edit · figures/goliath-masculine/classes/warlock · 8.2/20.7 · erstelle die Hand neu
-- [ ] 118 edit · figures/human-androgynous/classes/warlock · 51.7/32.4 · erstelle den Arm mit der Hand neu
-- [ ] 119 edit · figures/tiefling-androgynous/classes/warlock · 5.3/25.8 · erstelle die Hand neu
-- [ ] 120 edit · figures/dwarf-androgynous/classes/warlock · 67.0/47.1 · erstelle beide Hände neu
-- [ ] 121 edit · figures/aasimar-feminine/subclasses/illusionist · 73.1/45.2 · erstelle die Hand neu
-- [ ] 122 edit · figures/aasimar-masculine/subclasses/illusionist · 69.9/46.0 · erstelle die Hand neu
-- [ ] 123 edit · figures/dragonborn-feminine/subclasses/illusionist · 74.3/46.2 · erstelle die Hand neu
-- [ ] 124 edit · figures/dragonborn-androgynous/subclasses/illusionist · 63.8/32.7 · erstelle die Hand neu
-- [ ] 125 edit · figures/dragonborn-masculine/subclasses/illusionist · 64.8/39.5 · erstelle die Hand neu
-- [ ] 126 edit · figures/elf-feminine/subclasses/illusionist · 67.5/37.4 · erstelle die Hand neu
-- [ ] 127 edit · figures/elf-androgynous/subclasses/illusionist · 69.0/46.8 · erstelle die Hand neu
-- [ ] 128 edit · figures/elf-masculine/subclasses/illusionist · 65.6/50.4 · erstelle die Hand neu
-- [ ] 129 edit · figures/fairy-masculine/subclasses/illusionist · 65.8/43.6 · erstelle die Hand neu
-- [ ] 130 edit · figures/gnome-feminine/subclasses/illusionist · 51.9/50.4 · erstelle die Hand neu (5 Finger)
-- [ ] 131 edit · figures/gnome-androgynous/subclasses/illusionist · 60.7/48.6 · erstelle die Hand neu (5 Finger)
-- [ ] 132 edit · figures/gnome-masculine/subclasses/illusionist · 48.1/49.7 · erstelle die Hand neu (5 Finger)
-- [ ] 133 edit · figures/goliath-feminine/subclasses/illusionist · 79.2/31.6 · erstelle die Hand neu (5 Finger)
-- [ ] 134 edit · figures/goliath-masculine/subclasses/illusionist · 75.0/48.1 · erstelle die Hand neu (5 Finger)
-- [ ] 135 edit · figures/halfling-androgynous/subclasses/illusionist · 62.6/46.8 · erstelle die Hand neu (5 Finger)
-- [ ] 136 edit · figures/dwarf-feminine/subclasses/illusionist · 66.5/38.2 · erstelle die Hand neu (5 Finger)
-- [ ] 137 edit · figures/aasimar-feminine/classes/fighter · 51.5/41.2 · korrigiere die Schwerthaltung
-- [ ] 138 edit · figures/aasimar-masculine/classes/fighter · 56.1/45.5 · korrigiere die Schwerthaltung
-- [ ] 139 edit · figures/elf-masculine/classes/fighter · 90.3/55.9 · der Speer ergibt keinen Sinn + zu viele Speere kommen so halb aus dem Bild rechts
-- [ ] 140 edit · figures/fairy-masculine/classes/fighter · 72.8/40.3 · Arm ist komplett verdreht
-- [ ] 141 edit · figures/aasimar-feminine/subclasses/battle-master · 59.7/25.8 · erstelle die Hand + die Schwerthaltung darunter neu
-- [ ] 142 edit · figures/dragonborn-feminine/subclasses/battle-master · 6.5/50.6 · generiere die Hand neu + das Schwert, das oben fliegt muss andersherum sein
-- [ ] 143 edit · figures/elf-feminine/subclasses/battle-master · 60.0/35.3 · Hand ist falschherum + die rechte Hand sieht ganz komisch aus - neu generieren
-- [ ] 144 edit · figures/elf-masculine/subclasses/battle-master · 3.6/52.3 · Hand muss 5 Finger haben
-- [ ] 145 edit · figures/fairy-feminine/subclasses/battle-master · 10.6/43.9 · Hand neu generieren (5 Finger)
-- [ ] 146 edit · figures/gnome-feminine/subclasses/battle-master · 8.2/56.2 · Hand neu generieren (5 Finger)
-- [ ] 147 edit · figures/gnome-androgynous/subclasses/battle-master · 83.8/39.4 · Hand neu generieren (5 Finger) - die Hand ganz ganz links auch
-- [ ] 148 edit · figures/goliath-feminine/subclasses/battle-master · 7.5/50.2 · Hand neu generieren
-- [ ] 149 edit · figures/halfling-androgynous/subclasses/battle-master · 7.0/59.5 · Hand neu generieren (5 Finger)
-- [ ] 150 edit · figures/human-masculine/subclasses/battle-master · 3.1/48.4 · Hand neu generieren (5 Finger)
-- [ ] 151 edit · figures/orc-feminine/subclasses/battle-master · 57.5/35.5 · Handhaltung ist komisch + 5 Finger
-- [ ] 152 edit · figures/orc-androgynous/subclasses/battle-master · 6.3/46.2 · Hand neu generieren (5 Finger)
-- [ ] 153 edit · figures/orc-masculine/subclasses/battle-master · 52.9/33.9 · Handhaltung ist falsch
-- [ ] 154 edit · figures/tiefling-androgynous/subclasses/battle-master · 50.0/39.1 · Handhaltung ist falsch
-- [ ] 155 edit · figures/tiefling-masculine/subclasses/battle-master · 25.7/52.3 · generiere beide Beine neu - verdreht und alles falsch
-- [ ] 156 edit · figures/dwarf-feminine/subclasses/battle-master · 56.6/36.9 · Hand neu generieren (5 Finger)
-- [ ] 157 edit · figures/human-androgynous/classes/cleric · 62.9/27.9 · Hand fehlt
-- [ ] 158 edit · figures/tiefling-androgynous/classes/cleric · 59.5/42.1 · Hand fehlt
-- [ ] 159 edit · figures/dwarf-androgynous/classes/cleric · 60.9/41.0 · Hand fehlt
-- [ ] 160 edit · classes/cleric · 69.9/32.9 · Schildhalterung - mache das neu
-- [ ] 161 edit · figures/aasimar-masculine/subclasses/warrior-of-the-elements · 43.2/36.5 · Arm verdreht
-- [ ] 162 edit+ref · monsters/bandit-deceiver · 60.0/82.0 · Arm ist komplett verdreht + ändere das Gesicht zu dem des großen Bildes
-- [ ] 163 edit+ref · monster-scenes/bandit-crime-lord · 60.0/15.4 · orientiere dich am Gesicht des kleinen Bildes - + die Kleidung darf etwas teurer aussehen
-- [ ] 164 edit · monsters/dragon-turtle · 22.0/74.8 · hintere Flossen fehlen + überarbeite die Proportionen
-- [ ] 165 edit · monster-scenes/archpriest · 63.6/17.8 · männlich + weiß
-- [ ] 166 edit+ref · monster-scenes/questing-knight · 61.7/23.2 · orientiere dich am kleinen Bild - komplette Ritterrüstung mit Helm inklusive rötliche Akzente und Wappen auf der Brust + auf dem Schild
-- [ ] 167 edit · monsters/hunter-shark · 78.0/76.6 · Kiefer sieht komisch aus - mache das neu
-- [ ] 168 edit+ref · monster-scenes/death-tyrant · 53.9/33.1 · orientiere dich am kleinen Bild - etwas mehr blaue Akzente (im Auge + an den Tentakeln oben)
-- [ ] 169 edit · monster-scenes/guardian-naga · 37.4/72.4 · mache, dass der Unterkörper nach oben hin (also zur Treppe rauf - dort wo ein andere Körperteil sichtbar ist) weggeht - sonst ergibt das keinen Sinn
-- [ ] 170 edit · monster-scenes/corrupted-rat · 72.1/48.6 · linke Pfote fehlt
-- [ ] 171 edit · figures/fairy-masculine/subclasses/warrior-of-mercy · 33.5/58.2 · 1 Finger zu viel
-- [ ] 172 edit · figures/gnome-feminine/subclasses/warrior-of-mercy · 35.2/60.8 · Finger komisch
-- [ ] 173 edit · figures/gnome-feminine/subclasses/way-of-shadow · 10.4/36.6 · beide Hände sind komisch
-- [ ] 174 edit · figures/goliath-androgynous/subclasses/way-of-shadow · 63.4/37.4 · Arm ist verdreht
-- [ ] 175 edit · figures/halfling-androgynous/subclasses/way-of-shadow · 10.9/60.1 · mache die Hände neu
-- [ ] 176 edit · figures/halfling-masculine/subclasses/way-of-shadow · 9.4/52.3 · mache die Hände neu (5 Finger)
-- [ ] 177 edit · figures/human-feminine/subclasses/way-of-shadow · 81.6/38.1 · mache die Hand neu
-- [ ] 178 edit · figures/human-androgynous/subclasses/way-of-shadow · 78.2/30.8 · mache die Hand neu
-- [ ] 179 edit · figures/human-masculine/subclasses/way-of-shadow · 77.7/30.1 · mache die Hand neu
-- [ ] 180 edit · figures/orc-androgynous/subclasses/way-of-shadow · 79.2/29.5 · mache die Hände neu (5 Finger)
-- [ ] 181 edit · figures/orc-masculine/subclasses/way-of-shadow · 78.4/24.1 · mache die Hand neu
-- [ ] 182 edit · figures/tiefling-androgynous/subclasses/way-of-shadow · 78.4/34.2 · mache die Hände neu (5 Finger)
-- [ ] 183 edit · figures/tiefling-masculine/subclasses/way-of-shadow · 81.6/28.2 · mache die Hand neu
-- [ ] 184 edit · figures/dwarf-feminine/subclasses/way-of-shadow · 81.1/31.3 · mache die Hände neu (5 Finger)
-- [ ] 185 edit · figures/dwarf-masculine/subclasses/way-of-shadow · 74.5/32.7 · mache die Hand neu
-- [ ] 186 edit · figures/aasimar-feminine/classes/wizard · 17.9/19.0 · erstelle das Buch neu - Seiten passen nicht
-- [ ] 187 edit · figures/aasimar-androgynous/classes/wizard · 34.9/43.9 · Buchdeckel muss dunkel sein
-- [ ] 188 edit · figures/aasimar-masculine/classes/wizard · 22.5/37.1 · Buchseiten passen nicht
-- [ ] 189 edit · figures/dragonborn-feminine/classes/wizard · 32.5/21.2 · erstelle das Buch neu - Buchhaltung passt nicht
-- [ ] 190 edit · figures/elf-feminine/classes/wizard · 27.4/38.2 · Buch zugeschlagen am Gürtel
-- [ ] 191 edit · figures/gnome-feminine/classes/wizard · 27.6/35.6 · erstelle das Buch neu - Seiten passen nicht
-- [ ] 192 edit · figures/gnome-androgynous/classes/wizard · 30.6/36.5 · erstelle das Buch neu - Seiten passen nicht + beide Arme sind rechts?!?! - ein Arm muss links sein
-- [ ] 193 edit · figures/halfling-feminine/classes/wizard · 44.2/37.8 · erstelle das Buch neu - Seiten passen nicht
-- [ ] 194 edit · figures/halfling-masculine/classes/wizard · 18.9/29.0 · erstelle das Buch neu - Seiten passen nicht + beide Arme und Hände passen auch nicht
-- [ ] 195 edit · figures/orc-feminine/classes/wizard · 22.1/34.5 · erstelle das Buch neu - Seiten passen nicht
-- [ ] 196 edit · figures/orc-androgynous/classes/wizard · 19.1/31.6 · erstelle das Buch neu - Seiten passen nicht
-- [ ] 197 edit · figures/orc-masculine/classes/wizard · 50.0/32.2 · erstelle das Buch neu - Seiten passen nicht
-- [ ] 198 edit · figures/tiefling-feminine/classes/wizard · 22.8/33.7 · erstelle das Buch neu - Seiten passen nicht
-- [ ] 199 edit · figures/tiefling-masculine/classes/wizard · 20.4/32.9 · erstelle das Buch neu - Seiten passen nicht
-- [ ] 200 edit · figures/dwarf-feminine/classes/wizard · 18.2/34.7 · erstelle das Buch neu - Seiten passen nicht
-- [ ] 201 edit · figures/gnome-masculine/classes/monk · 90.1/37.8 · Fuß ist deformiert - mache den neu
-- [ ] 202 edit · figures/halfling-masculine/classes/monk · 33.0/51.4 · muss ein linker und kein rechter Fuß sein
-- [ ] 203 edit · figures/aasimar-masculine/subclasses/eldritch-knight · 22.3/80.7 · rechtes Bein fehlt
-- [ ] 204 edit · figures/dragonborn-feminine/subclasses/eldritch-knight · 42.5/66.1 · linkes Bein zu groß + rechtes Bein fehlt
-- [ ] 205 edit · figures/dragonborn-masculine/subclasses/eldritch-knight · 31.1/77.4 · rechtes Bein fehlt
-- [ ] 206 edit · figures/elf-feminine/subclasses/eldritch-knight · 34.2/87.8 · rechtes Bein fehlt + Schwert etwas länger
-- [ ] 207 edit · figures/gnome-feminine/subclasses/eldritch-knight · 57.8/81.0 · beide Beine versinken im Boden - geht nicht! - mache das neu
-- [ ] 208 edit · figures/gnome-androgynous/subclasses/eldritch-knight · 59.2/90.1 · beide Beine versinken im Boden - mache das neu
-- [ ] 209 edit · figures/halfling-feminine/subclasses/eldritch-knight · 40.5/78.2 · beide Beine versinken im Boden - geht nicht + linke Hand neu generieren
-- [ ] 210 edit · figures/human-feminine/subclasses/eldritch-knight · 63.6/91.2 · Bein versinkt im Boden - geht nicht
-- [ ] 211 edit · figures/tiefling-feminine/subclasses/eldritch-knight · 63.1/84.6 · Bein versinkt im Boden - geht nicht
-- [ ] 212 edit · figures/tiefling-androgynous/subclasses/eldritch-knight · 27.2/85.5 · beide Beine versinken im Boden
-- [ ] 213 edit · figures/dwarf-feminine/subclasses/eldritch-knight · 55.3/85.7 · Bein versinkt im Boden + rechtes Bein fehlt
-- [ ] 214 edit · figures/dragonborn-masculine/classes/paladin · 61.9/42.9 · Schwert darf etwas länger sein
-- [ ] 215 edit · figures/goliath-feminine/classes/paladin · 70.7/39.4 · Hand kann nicht durch das Schild durchgehen!
-- [ ] 216 edit · figures/goliath-androgynous/classes/paladin · 72.6/49.9 · rechter Arm des Monsters fehlt
-- [ ] 217 edit · figures/goliath-masculine/classes/paladin · 65.6/46.8 · Schwert ist etwas zu kurz
-- [ ] 218 edit · figures/halfling-androgynous/classes/paladin · 43.2/40.0 · linker Arm muss woanders hin
-- [ ] 219 edit · figures/dwarf-feminine/classes/paladin · 77.0/32.9 · linke Hand fehlt
-- [ ] 220 edit · figures/aasimar-feminine/subclasses/path-of-the-world-tree · 62.6/43.7 · generiere die Hand neu (5 Finger)
-- [ ] 221 edit · figures/elf-androgynous/subclasses/path-of-the-world-tree · 60.7/36.8 · generiere die Hand neu (5 Finger)
-- [ ] 222 edit · figures/fairy-feminine/subclasses/path-of-the-world-tree · 48.3/53.6 · generiere die Hand neu (5 Finger)
-- [ ] 223 edit · figures/gnome-androgynous/subclasses/path-of-the-world-tree · 52.4/52.0 · generiere die Hand neu (5 Finger)
-- [ ] 224 edit · figures/goliath-masculine/subclasses/path-of-the-world-tree · 57.0/39.2 · generiere die Hand neu (5 Finger)
-- [ ] 225 edit · figures/tiefling-androgynous/subclasses/path-of-the-world-tree · 58.3/52.3 · generiere die Hand neu (5 Finger)
-- [ ] 226 edit · figures/tiefling-masculine/subclasses/path-of-the-world-tree · 82.1/34.5 · Arm komplett verdreht + linker Arm des roten Mannes fehlt komplett
-- [ ] 227 edit · figures/aasimar-feminine/subclasses/path-of-the-wild-heart · 89.8/25.9 · generiere die Hand neu (5 Finger)
-- [ ] 228 edit · figures/dragonborn-feminine/subclasses/path-of-the-wild-heart · 91.3/26.1 · generiere die Hand neu (5 Finger)
-- [ ] 229 edit · figures/dragonborn-masculine/subclasses/path-of-the-wild-heart · 90.3/31.0 · generiere die Hand neu (5 Finger)
-- [ ] 230 edit · figures/halfling-androgynous/subclasses/path-of-the-wild-heart · 89.4/28.5 · generiere die Hand neu (5 Finger)
-- [ ] 231 edit · figures/human-feminine/subclasses/path-of-the-wild-heart · 89.8/30.0 · generiere die Hand neu (5 Finger)
-- [ ] 232 edit · figures/tiefling-feminine/subclasses/path-of-the-wild-heart · 82.3/29.7 · generiere die Hand neu (5 Finger) - ändere den Gesichtsausdruck
-- [ ] 233 edit · figures/aasimar-masculine/subclasses/psi-warrior · 43.2/38.1 · Arm ist komplett verdreht - kann nicht so nach hinten zeigen - ändere die Körperhaltung
-- [ ] 234 edit · figures/elf-feminine/subclasses/psi-warrior · 51.0/34.5 · ändere die Körperhaltung - der Arm kann nicht so nach hinten zeigen
-- [ ] 235 edit · figures/human-androgynous/subclasses/psi-warrior · 57.5/32.4 · generiere die Hand neu (5 Finger)
-- [ ] 236 edit · figures/tiefling-androgynous/subclasses/psi-warrior · 20.4/37.6 · Hörner gehen in die falsche Richtung
-- [ ] 237 edit · figures/aasimar-androgynous/subclasses/college-of-dance · 20.8/10.4 · Hand ist komplett verdreht
-- [ ] 238 edit · figures/gnome-feminine/subclasses/college-of-dance · 74.5/44.4 · generiere die Hand neu (5 Finger)
-- [ ] 239 edit · figures/gnome-androgynous/subclasses/college-of-dance · 70.2/47.8 · generiere die Hand neu (5 Finger)
-- [ ] 240 edit · figures/goliath-masculine/subclasses/college-of-dance · 89.1/35.3 · generiere die Hand neu (5 Finger)
-- [ ] 241 edit · figures/halfling-masculine/subclasses/college-of-dance · 69.4/46.5 · generiere die Hand neu (5 Finger)
-- [ ] 242 edit · figures/orc-feminine/subclasses/college-of-dance · 87.9/39.9 · generiere die Hand neu (5 Finger)
-- [ ] 243 edit · figures/tiefling-feminine/subclasses/college-of-dance · 91.8/39.1 · generiere die Hand neu (5 Finger)
-- [ ] 244 edit · figures/tiefling-androgynous/subclasses/college-of-dance · 91.1/42.6 · generiere die Hand neu (5 Finger)
-- [ ] 245 edit · figures/dragonborn-feminine/subclasses/college-of-valor · 22.1/36.0 · das Musikinstrument sieht komisch und falsch aus - generiere das neu
-- [ ] 246 edit · figures/dragonborn-masculine/subclasses/college-of-valor · 21.3/42.0 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 247 edit · figures/elf-feminine/subclasses/college-of-valor · 19.6/40.0 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 248 edit · figures/elf-androgynous/subclasses/college-of-valor · 18.7/43.9 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 249 edit · figures/elf-masculine/subclasses/college-of-valor · 20.1/39.4 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 250 edit · figures/fairy-feminine/subclasses/college-of-valor · 17.7/33.2 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 251 edit · figures/fairy-androgynous/subclasses/college-of-valor · 13.8/39.7 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 252 edit · figures/gnome-feminine/subclasses/college-of-valor · 17.9/36.8 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 253 edit · figures/gnome-androgynous/subclasses/college-of-valor · 12.1/35.5 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 254 edit · figures/gnome-masculine/subclasses/college-of-valor · 16.0/42.0 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 255 edit · figures/goliath-feminine/subclasses/college-of-valor · 19.4/36.1 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 256 edit · figures/goliath-androgynous/subclasses/college-of-valor · 16.0/36.1 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 257 edit · figures/goliath-masculine/subclasses/college-of-valor · 22.5/38.4 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 258 edit · figures/halfling-feminine/subclasses/college-of-valor · 19.6/31.0 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 259 edit · figures/halfling-androgynous/subclasses/college-of-valor · 13.1/41.3 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 260 edit · figures/halfling-masculine/subclasses/college-of-valor · 13.1/38.7 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 261 edit · figures/human-feminine/subclasses/college-of-valor · 16.0/37.4 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 262 edit · figures/human-androgynous/subclasses/college-of-valor · 19.9/38.1 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 263 edit · figures/human-masculine/subclasses/college-of-valor · 17.7/38.2 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 264 edit · figures/orc-feminine/subclasses/college-of-valor · 25.5/41.0 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 265 edit · figures/orc-masculine/subclasses/college-of-valor · 21.8/40.5 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 266 edit · figures/tiefling-feminine/subclasses/college-of-valor · 29.1/37.9 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 267 edit · figures/tiefling-androgynous/subclasses/college-of-valor · 20.8/39.7 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 268 edit · figures/tiefling-masculine/subclasses/college-of-valor · 18.4/40.7 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 269 edit · figures/dwarf-feminine/subclasses/college-of-valor · 17.0/38.4 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 270 edit · figures/dwarf-androgynous/subclasses/college-of-valor · 10.6/49.4 · generiere das Musikinstrument neu - sieht falsch aus
-- [ ] 271 edit · figures/dwarf-masculine/subclasses/college-of-valor · 24.5/18.8 · der Gitarrenhals ist leicht verzogen - korrigiere das - der muss gerade nach oben gehen
-- [ ] 272 edit · figures/dragonborn-feminine/subclasses/college-of-lore · 47.6/81.6 · Fuß ist verdreht
-- [ ] 273 edit · figures/fairy-masculine/subclasses/college-of-lore · 40.8/62.1 · Fuß fehlt
-- [ ] 274 edit · figures/halfling-masculine/subclasses/college-of-lore · 51.7/55.9 · Bein und Fuß fehlt
-- [ ] 275 edit · figures/tiefling-androgynous/subclasses/college-of-lore · 76.7/30.1 · das sieht komisch und verzerrt aus
-- [ ] 276 edit · figures/elf-feminine/subclasses/college-of-glamour · 9.7/47.0 · generiere das hier neu - ist verzerrt
-- [ ] 277 edit · figures/elf-androgynous/subclasses/college-of-glamour · 7.0/18.3 · ist verzerrt und schief
-- [ ] 278 edit · figures/elf-masculine/subclasses/college-of-glamour · 8.0/25.4 · ist verzerrt und schief
-- [ ] 279 edit · figures/fairy-feminine/subclasses/college-of-glamour · 12.1/46.5 · generiere das Instrument komplett neu
-- [ ] 280 edit · figures/fairy-masculine/subclasses/college-of-glamour · 9.9/33.7 · das ist verzerrt und schief
-- [ ] 281 edit · figures/gnome-androgynous/subclasses/college-of-glamour · 79.9/24.5 · generiere die Hand neu
-- [ ] 282 edit · figures/gnome-masculine/subclasses/college-of-glamour · 10.9/54.0 · generiere das Instrument neu
-- [ ] 283 edit · figures/human-feminine/subclasses/college-of-glamour · 16.2/38.7 · generiere den Part des Instruments neu - der ist komplett schief und verdreht
-- [ ] 284 edit · figures/human-androgynous/subclasses/college-of-glamour · 9.7/48.4 · das ist verdreht und schief
-- [ ] 285 edit · figures/human-masculine/subclasses/college-of-glamour · 18.2/40.5 · ist etwas schief - geht zu weit nach vorne
-- [ ] 286 edit · figures/orc-feminine/subclasses/college-of-glamour · 25.7/55.6 · generiere das Instrument komplett neu
-- [ ] 287 edit · figures/orc-androgynous/subclasses/college-of-glamour · 61.9/54.3 · generiere das Instrument neu + die rechte Hand - die ist verdreht
-- [ ] 288 edit · figures/dwarf-masculine/subclasses/college-of-glamour · 22.1/53.3 · generiere das Instrument neu
-- [ ] 289 edit · classes/rogue · 61.2/70.5 · der Arm hat 2 Hände.. ergibt keinen Sinn - generiere das neu
-- [ ] 290 edit · figures/dragonborn-masculine/classes/rogue · 56.8/25.0 · Arm ist verdreht - der Arm kann nicht so weit nach hinten
-- [ ] 291 edit · figures/halfling-feminine/classes/rogue · 93.2/57.7 · Arm kann nicht so hinter seinem Rücken sein
-- [ ] 292 edit · figures/goliath-masculine/subclasses/oath-of-devotion · 38.3/80.8 · linkes Bein fehlt
-- [ ] 293 edit · figures/halfling-feminine/subclasses/oath-of-devotion · 51.7/86.3 · linkes Bein fehlt
-- [ ] 294 edit · figures/human-androgynous/subclasses/oath-of-devotion · 36.6/84.7 · linkes Bein fehlt
-- [ ] 295 edit · figures/goliath-masculine/subclasses/soulknife · 57.0/33.4 · generiere die Hand neu
-- [ ] 296 edit · figures/halfling-androgynous/subclasses/soulknife · 54.9/36.1 · generiere die Hand neu
-- [ ] 297 edit · figures/human-feminine/subclasses/soulknife · 55.6/28.7 · generiere die Hand neu (5 Finger)
-- [ ] 298 edit · figures/orc-feminine/subclasses/soulknife · 66.5/32.2 · generiere die Hand neu (5 Finger)
-- [ ] 299 edit · figures/orc-androgynous/subclasses/soulknife · 54.9/35.5 · generiere die Hand neu (5 Finger)
-- [ ] 300 edit · figures/tiefling-feminine/subclasses/soulknife · 54.1/33.4 · generiere die Hand neu (5 Finger)
-- [ ] 301 edit · figures/tiefling-androgynous/subclasses/soulknife · 68.2/43.3 · generiere die Hand neu (5 Finger)
-- [ ] 302 edit · figures/dwarf-feminine/subclasses/soulknife · 60.9/39.4 · generiere die Hand neu (5 Finger)
-- [ ] 303 edit · figures/dwarf-masculine/subclasses/soulknife · 60.2/37.3 · generiere die Hand neu (5 Finger)
-- [ ] 304 edit · figures/elf-feminine/subclasses/diviner · 73.1/55.1 · generiere die Hand neu (5 Finger)
-- [ ] 305 edit · figures/human-androgynous/subclasses/diviner · 68.5/55.1 · generiere die Hand neu (5 Finger)
-- [ ] 306 edit · figures/human-masculine/subclasses/diviner · 82.6/54.9 · generiere die Hand neu (5 Finger)
-- [ ] 307 edit · figures/dwarf-masculine/subclasses/diviner · 68.5/56.2 · generiere die Hand neu (5 Finger)
-- [ ] 308 edit · figures/fairy-feminine/subclasses/clockwork-sorcery · 87.7/34.0 · generiere die Hand neu (5 Finger) + die andere Hand auch
-- [ ] 309 edit · figures/goliath-feminine/subclasses/clockwork-sorcery · 87.9/27.2 · generiere die Hand neu (5 Finger)
-- [ ] 310 edit · figures/goliath-masculine/subclasses/clockwork-sorcery · 92.0/28.5 · generiere die Hand neu (5 Finger)
-- [ ] 311 edit · figures/halfling-androgynous/subclasses/clockwork-sorcery · 75.8/44.4 · generiere die Hand neu (5 Finger)
-- [ ] 312 edit · figures/human-feminine/subclasses/clockwork-sorcery · 83.0/32.9 · generiere die Hand neu (5 Finger) + die andere Hand auch
-- [ ] 313 edit · figures/human-androgynous/subclasses/clockwork-sorcery · 84.0/28.4 · generiere die Hand neu (5 Finger)
-- [ ] 314 edit · figures/orc-feminine/subclasses/clockwork-sorcery · 79.6/37.8 · generiere die Hand neu (5 Finger)
-- [ ] 315 edit · figures/orc-masculine/subclasses/clockwork-sorcery · 21.6/41.6 · generiere die Hand neu (5 Finger)
-- [ ] 316 edit · figures/tiefling-feminine/subclasses/clockwork-sorcery · 15.3/37.9 · generiere die Hand neu (5 Finger)
-- [ ] 317 edit · figures/dwarf-feminine/subclasses/clockwork-sorcery · 81.8/32.9 · generiere die Hand neu (5 Finger)
-- [ ] 318 edit · figures/dwarf-androgynous/subclasses/clockwork-sorcery · 15.5/45.9 · generiere die Hand neu (5 Finger)
-- [ ] 319 edit · figures/dwarf-masculine/subclasses/clockwork-sorcery · 68.8/36.0 · generiere die Hand neu (5 Finger)
-- [ ] 320 edit · figures/human-androgynous/subclasses/fiend-patron · 14.0/56.1 · generiere die Hand neu (5 Finger)
-- [ ] 321 edit · figures/tiefling-androgynous/subclasses/fiend-patron · 11.4/68.0 · generiere die Hand neu (5 Finger)
-- [ ] 322 edit · figures/tiefling-masculine/classes/ranger · 51.2/55.7 · der Schwanz darf nicht vorne sein - der ist hinten am Körper
-- [ ] 323 edit · figures/dwarf-androgynous/classes/ranger · 54.1/57.2 · Bein mit Fuß sieht komisch aus
-- [ ] 324 edit · figures/fairy-androgynous/subclasses/wild-magic-sorcery · 61.9/36.8 · generiere die rechte Hand neu
-- [ ] 325 edit · figures/tiefling-androgynous/subclasses/wild-magic-sorcery · 56.8/31.6 · generiere die Hand neu
-- [ ] 326 edit · classes/sorcerer · 17.7/16.5 · generiere die Hand neu (5 Finger)
-- [ ] 327 edit · figures/gnome-feminine/classes/sorcerer · 83.3/37.8 · generiere die Hand neu (5 Finger)
-- [ ] 328 edit · figures/gnome-masculine/classes/sorcerer · 15.5/33.9 · generiere die Hand neu (5 Finger)
-- [ ] 329 edit · figures/halfling-feminine/classes/sorcerer · 27.2/45.9 · generiere die Hand neu (5 Finger)
-- [ ] 330 edit · figures/human-feminine/classes/sorcerer · 92.0/28.0 · generiere die Hand neu (5 Finger)
-- [ ] 331 edit · figures/orc-feminine/classes/sorcerer · 11.4/35.0 · generiere beide Hände neu (5 Finger)
-- [ ] 332 edit · figures/tiefling-androgynous/classes/sorcerer · 29.6/25.4 · der Oberkörper ist verdreht + der Schwanz muss an der passenden Stelle sein
-- [ ] 333 edit · figures/tiefling-masculine/classes/sorcerer · 12.1/14.6 · generiere die Hand neu (5 Finger)
-- [ ] 334 edit · figures/dwarf-feminine/classes/sorcerer · 24.2/39.9 · generiere die Hand neu (5 Finger)
-- [ ] 335 edit · figures/dwarf-androgynous/classes/sorcerer · 22.3/33.9 · generiere beide Hände neu (5 Finger)
-- [ ] 336 edit · figures/elf-feminine/subclasses/circle-of-the-land · 21.8/11.8 · generiere die Hand neu (5 Finger)
-- [ ] 337 edit · figures/gnome-androgynous/subclasses/circle-of-the-land · 24.0/15.9 · generiere die Hand neu (5 Finger)
-- [ ] 338 edit · figures/halfling-feminine/subclasses/circle-of-the-land · 74.8/20.3 · generiere die Hand neu (5 Finger)
-- [ ] 339 edit · figures/halfling-androgynous/subclasses/circle-of-the-land · 28.9/11.2 · generiere die Hand neu (5 Finger)
-- [ ] 340 edit · figures/human-androgynous/subclasses/circle-of-the-land · 29.8/16.4 · generiere die Hand neu (5 Finger)
-- [ ] 341 edit · figures/tiefling-feminine/subclasses/circle-of-the-land · 25.7/11.8 · generiere die Hand neu (5 Finger)
-- [ ] 342 edit · figures/tiefling-masculine/subclasses/circle-of-the-land · 23.8/10.9 · generiere die Hand neu (5 Finger)
-- [ ] 343 edit · figures/dwarf-androgynous/subclasses/circle-of-the-land · 25.7/11.4 · generiere die Hand neu (5 Finger)
-- [ ] 344 edit · figures/aasimar-feminine/subclasses/circle-of-the-sea · 70.4/34.0 · generiere die Hand neu (5 Finger)
-- [ ] 345 edit · figures/elf-feminine/subclasses/circle-of-the-sea · 75.0/34.2 · generiere die Hand neu (5 Finger)
-- [ ] 346 edit · figures/elf-androgynous/subclasses/circle-of-the-sea · 69.7/32.7 · generiere die Hand neu (5 Finger)
-- [ ] 347 edit · figures/elf-masculine/subclasses/circle-of-the-sea · 72.1/34.8 · generiere die Hand neu (5 Finger)
-- [ ] 348 edit · figures/fairy-feminine/subclasses/circle-of-the-sea · 69.4/36.6 · generiere die Hand neu (5 Finger)
-- [ ] 349 edit · figures/fairy-androgynous/subclasses/circle-of-the-sea · 62.1/32.4 · generiere die Hand neu (5 Finger)
-- [ ] 350 edit · figures/gnome-feminine/subclasses/circle-of-the-sea · 66.5/32.7 · generiere die Hand neu (5 Finger)
-- [ ] 351 edit · figures/gnome-androgynous/subclasses/circle-of-the-sea · 66.0/35.5 · generiere die Hand neu (5 Finger)
-- [ ] 352 edit · figures/gnome-masculine/subclasses/circle-of-the-sea · 66.5/38.4 · generiere die Hand neu (5 Finger)
-- [ ] 353 edit · figures/human-feminine/subclasses/circle-of-the-sea · 74.3/33.4 · generiere die Hand neu (5 Finger)
-- [ ] 354 edit · figures/human-androgynous/subclasses/circle-of-the-sea · 71.9/34.2 · generiere die Hand neu (5 Finger)
-- [ ] 355 edit · figures/orc-feminine/subclasses/circle-of-the-sea · 80.4/29.2 · generiere die Hand neu (5 Finger)
-- [ ] 356 edit · figures/orc-masculine/subclasses/circle-of-the-sea · 66.5/30.8 · generiere die Hand neu (5 Finger)
-- [ ] 357 edit · figures/tiefling-feminine/subclasses/circle-of-the-sea · 69.2/26.1 · generiere die Hand neu (5 Finger)
-- [ ] 358 edit · figures/tiefling-androgynous/subclasses/circle-of-the-sea · 75.0/40.5 · generiere die Hand neu (5 Finger)
-- [ ] 359 edit · figures/aasimar-feminine/subclasses/circle-of-the-moon · 91.5/59.0 · generiere die Hand neu (5 Finger)
-- [ ] 360 edit · figures/fairy-feminine/subclasses/circle-of-the-moon · 10.2/38.6 · generiere die Hand neu (5 Finger)
-- [ ] 361 edit · figures/gnome-feminine/subclasses/circle-of-the-moon · 77.5/48.4 · generiere beide Hände neu (5 Finger)
-- [ ] 362 edit · figures/gnome-androgynous/subclasses/circle-of-the-moon · 10.4/40.8 · generiere die Hand neu (5 Finger)
-- [ ] 363 edit · figures/halfling-feminine/subclasses/circle-of-the-moon · 85.5/61.1 · generiere beide Hände neu (5 Finger)
-- [ ] 364 edit · figures/halfling-androgynous/subclasses/circle-of-the-moon · 80.1/52.2 · generiere die Hand neu (5 Finger)
-- [ ] 365 edit · figures/human-feminine/subclasses/circle-of-the-moon · 8.9/34.8 · generiere die Hand neu (5 Finger)
-- [ ] 366 edit · figures/tiefling-feminine/subclasses/circle-of-the-moon · 90.8/50.9 · generiere beide Hände neu (5 Finger)
-- [ ] 367 edit · figures/aasimar-feminine/backgrounds/noble · 53.9/46.7 · generiere die Hand neu (5 Finger)
-- [ ] 368 edit · figures/dragonborn-feminine/backgrounds/noble · 24.7/45.2 · generiere die Hand neu (5 Finger)
-- [ ] 369 edit · figures/elf-androgynous/backgrounds/noble · 72.6/52.0 · der Stempel in seiner Hand fehlt
-- [ ] 370 edit · figures/fairy-feminine/backgrounds/noble · 62.9/51.0 · die Beine sind verdreht
-- [ ] 371 edit · figures/fairy-androgynous/backgrounds/noble · 51.0/71.4 · linkes Bein fehlt
-- [ ] 372 edit · figures/goliath-masculine/backgrounds/noble · 71.1/58.2 · der Siegelring muss auf dem Papier sein
-- [ ] 373 edit · figures/human-feminine/backgrounds/noble · 84.5/40.2 · generiere die Hand neu - sehr komisch gespreizt
-- [ ] 374 edit · figures/human-masculine/backgrounds/noble · 49.5/58.2 · der Ring muss auf dem roten Wachs sein
-- [ ] 375 edit · figures/orc-androgynous/backgrounds/noble · 64.6/51.5 · der Ring muss unten auf dem Wachs sein
-- [ ] 376 edit · figures/orc-masculine/backgrounds/noble · 68.7/51.2 · der Stempel fehlt
-- [ ] 377 edit · figures/tiefling-feminine/backgrounds/noble · 74.1/35.8 · die Hand und der Arm sind verdreht
-- [ ] 378 edit · figures/tiefling-androgynous/backgrounds/noble · 78.7/45.4 · generiere die Hand neu (5 Finger)
-- [ ] 379 edit · figures/dwarf-masculine/backgrounds/noble · 87.4/27.6 · generiere die Hand neu (5 Finger)
-- [ ] 380 edit · figures/halfling-androgynous/backgrounds/acolyte · 75.5/35.2 · generiere die Hand neu - er hält das zwischen Daumen und Zeigefinger
-- [ ] 381 edit · figures/dwarf-masculine/backgrounds/acolyte · 89.8/35.5 · generiere die Hand neu (5 Finger) + etwas weiter weg vom Feuer
-- [ ] 382 edit · figures/elf-feminine/backgrounds/farmer · 39.3/23.3 · lösche den Hut + aus der Seite der Kiste dürfen die 2 Kohlköpfe oberhalb des rechten Arms nicht sein
-- [ ] 383 edit · figures/gnome-feminine/backgrounds/farmer · 86.9/53.3 · das Seil muss am rechten Horn fest gemacht sein
-- [ ] 384 edit · figures/fairy-feminine/backgrounds/hermit · 42.7/68.5 · das muss ihr linkes Bein und linker Fuß sein
-- [ ] 385 edit · figures/human-masculine/backgrounds/hermit · 82.1/31.9 · generiere die Hand neu (5 Finger)
-- [ ] 386 edit · figures/halfling-masculine/backgrounds/merchant · 45.1/47.1 · generiere die Hand neu (5 Finger) - die Handposition passt nicht
-- [ ] 387 edit · figures/dwarf-feminine/backgrounds/merchant · 33.0/36.1 · generiere das Buch neu - ergibt so keinen Sinn
-- [ ] 388 edit · figures/dragonborn-feminine/backgrounds/artisan · 27.6/75.5 · rechtes Bein mit Fuß sind komplett verdreht
-- [ ] 389 edit · figures/goliath-feminine/backgrounds/artisan · 13.8/57.0 · füge im Hintergrund ein Paar schön verzierte Holzski hin - da baut sie gerade ein neues Paar
-- [ ] 390 edit · figures/dragonborn-feminine/backgrounds/criminal · 87.7/32.2 · der Beutel oben ist doppelt + irgendwas spitzes schaut da raus??? - lösche das
-- [ ] 391 edit · figures/fairy-androgynous/backgrounds/criminal · 65.1/29.2 · Gesichtsausdruck ist komisch
-- [ ] 392 edit · figures/goliath-androgynous/backgrounds/criminal · 87.7/70.6 · Beutel ist komisch geformt
-- [ ] 393 edit · figures/gnome-feminine/backgrounds/charlatan · 15.0/32.1 · die Hand sieht komisch aus (5 Finger)
-- [ ] 394 edit · figures/halfling-masculine/backgrounds/charlatan · 25.2/68.9 · Bein ist komplett verdreht und ein Teil fehlt
-- [ ] 395 edit · figures/tiefling-masculine/backgrounds/charlatan · 79.9/53.3 · generiere die Hand neu (5 Finger)
-- [ ] 396 edit · figures/dwarf-masculine/backgrounds/charlatan · 87.4/66.4 · generiere die Hand neu (5 Finger)
-- [ ] 397 edit · figures/aasimar-masculine/backgrounds/scribe · 68.5/19.0 · die Pose ergibt keinen Sinn - er soll etwas da im Moment drauf schreiben - Blatt liegt auf dem Tisch - die andere Person schaut gespannt zu
-- [ ] 398 edit · figures/dragonborn-masculine/backgrounds/scribe · 84.3/33.2 · die Buchseiten dort ergeben keinen Sinn - wehende Buchseiten sehen anders aus - generiere den Part neu
-- [ ] 399 edit · figures/dragonborn-masculine/backgrounds/sailor · 84.0/60.1 · der Teil des Seils muss weg - ergibt keinen Sinn
-- [ ] 400 edit · figures/halfling-feminine/backgrounds/sailor · 51.0/44.1 · das sieht mehr nach einem Knoten aus - das Seil dort soll schöner aussehen
-- [ ] 401 edit · figures/dwarf-feminine/backgrounds/sailor · 26.7/20.7 · der Teil des Kopftuchs geht durch die Hand - das soll nicht so sein!
-- [ ] 402 edit · figures/dragonborn-feminine/backgrounds/soldier · 77.2/45.9 · der Arm ist komplett falsch verdreht!
-- [ ] 403 edit · figures/aasimar-feminine/backgrounds/entertainer · 52.9/67.6 · die Beine sehen komisch aus - sieht aus wie 2 rechte Beine + das hintere Bein ist irgendwie zu klein und zu kurz - generiere beide Beine neu
-- [ ] 404 edit · figures/elf-feminine/backgrounds/entertainer · 17.9/40.8 · das muss ihr linkes Bein sein! - das muss also an eine andere Position! ändere nur das!
-- [ ] 405 edit · figures/fairy-masculine/backgrounds/entertainer · 49.0/54.6 · das muss sein linkes Bein und linker Fuß sein! ändere das!
-- [ ] 406 edit · figures/gnome-feminine/backgrounds/entertainer · 60.7/50.2 · beide Beine ergeben so gar keinen Sinn! ändere beide Beine!
-- [ ] 407 edit · figures/goliath-feminine/backgrounds/entertainer · 72.8/17.0 · der Ball muss in ihre rechte Hand rüber!
-- [ ] 408 edit · figures/goliath-androgynous/backgrounds/entertainer · 46.1/50.9 · beide Beine ergeben so keinen Sinn! generiere die Beine neu!
-- [ ] 409 edit · figures/tiefling-feminine/backgrounds/entertainer · 22.3/47.1 · das linke Bein ergibt keinen Sinn - ändere das und generiere es an die passende Stelle
-- [ ] 410 edit · figures/tiefling-masculine/backgrounds/entertainer · 52.2/28.0 · unter der rechten Hand ist etwas Komisches - verändere / lösche das
-- [ ] 411 edit · figures/dwarf-feminine/backgrounds/entertainer · 49.5/70.1 · das ist ihr rechtes Bein - das muss weiter nach rechts + das linke Bein fehlt komplett - generiere das
-- [ ] 412 edit · figures/elf-feminine/backgrounds/guard · 88.9/42.6 · die Hand und der Arm sind verdreht - korrigiere das
-- [ ] 413 edit · figures/dwarf-feminine/backgrounds/guard · 92.3/40.7 · Sie soll die Türe zuschieben, sonst ergibt das Bild keinen Sinn
-- [ ] 414 edit · figures/aasimar-feminine/backgrounds/guide · 55.8/38.7 · die 2 Hände sehen katastrophal aus - so sehen 2 Hände nicht aus, wovon die eine die andere hochzieht!
-- [ ] 415 edit · figures/aasimar-androgynous/backgrounds/guide · 66.0/41.8 · man muss seine Hand sehen, wie er den anderen mit zieht
-- [ ] 416 edit · figures/aasimar-masculine/backgrounds/guide · 67.3/44.9 · die eine Hand zieht die andere Hand - generiere die 2 Hände neu
-- [ ] 417 edit · figures/dragonborn-feminine/backgrounds/guide · 8.2/47.8 · der untere Teil des Seils muss weg - das Seil geht direkt zur Hand des Mannes
-- [ ] 418 edit · figures/dragonborn-masculine/backgrounds/guide · 32.5/54.9 · das Seil muss durchgehend sein ohne Absatz
-- [ ] 419 edit · figures/gnome-masculine/backgrounds/guide · 45.9/45.9 · das Seil muss auf der Höhe seines Gürtels einmal herum gehen
-- [ ] 420 edit · figures/goliath-masculine/backgrounds/guide · 91.5/35.8 · das Seil soll hier nicht festgemacht sein! er soll den Rest des Seils aufgewickelt in seiner rechten Hand tragen
-- [ ] 421 edit · figures/halfling-feminine/backgrounds/guide · 69.2/32.7 · so sehen keine 2 Hände aus, wovon die eine die andere stützt!
-- [ ] 422 edit · figures/human-androgynous/backgrounds/guide · 31.8/34.2 · so sehen keine 2 Hände aus, wovon die eine die andere stützt! - geht in die richtige Richtung
-- [ ] 423 edit · figures/human-masculine/backgrounds/guide · 67.3/41.3 · so sehen keine 2 Hände aus - sie geben sich zur Begrüßung die Hand
-- [ ] 424 edit · figures/orc-feminine/backgrounds/guide · 62.4/48.0 · so sehen keine 2 Hände aus, wovon die eine die andere stützt!
-- [ ] 425 edit · figures/orc-androgynous/backgrounds/guide · 56.3/37.6 · so sehen keine 2 Hände aus, wovon die eine die andere stützt!
-- [ ] 426 edit · figures/orc-masculine/backgrounds/guide · 61.9/43.6 · so sehen keine 2 Hände aus, wovon die eine die andere stützt!
-- [ ] 427 edit · figures/tiefling-feminine/backgrounds/guide · 61.7/45.2 · so sehen keine 2 Hände aus, wovon die eine die andere stützt!
-- [ ] 428 edit · figures/tiefling-androgynous/backgrounds/guide · 60.0/32.2 · so sehen keine 2 Hände aus, wovon die eine die andere stützt!
-- [ ] 429 edit · figures/tiefling-masculine/backgrounds/guide · 70.4/40.8 · so sehen keine 2 Hände aus, wovon die eine die andere stützt!
-- [ ] 430 edit · figures/dwarf-feminine/backgrounds/guide · 61.7/38.7 · so sehen keine 2 Hände aus, wovon die eine die andere stützt!
-- [ ] 431 edit · figures/elf-feminine/backgrounds/sage · 26.7/82.1 · ohne Brille bitte + das hier markiert ist ihr linkes Bein.. das muss weiter nach links aus ihrer Sicht
-- [ ] 432 edit · figures/fairy-masculine/backgrounds/sage · 56.6/36.0 · man muss hier die Buchrückseite sehen! - sonst passt es!
-- [ ] 433 edit · figures/gnome-feminine/backgrounds/sage · 31.5/35.3 · der Finger hat dort nichts verloren! lösche den + ihr linkes Bein muss weiter nach links
-- [ ] 434 edit · figures/gnome-masculine/backgrounds/sage · 65.1/42.5 · generiere das Buch neu! ist komplett verzogen
-- [ ] 435 edit · figures/goliath-androgynous/backgrounds/sage · 91.1/35.5 · generiere das Buch neu
-- [ ] 436 edit · figures/goliath-masculine/backgrounds/sage · 37.4/63.3 · sein linkes Bein ist verdreht und muss weiter nach links! das passt so gar nicht!
-- [ ] 437 edit · figures/halfling-feminine/backgrounds/sage · 50.2/68.2 · ihr Fuß ist verdreht + es muss ihr linker Fuß sein und nicht ein 2. rechter Fuß
-- [ ] 438 edit · figures/human-androgynous/backgrounds/sage · 23.3/53.8 · er sitzt ja seitlich - da ist hier zu viel Stoff - das ergibt so keinen Sinn
-- [ ] 439 edit · figures/orc-masculine/backgrounds/sage · 59.7/48.9 · das muss sein linkes Knie sein - ist verzerrt
-- [ ] 440 edit · figures/dwarf-androgynous/backgrounds/sage · 65.1/39.5 · die 2 Bücher sind komplett deformiert und in der falschen Größe (falsches Format)!
-- [ ] 441 edit · figures/dwarf-masculine/backgrounds/sage · 80.1/36.1 · seine linke Hand passt nicht! (5 Finger)
+- [~] 010 edit · monster-scenes/githzerai-zerth · 48.1/15.4 · rechter hintere Arm ist verdreht + generelle Pose sieht komisch aus + blaue Akzente des Mantels sollen orange sein
+- [~] 011 edit · monster-scenes/gladiator · 18.9/27.1 · Körperbau ist ziemlich männlich - passe den Körperbau zum weiblichen Geschlecht an + der Speer geht durch den Oberkörper durch, was falsch ist - er soll am Körper rechts vorbei gehen, während sie den Speer hält + ändere nichts an der generellen Pose, dem Hintergrund oder Kopf
+- [~] 012 edit · monster-scenes/bugbear-stalker · 22.1/35.8 · überarbeite die Pose und das Gesicht der Kreatur auf dem Dach
+- [~] 013 edit · monster-scenes/hook-horror · 81.8/15.4 · Das Wesen hat 2 rechte Arme - ändere das
+- [~] 014 edit · monster-scenes/ghast-gravecaller · 57.7/24.1 · die Zunge ist zu lang
+- [~] 015 edit · monster-scenes/harpy · 64.8/22.6 · überarbeite das Gesicht - soll nicht schielen + jüngeres Gesicht/Hals (2. Runde: das Gesicht hat sich kaum verändert — Gesicht deutlich neu malen: jünger, beide Augen blicken in dieselbe Richtung, glatter junger Hals)
+- [~] 016 edit · monster-scenes/hunter-shark · 90.6/4.8 · ändere nur folgendes: die Person auf dem Boot sollte mit einem Paddel paddeln und nicht mit einem Speer!
+- [~] 017 edit · monster-scenes/young-blue-dragon · 79.6/43.7 · Blitz sollte nicht aus der Nase des Drachens kommen
+- [~] 018 edit · monster-scenes/young-brass-dragon · 82.3/19.5 · ändere nur folgendes: die goldene "Luft" rechts neben des Kopfes soll nicht aus der Nase kommen - einfach weglassen!
+- [~] 019 edit · monster-scenes/cat · 64.6/51.5 · linke Pfote der Katze fehlt komplett + lösche die menschliche Hand rechts unten
+- [~] 020 edit · monster-scenes/barbed-devil · 83.0/43.4 · ändere nur folgendes: der linke Unterschenkel mit Fuß fehlt! der kann nicht komplett vom Feuer überdeckt sein!
+- [~] 021 edit+ref · monsters/shrieker-fungus · 54.6/42.7 · lösche den Mund - mache es so wie beim großen Bild: so Schallwellen um ihm drumherum
+- [~] 022 edit+ref · monster-scenes/warrior-commander · 61.3/41.9 · Ändere das Geschlecht zu männlich! + der Mantel hat rote Akzente + die Figur soll größere sein (orientiere dich am kleinen schon erstellen Bild) + ändere die Schwerthaltung - sieht unnatürlich aus!
+- [~] 023 edit+ref · monster-scenes/cultist-hierophant · 43.7/36.1 · nicht hell und goldene Robe, sondern dunkel und rötlich! - wie beim kleinen Bild
+- [~] 024 edit · monster-scenes/lich · 63.6/23.0 · ändere nur folgendes: vor dem Mund ist ein grüner Schatten - lösche das! das gehört da nicht hin
+- [~] 025 neu · monster-scenes/mule · 64.8/37.5 · Die Körperhaltung des Maultiers passt gar nicht - mache das neu!
+- [~] 026 neu · monster-scenes/medusa · 53.0/47.0 · Die Körperhaltung passt gar nicht! - drehe den Charakter, dass man ihn mehr von vorne sieht (also frontal) + passe die Armhaltung dementsprechend an!
+- [~] 027 edit · monster-scenes/brass-dragon-wyrmling · 54.2/20.9 · Erstelle die hintere Kopfpartie des Drachen neu! Das sieht nach einer komischen großen Fläche aus!
+- [~] 028 edit · monster-scenes/mezzoloth · 42.5/31.2 · Die oberen zwei Arme sind zu sehr verdreht! + die Haltung des Stabs passt nicht genau - passe das an!
+- [~] 029 edit · monster-scenes/myconid-sovereign · 52.9/28.7 · passe die Gesichtspartie an! - das Gesicht passt nicht + da kommt so ein Strahl aus seiner Stirn heraus - ergibt auch keinen Sinn - passe das an!
+- [~] 030 edit · monster-scenes/needle-blight · 23.7/35.1 · der linke Arm ist zu weit rechts! passe das an!
+- [~] 031 edit · monster-scenes/pixie · 65.9/22.0 · das Gesicht sieht etwas creepy aus, was nicht sein soll! überarbeite das Gesicht / den Gesichtsausdruck! (2. Runde: kaum verändert — Gesicht deutlich neu malen: freundliches, natürliches Lächeln, natürliche kindliche Proportionen, kein übertriebenes Grinsen, weiche Augen)
+- [~] 032 edit · monster-scenes/plesiosaurus · 22.6/57.0 · der Körper ist zu kurz - der Körper muss länger nach hinten gehen + es sieht so aus als hätte er zwei Schwänze auf diesem Bild! - er hat jedoch nur einen Schwanz!
+- [~] 033 neu · monster-scenes/pony · 84.7/78.1 · erstelle das ganze Bild neu - das Pony ist komisch proportioniert + keine Schlange auf dem Bild - Pferd steht woanders
+- [~] 034 edit · monster-scenes/quaggoth · 95.7/42.8 · ändere nur folgendes: die Axt in der rechten Hand soll nicht rechts zur Seite, sondern nach vorne gedreht sein!
+- [~] 035 edit+ref · monster-scenes/quaggoth-thonot · 55.4/33.3 · passe den Kopf an - das Gesicht ist im Oberkörper drin + er hat noch Stofffetzen an - wie beim kleinen Bild
+- [~] 036 edit · monster-scenes/raven · 82.3/36.2 · generiere den Kopf + den Schnabel neu! + die Münze hängt nicht so komisch so halb am Schnabel!
+- [~] 037 edit · monster-scenes/giant-venomous-snake · 80.0/73.0 · der Körper ist Teil der Säule - ergibt keinen Sinn! mache die Stelle komplett zur Säule, dann passt es!
+- [~] 038 edit · monster-scenes/giant-shark · 12.0/42.8 · Ändere nur das: der hintere Teil des Hais ist noch unter Wasser, da er ja aus dem Wasser herausspringt! - sprich der hintere Teil des Körpers inklusive der Schwanzflosse ist nicht sichtbar
+- [~] 039 edit · monster-scenes/giant-octopus · 82.1/42.6 · Oktopusse haben den Teil des Körpers, aus dem das schwarze Zeugs rauskommt, am seitlichen Teil ihres Kopfes, nichts unterhalb des linken Auges! - verschiebe das also + lasse den Rest gleich!
+- [~] 040 edit+ref · monster-scenes/knight · 70.6/35.6 · Ritter soll größer sein + er soll einen Helm trag, wie auf dem kleinen Bild - den Rest nicht verändern!
+- [~] 041 neu · monster-scenes/sphinx-of-secrets · 56.6/31.3 · erstelle das Bild neu! - Kopfhaltung ist komisch! + es soll nichts lilanes aus dem Auge kommen!
+- [~] 042 edit+ref · monster-scenes/sphinx-of-valor · 73.0/21.1 · ändere es in weiblich mit bräunlichen Haaren - wie auf dem kleinen Bild
+- [~] 043 edit · monster-scenes/sphinx-of-lore · 85.9/34.1 · der Schrank rechts soll nicht kaputt sein + die Aura soll um das Wesen drumherum sein! - erhabeneres Erscheinungsbild
+- [~] 044 edit · monster-scenes/spy-master · 75.3/27.5 · Es muss mehr deutlich werden, dass das der Spionagemeister ist - als Meister! + evlt. mit einer schwarzen Kapuze, sodass nur noch die Augen sichtbar sind?
+- [~] 045 edit+ref · monster-scenes/animal-lord · 47.2/39.8 · Der "Fürst" soll mehr sichtbar sein! - also erhabenere Kleidung bspw. - wie auf dem kleinen Bild
+- [~] 046 edit+ref · monster-scenes/death-slaad · 65.9/38.4 · Mache das Gesicht neu! das passt nicht! - wie auf dem kleinen Bild
+- [~] 047 edit · monster-scenes/troll · 48.4/76.1 · Abstand zwischen dem Troll und dem Menschen muss größer sein
+- [~] 048 edit · monster-scenes/tyrannosaurus-rex · 81.2/72.3 · Der Elf rechts unten muss vom T-Rex wegrennen, nicht zu ihm hin!
+- [~] 049 edit · monster-scenes/vampire-umbral-lord · 51.9/34.7 · Soll mehr nach einem "Fürst" ausschauen - bspw. eine passende Krone hinzufügen oder so etwas in die Richtung
+- [~] 050 neu · monster-scenes/guard-captain · 61.3/36.4 · die Pose ergibt keinen Sinn, mache sie neu + passe das Gesicht an
+- [~] 051 edit · monster-scenes/revenant · 87.0/54.8 · Die Person rechts unten muss von der Gestalt wegrennen.. nicht zu ihr hin
+- [~] 052 edit · feats/mounted-combatant · 47.7/19.0 · die Lanze ergibt an dieser Stelle keinen Sinn - eine Fahne kann von der linken Seite (1/3 von unten) nach oben Mitte herausragen - wo oben eben das rot goldene ist, was du erstellt hast - jedoch muss der ganze Stoff nur nach links wehen - in beide Richtungen gleichzeitig geht nicht
+- [~] 053 edit · figures/elf-feminine/subclasses/assassin · 55.6/40.0 · ändere nur folgendes: die Handhaltung des linken Arms ist falsch (der ganze Arm ist verdreht)
+- [~] 054 edit · figures/fairy-masculine/subclasses/assassin · 53.9/41.3 · die linke Hand fehlt
+- [~] 055 edit · figures/goliath-feminine/subclasses/assassin · 22.8/46.0 · die linke Hand dort ergibt keinen Sinn
+- [~] 056 edit · figures/halfling-feminine/subclasses/assassin · 67.3/55.7 · die Hand ist verdreht + sie sollte dem Soldaten etwas höher treffen
+- [~] 057 edit · figures/human-masculine/subclasses/assassin · 47.6/40.5 · Hand und Arm ist komplett unnatürlich - mache das neu
+- [~] 058 edit · figures/orc-feminine/subclasses/assassin · 62.6/39.5 · Hand ist etwas verdreht
+- [~] 059 edit · figures/tiefling-androgynous/subclasses/assassin · 32.8/22.7 · 1. der Schweif dort oben ergibt keinen Sinn! 2. er sollte den Soldaten höher treffen
+- [~] 060 edit · figures/dwarf-feminine/subclasses/assassin · 51.0/46.0 · Arm und Hand ist verdreht
+- [~] 061 edit · figures/dragonborn-androgynous/classes/barbarian · 71.6/45.7 · der Arm gehört dort nicht hin!
+- [~] 062 edit · figures/fairy-masculine/classes/barbarian · 81.6/16.9 · die Axt ist falsch herum! - die Klinge muss nach unten zeigen
+- [~] 063 edit · figures/halfling-feminine/classes/barbarian · 70.7/46.3 · die rechte Hand dort unten und vor dem Schild ergibt wenig Sinn!
+- [~] 064 edit · figures/halfling-masculine/classes/barbarian · 88.1/51.2 · die scharfe Klinge muss nach unten zeigen + der Wolf hat einen falschen Körper - sieht ganz komisch aus - mache das neu
+- [~] 065 edit · figures/human-androgynous/classes/barbarian · 71.4/30.1 · generiere die Axt neu! - biegt sich zu arg durch + die Klinge sieht komisch aus
+- [~] 066 edit · figures/orc-masculine/classes/barbarian · 57.0/47.1 · Axt Haltung ist komisch
+- [~] 067 edit · figures/tiefling-feminine/classes/barbarian · 66.8/21.7 · Axt Holzgriff darf nicht durchgebogen sein - soll gerade sein!
+- [~] 068 edit · figures/tiefling-androgynous/classes/barbarian · 67.5/32.2 · Axt sieht komisch aus
+- [~] 069 edit · figures/dragonborn-masculine/classes/bard · 41.7/50.7 · komische Position des rechten Beins + das linke Bein fehlt
+- [~] 070 edit · figures/elf-masculine/classes/bard · 38.8/34.0 · Oberkörper ist total verdreht
+- [~] 071 edit · figures/human-feminine/subclasses/celestial-patron · 59.7/52.8 · die linke Hand fehlt
+- [~] 072 edit · figures/human-androgynous/subclasses/celestial-patron · 65.6/52.8 · die linke Hand fehlt
+- [~] 073 edit · figures/orc-feminine/subclasses/celestial-patron · 64.1/57.4 · linke Hand passt nicht
+- [~] 074 edit · figures/aasimar-androgynous/subclasses/thief · 77.0/78.2 · linkes Bein ist verdreht
+- [~] 075 edit · figures/aasimar-masculine/subclasses/thief · 54.9/69.2 · linkes Bein ist verdreht
+- [~] 076 edit · figures/dragonborn-feminine/subclasses/thief · 65.6/74.4 · rechtes Bein ist komplett verdreht - genauso wie der ganze linke Arm
+- [~] 077 edit · figures/fairy-feminine/subclasses/thief · 48.5/37.4 · Oberkörper ist verdreht
+- [~] 078 edit · figures/halfling-feminine/subclasses/thief · 57.3/47.1 · Oberkörper und Beine sind verdreht
+- [~] 079 edit · figures/halfling-masculine/subclasses/thief · 47.8/36.9 · Oberkörper verdreht
+- [~] 080 edit · figures/human-androgynous/subclasses/thief · 68.2/23.3 · linker Arm ist verdreht
+- [~] 081 neu · figures/orc-androgynous/subclasses/thief · 58.5/46.5 · Beine sind übereinander wtf - nein - neu generieren
+- [~] 082 neu · figures/tiefling-masculine/subclasses/thief · 65.6/15.7 · wo ist der Arm??? Hilfe?!?! - ganz neu generieren
+- [~] 083 edit · figures/dwarf-feminine/subclasses/thief · 61.9/49.3 · Oberschenkel (beide) sind zu dick
+- [~] 084 edit · figures/dwarf-androgynous/subclasses/thief · 66.3/78.2 · Fuß ist verdreht
+- [~] 085 edit · figures/orc-androgynous/subclasses/life-domain · 46.6/64.0 · rechter Arm fehlt
+- [~] 086 edit · figures/dwarf-feminine/subclasses/life-domain · 64.6/59.3 · Arm ergibt dort keinen Sinn
+- [~] 087 edit · figures/dragonborn-feminine/subclasses/draconic-sorcery · 45.1/56.1 · Ort des rechten Beins ist komisch - das linke fehlt komplett
+- [~] 088 edit · figures/human-feminine/subclasses/draconic-sorcery · 13.6/48.4 · rechter Arm ist komisch positioniert
+- [~] 089 edit · figures/fairy-masculine/classes/druid · 58.0/54.6 · Stab muss senkrecht nach unten gehen
+- [~] 090 edit · figures/gnome-androgynous/classes/druid · 87.9/74.4 · ändere die Spinne zu einem anderen Tier
+- [~] 091 edit · figures/human-feminine/classes/druid · 95.2/62.1 · ändere die Spinne zu einem anderen Tier
+- [~] 092 edit · figures/fairy-masculine/subclasses/gloom-stalker · 61.4/56.2 · rechter Arm ist verdreht und zu groß
+- [~] 093 edit · figures/aasimar-androgynous/subclasses/archfey-patron · 91.8/46.3 · beide Hände - die Finger sind falsch!
+- [~] 094 edit · figures/elf-feminine/subclasses/archfey-patron · 13.6/55.6 · Finger sind komisch
+- [~] 095 edit · figures/elf-androgynous/subclasses/archfey-patron · 8.2/62.7 · Finger sind komisch
+- [~] 096 edit · figures/elf-masculine/subclasses/archfey-patron · 9.7/43.9 · Finger sind komisch
+- [~] 097 edit · figures/gnome-masculine/subclasses/archfey-patron · 10.9/59.5 · Finger sind komisch
+- [~] 098 edit · figures/human-feminine/subclasses/fey-wanderer · 23.8/35.5 · Arm ist komisch
+- [~] 099 edit · figures/dragonborn-feminine/subclasses/evoker · 18.9/31.4 · das Buch ergibt keinen Sinn - erstelle das Buch neu
+- [~] 100 edit · figures/dragonborn-masculine/subclasses/evoker · 11.4/33.2 · erstelle die Buchseiten neu - ergibt so keinen Sinn
+- [~] 101 edit · figures/fairy-feminine/subclasses/evoker · 20.6/25.6 · erstelle das Buch komplett neu!
+- [~] 102 edit · figures/gnome-feminine/subclasses/evoker · 20.8/47.0 · erstelle die Buchseiten neu
+- [~] 103 edit · figures/human-feminine/subclasses/evoker · 18.9/38.7 · erstelle das Buch neu
+- [~] 104 edit · figures/human-masculine/subclasses/evoker · 17.9/33.5 · erstelle das Buch neu
+- [~] 105 edit · figures/orc-feminine/subclasses/evoker · 22.3/41.3 · erstelle das Buch neu
+- [~] 106 edit · figures/orc-androgynous/subclasses/evoker · 22.1/35.2 · erstelle das Buch neu
+- [~] 107 edit · figures/tiefling-feminine/subclasses/evoker · 11.9/29.5 · erstelle das Buch neu
+- [~] 108 edit · figures/tiefling-masculine/subclasses/evoker · 19.9/29.0 · erstelle das Buch neu
+- [~] 109 edit · figures/dwarf-androgynous/subclasses/evoker · 14.3/44.1 · erstelle das Buch neu
+- [~] 110 edit · classes/warlock · 16.0/44.9 · erstelle die Hand neu
+- [~] 111 edit · figures/dragonborn-feminine/classes/warlock · 77.2/45.7 · erstelle beide Hände neu
+- [~] 112 edit · figures/dragonborn-androgynous/classes/warlock · 14.8/32.7 · die Hand gehört da gar nicht hin
+- [~] 113 edit · figures/elf-feminine/classes/warlock · 26.2/28.2 · erstelle beide Hände neu
+- [~] 114 edit · figures/elf-androgynous/classes/warlock · 8.5/33.7 · erstelle die Hand neu + das Bein ist komisch + das linke Bein fehlt
+- [~] 115 edit · figures/elf-masculine/classes/warlock · 11.4/32.7 · erstelle die Hand neu
+- [~] 116 edit · figures/fairy-feminine/classes/warlock · 21.3/30.8 · erstelle die Hand neu
+- [~] 117 edit · figures/goliath-masculine/classes/warlock · 8.2/20.7 · erstelle die Hand neu
+- [~] 118 edit · figures/human-androgynous/classes/warlock · 51.7/32.4 · erstelle den Arm mit der Hand neu
+- [~] 119 edit · figures/tiefling-androgynous/classes/warlock · 5.3/25.8 · erstelle die Hand neu
+- [~] 120 edit · figures/dwarf-androgynous/classes/warlock · 67.0/47.1 · erstelle beide Hände neu
+- [~] 121 edit · figures/aasimar-feminine/subclasses/illusionist · 73.1/45.2 · erstelle die Hand neu
+- [~] 122 edit · figures/aasimar-masculine/subclasses/illusionist · 69.9/46.0 · erstelle die Hand neu
+- [~] 123 edit · figures/dragonborn-feminine/subclasses/illusionist · 74.3/46.2 · erstelle die Hand neu
+- [~] 124 edit · figures/dragonborn-androgynous/subclasses/illusionist · 63.8/32.7 · erstelle die Hand neu
+- [~] 125 edit · figures/dragonborn-masculine/subclasses/illusionist · 64.8/39.5 · erstelle die Hand neu
+- [~] 126 edit · figures/elf-feminine/subclasses/illusionist · 67.5/37.4 · erstelle die Hand neu
+- [~] 127 edit · figures/elf-androgynous/subclasses/illusionist · 69.0/46.8 · erstelle die Hand neu
+- [~] 128 edit · figures/elf-masculine/subclasses/illusionist · 65.6/50.4 · erstelle die Hand neu
+- [~] 129 edit · figures/fairy-masculine/subclasses/illusionist · 65.8/43.6 · erstelle die Hand neu
+- [~] 130 edit · figures/gnome-feminine/subclasses/illusionist · 51.9/50.4 · erstelle die Hand neu (5 Finger)
+- [~] 131 edit · figures/gnome-androgynous/subclasses/illusionist · 60.7/48.6 · erstelle die Hand neu (5 Finger)
+- [~] 132 edit · figures/gnome-masculine/subclasses/illusionist · 48.1/49.7 · erstelle die Hand neu (5 Finger)
+- [~] 133 edit · figures/goliath-feminine/subclasses/illusionist · 79.2/31.6 · erstelle die Hand neu (5 Finger)
+- [~] 134 edit · figures/goliath-masculine/subclasses/illusionist · 75.0/48.1 · erstelle die Hand neu (5 Finger)
+- [~] 135 edit · figures/halfling-androgynous/subclasses/illusionist · 62.6/46.8 · erstelle die Hand neu (5 Finger)
+- [~] 136 edit · figures/dwarf-feminine/subclasses/illusionist · 66.5/38.2 · erstelle die Hand neu (5 Finger)
+- [~] 137 edit · figures/aasimar-feminine/classes/fighter · 51.5/41.2 · korrigiere die Schwerthaltung
+- [~] 138 edit · figures/aasimar-masculine/classes/fighter · 56.1/45.5 · korrigiere die Schwerthaltung
+- [~] 139 edit · figures/elf-masculine/classes/fighter · 90.3/55.9 · der Speer ergibt keinen Sinn + zu viele Speere kommen so halb aus dem Bild rechts
+- [~] 140 edit · figures/fairy-masculine/classes/fighter · 72.8/40.3 · Arm ist komplett verdreht
+- [~] 141 edit · figures/aasimar-feminine/subclasses/battle-master · 59.7/25.8 · erstelle die Hand + die Schwerthaltung darunter neu
+- [~] 142 edit · figures/dragonborn-feminine/subclasses/battle-master · 6.5/50.6 · generiere die Hand neu + das Schwert, das oben fliegt muss andersherum sein
+- [~] 143 edit · figures/elf-feminine/subclasses/battle-master · 60.0/35.3 · Hand ist falschherum + die rechte Hand sieht ganz komisch aus - neu generieren
+- [~] 144 edit · figures/elf-masculine/subclasses/battle-master · 3.6/52.3 · Hand muss 5 Finger haben
+- [~] 145 edit · figures/fairy-feminine/subclasses/battle-master · 10.6/43.9 · Hand neu generieren (5 Finger)
+- [~] 146 edit · figures/gnome-feminine/subclasses/battle-master · 8.2/56.2 · Hand neu generieren (5 Finger)
+- [~] 147 edit · figures/gnome-androgynous/subclasses/battle-master · 83.8/39.4 · Hand neu generieren (5 Finger) - die Hand ganz ganz links auch
+- [~] 148 edit · figures/goliath-feminine/subclasses/battle-master · 7.5/50.2 · Hand neu generieren
+- [~] 149 edit · figures/halfling-androgynous/subclasses/battle-master · 7.0/59.5 · Hand neu generieren (5 Finger)
+- [~] 150 edit · figures/human-masculine/subclasses/battle-master · 3.1/48.4 · Hand neu generieren (5 Finger)
+- [~] 151 edit · figures/orc-feminine/subclasses/battle-master · 57.5/35.5 · Handhaltung ist komisch + 5 Finger
+- [~] 152 edit · figures/orc-androgynous/subclasses/battle-master · 6.3/46.2 · Hand neu generieren (5 Finger)
+- [~] 153 edit · figures/orc-masculine/subclasses/battle-master · 52.9/33.9 · Handhaltung ist falsch
+- [~] 154 edit · figures/tiefling-androgynous/subclasses/battle-master · 50.0/39.1 · Handhaltung ist falsch
+- [~] 155 edit · figures/tiefling-masculine/subclasses/battle-master · 25.7/52.3 · generiere beide Beine neu - verdreht und alles falsch
+- [~] 156 edit · figures/dwarf-feminine/subclasses/battle-master · 56.6/36.9 · Hand neu generieren (5 Finger)
+- [~] 157 edit · figures/human-androgynous/classes/cleric · 62.9/27.9 · Hand fehlt
+- [~] 158 edit · figures/tiefling-androgynous/classes/cleric · 59.5/42.1 · Hand fehlt
+- [~] 159 edit · figures/dwarf-androgynous/classes/cleric · 60.9/41.0 · Hand fehlt
+- [~] 160 edit · classes/cleric · 69.9/32.9 · Schildhalterung - mache das neu
+- [~] 161 edit · figures/aasimar-masculine/subclasses/warrior-of-the-elements · 43.2/36.5 · Arm verdreht
+- [~] 162 edit+ref · monsters/bandit-deceiver · 60.0/82.0 · Arm ist komplett verdreht + ändere das Gesicht zu dem des großen Bildes
+- [~] 163 edit+ref · monster-scenes/bandit-crime-lord · 60.0/15.4 · orientiere dich am Gesicht des kleinen Bildes - + die Kleidung darf etwas teurer aussehen
+- [~] 164 edit · monsters/dragon-turtle · 22.0/74.8 · hintere Flossen fehlen + überarbeite die Proportionen
+- [~] 165 edit · monster-scenes/archpriest · 63.6/17.8 · männlich + weiß
+- [~] 166 edit+ref · monster-scenes/questing-knight · 61.7/23.2 · orientiere dich am kleinen Bild - komplette Ritterrüstung mit Helm inklusive rötliche Akzente und Wappen auf der Brust + auf dem Schild
+- [~] 167 edit · monsters/hunter-shark · 78.0/76.6 · Kiefer sieht komisch aus - mache das neu
+- [~] 168 edit+ref · monster-scenes/death-tyrant · 53.9/33.1 · orientiere dich am kleinen Bild - etwas mehr blaue Akzente (im Auge + an den Tentakeln oben)
+- [~] 169 edit · monster-scenes/guardian-naga · 37.4/72.4 · mache, dass der Unterkörper nach oben hin (also zur Treppe rauf - dort wo ein andere Körperteil sichtbar ist) weggeht - sonst ergibt das keinen Sinn
+- [~] 170 edit · monster-scenes/corrupted-rat · 72.1/48.6 · linke Pfote fehlt
+- [~] 171 edit · figures/fairy-masculine/subclasses/warrior-of-mercy · 33.5/58.2 · 1 Finger zu viel
+- [~] 172 edit · figures/gnome-feminine/subclasses/warrior-of-mercy · 35.2/60.8 · Finger komisch
+- [~] 173 edit · figures/gnome-feminine/subclasses/way-of-shadow · 10.4/36.6 · beide Hände sind komisch
+- [~] 174 edit · figures/goliath-androgynous/subclasses/way-of-shadow · 63.4/37.4 · Arm ist verdreht
+- [~] 175 edit · figures/halfling-androgynous/subclasses/way-of-shadow · 10.9/60.1 · mache die Hände neu
+- [~] 176 edit · figures/halfling-masculine/subclasses/way-of-shadow · 9.4/52.3 · mache die Hände neu (5 Finger)
+- [~] 177 edit · figures/human-feminine/subclasses/way-of-shadow · 81.6/38.1 · mache die Hand neu
+- [~] 178 edit · figures/human-androgynous/subclasses/way-of-shadow · 78.2/30.8 · mache die Hand neu
+- [~] 179 edit · figures/human-masculine/subclasses/way-of-shadow · 77.7/30.1 · mache die Hand neu
+- [~] 180 edit · figures/orc-androgynous/subclasses/way-of-shadow · 79.2/29.5 · mache die Hände neu (5 Finger)
+- [~] 181 edit · figures/orc-masculine/subclasses/way-of-shadow · 78.4/24.1 · mache die Hand neu
+- [~] 182 edit · figures/tiefling-androgynous/subclasses/way-of-shadow · 78.4/34.2 · mache die Hände neu (5 Finger)
+- [~] 183 edit · figures/tiefling-masculine/subclasses/way-of-shadow · 81.6/28.2 · mache die Hand neu
+- [~] 184 edit · figures/dwarf-feminine/subclasses/way-of-shadow · 81.1/31.3 · mache die Hände neu (5 Finger)
+- [~] 185 edit · figures/dwarf-masculine/subclasses/way-of-shadow · 74.5/32.7 · mache die Hand neu
+- [~] 186 edit · figures/aasimar-feminine/classes/wizard · 17.9/19.0 · erstelle das Buch neu - Seiten passen nicht
+- [~] 187 edit · figures/aasimar-androgynous/classes/wizard · 34.9/43.9 · Buchdeckel muss dunkel sein
+- [~] 188 edit · figures/aasimar-masculine/classes/wizard · 22.5/37.1 · Buchseiten passen nicht
+- [~] 189 edit · figures/dragonborn-feminine/classes/wizard · 32.5/21.2 · erstelle das Buch neu - Buchhaltung passt nicht
+- [~] 190 edit · figures/elf-feminine/classes/wizard · 27.4/38.2 · Buch zugeschlagen am Gürtel
+- [~] 191 edit · figures/gnome-feminine/classes/wizard · 27.6/35.6 · erstelle das Buch neu - Seiten passen nicht
+- [~] 192 edit · figures/gnome-androgynous/classes/wizard · 30.6/36.5 · erstelle das Buch neu - Seiten passen nicht + beide Arme sind rechts?!?! - ein Arm muss links sein
+- [~] 193 edit · figures/halfling-feminine/classes/wizard · 44.2/37.8 · erstelle das Buch neu - Seiten passen nicht
+- [~] 194 edit · figures/halfling-masculine/classes/wizard · 18.9/29.0 · erstelle das Buch neu - Seiten passen nicht + beide Arme und Hände passen auch nicht
+- [~] 195 edit · figures/orc-feminine/classes/wizard · 22.1/34.5 · erstelle das Buch neu - Seiten passen nicht
+- [~] 196 edit · figures/orc-androgynous/classes/wizard · 19.1/31.6 · erstelle das Buch neu - Seiten passen nicht
+- [~] 197 edit · figures/orc-masculine/classes/wizard · 50.0/32.2 · erstelle das Buch neu - Seiten passen nicht
+- [~] 198 edit · figures/tiefling-feminine/classes/wizard · 22.8/33.7 · erstelle das Buch neu - Seiten passen nicht
+- [~] 199 edit · figures/tiefling-masculine/classes/wizard · 20.4/32.9 · erstelle das Buch neu - Seiten passen nicht
+- [~] 200 edit · figures/dwarf-feminine/classes/wizard · 18.2/34.7 · erstelle das Buch neu - Seiten passen nicht
+- [~] 201 edit · figures/gnome-masculine/classes/monk · 90.1/37.8 · Fuß ist deformiert - mache den neu
+- [~] 202 edit · figures/halfling-masculine/classes/monk · 33.0/51.4 · muss ein linker und kein rechter Fuß sein
+- [~] 203 edit · figures/aasimar-masculine/subclasses/eldritch-knight · 22.3/80.7 · rechtes Bein fehlt
+- [~] 204 edit · figures/dragonborn-feminine/subclasses/eldritch-knight · 42.5/66.1 · linkes Bein zu groß + rechtes Bein fehlt
+- [~] 205 edit · figures/dragonborn-masculine/subclasses/eldritch-knight · 31.1/77.4 · rechtes Bein fehlt
+- [~] 206 edit · figures/elf-feminine/subclasses/eldritch-knight · 34.2/87.8 · rechtes Bein fehlt + Schwert etwas länger
+- [~] 207 edit · figures/gnome-feminine/subclasses/eldritch-knight · 57.8/81.0 · beide Beine versinken im Boden - geht nicht! - mache das neu
+- [~] 208 edit · figures/gnome-androgynous/subclasses/eldritch-knight · 59.2/90.1 · beide Beine versinken im Boden - mache das neu
+- [~] 209 edit · figures/halfling-feminine/subclasses/eldritch-knight · 40.5/78.2 · beide Beine versinken im Boden - geht nicht + linke Hand neu generieren
+- [~] 210 edit · figures/human-feminine/subclasses/eldritch-knight · 63.6/91.2 · Bein versinkt im Boden - geht nicht
+- [~] 211 edit · figures/tiefling-feminine/subclasses/eldritch-knight · 63.1/84.6 · Bein versinkt im Boden - geht nicht
+- [~] 212 edit · figures/tiefling-androgynous/subclasses/eldritch-knight · 27.2/85.5 · beide Beine versinken im Boden
+- [~] 213 edit · figures/dwarf-feminine/subclasses/eldritch-knight · 55.3/85.7 · Bein versinkt im Boden + rechtes Bein fehlt
+- [~] 214 edit · figures/dragonborn-masculine/classes/paladin · 61.9/42.9 · Schwert darf etwas länger sein
+- [~] 215 edit · figures/goliath-feminine/classes/paladin · 70.7/39.4 · Hand kann nicht durch das Schild durchgehen!
+- [~] 216 edit · figures/goliath-androgynous/classes/paladin · 72.6/49.9 · rechter Arm des Monsters fehlt
+- [~] 217 edit · figures/goliath-masculine/classes/paladin · 65.6/46.8 · Schwert ist etwas zu kurz
+- [~] 218 edit · figures/halfling-androgynous/classes/paladin · 43.2/40.0 · linker Arm muss woanders hin
+- [~] 219 edit · figures/dwarf-feminine/classes/paladin · 77.0/32.9 · linke Hand fehlt
+- [~] 220 edit · figures/aasimar-feminine/subclasses/path-of-the-world-tree · 62.6/43.7 · generiere die Hand neu (5 Finger)
+- [~] 221 edit · figures/elf-androgynous/subclasses/path-of-the-world-tree · 60.7/36.8 · generiere die Hand neu (5 Finger)
+- [~] 222 edit · figures/fairy-feminine/subclasses/path-of-the-world-tree · 48.3/53.6 · generiere die Hand neu (5 Finger)
+- [~] 223 edit · figures/gnome-androgynous/subclasses/path-of-the-world-tree · 52.4/52.0 · generiere die Hand neu (5 Finger)
+- [~] 224 edit · figures/goliath-masculine/subclasses/path-of-the-world-tree · 57.0/39.2 · generiere die Hand neu (5 Finger)
+- [~] 225 edit · figures/tiefling-androgynous/subclasses/path-of-the-world-tree · 58.3/52.3 · generiere die Hand neu (5 Finger)
+- [~] 226 edit · figures/tiefling-masculine/subclasses/path-of-the-world-tree · 82.1/34.5 · Arm komplett verdreht + linker Arm des roten Mannes fehlt komplett
+- [~] 227 edit · figures/aasimar-feminine/subclasses/path-of-the-wild-heart · 89.8/25.9 · generiere die Hand neu (5 Finger)
+- [~] 228 edit · figures/dragonborn-feminine/subclasses/path-of-the-wild-heart · 91.3/26.1 · generiere die Hand neu (5 Finger)
+- [~] 229 edit · figures/dragonborn-masculine/subclasses/path-of-the-wild-heart · 90.3/31.0 · generiere die Hand neu (5 Finger)
+- [~] 230 edit · figures/halfling-androgynous/subclasses/path-of-the-wild-heart · 89.4/28.5 · generiere die Hand neu (5 Finger)
+- [~] 231 edit · figures/human-feminine/subclasses/path-of-the-wild-heart · 89.8/30.0 · generiere die Hand neu (5 Finger)
+- [~] 232 edit · figures/tiefling-feminine/subclasses/path-of-the-wild-heart · 82.3/29.7 · generiere die Hand neu (5 Finger) - ändere den Gesichtsausdruck
+- [~] 233 edit · figures/aasimar-masculine/subclasses/psi-warrior · 43.2/38.1 · Arm ist komplett verdreht - kann nicht so nach hinten zeigen - ändere die Körperhaltung
+- [~] 234 edit · figures/elf-feminine/subclasses/psi-warrior · 51.0/34.5 · ändere die Körperhaltung - der Arm kann nicht so nach hinten zeigen
+- [~] 235 edit · figures/human-androgynous/subclasses/psi-warrior · 57.5/32.4 · generiere die Hand neu (5 Finger)
+- [~] 236 edit · figures/tiefling-androgynous/subclasses/psi-warrior · 20.4/37.6 · Hörner gehen in die falsche Richtung
+- [~] 237 edit · figures/aasimar-androgynous/subclasses/college-of-dance · 20.8/10.4 · Hand ist komplett verdreht
+- [~] 238 edit · figures/gnome-feminine/subclasses/college-of-dance · 74.5/44.4 · generiere die Hand neu (5 Finger)
+- [~] 239 edit · figures/gnome-androgynous/subclasses/college-of-dance · 70.2/47.8 · generiere die Hand neu (5 Finger)
+- [~] 240 edit · figures/goliath-masculine/subclasses/college-of-dance · 89.1/35.3 · generiere die Hand neu (5 Finger)
+- [~] 241 edit · figures/halfling-masculine/subclasses/college-of-dance · 69.4/46.5 · generiere die Hand neu (5 Finger)
+- [~] 242 edit · figures/orc-feminine/subclasses/college-of-dance · 87.9/39.9 · generiere die Hand neu (5 Finger)
+- [~] 243 edit · figures/tiefling-feminine/subclasses/college-of-dance · 91.8/39.1 · generiere die Hand neu (5 Finger)
+- [~] 244 edit · figures/tiefling-androgynous/subclasses/college-of-dance · 91.1/42.6 · generiere die Hand neu (5 Finger)
+- [~] 245 edit · figures/dragonborn-feminine/subclasses/college-of-valor · 22.1/36.0 · das Musikinstrument sieht komisch und falsch aus - generiere das neu
+- [~] 246 edit · figures/dragonborn-masculine/subclasses/college-of-valor · 21.3/42.0 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 247 edit · figures/elf-feminine/subclasses/college-of-valor · 19.6/40.0 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 248 edit · figures/elf-androgynous/subclasses/college-of-valor · 18.7/43.9 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 249 edit · figures/elf-masculine/subclasses/college-of-valor · 20.1/39.4 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 250 edit · figures/fairy-feminine/subclasses/college-of-valor · 17.7/33.2 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 251 edit · figures/fairy-androgynous/subclasses/college-of-valor · 13.8/39.7 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 252 edit · figures/gnome-feminine/subclasses/college-of-valor · 17.9/36.8 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 253 edit · figures/gnome-androgynous/subclasses/college-of-valor · 12.1/35.5 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 254 edit · figures/gnome-masculine/subclasses/college-of-valor · 16.0/42.0 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 255 edit · figures/goliath-feminine/subclasses/college-of-valor · 19.4/36.1 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 256 edit · figures/goliath-androgynous/subclasses/college-of-valor · 16.0/36.1 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 257 edit · figures/goliath-masculine/subclasses/college-of-valor · 22.5/38.4 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 258 edit · figures/halfling-feminine/subclasses/college-of-valor · 19.6/31.0 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 259 edit · figures/halfling-androgynous/subclasses/college-of-valor · 13.1/41.3 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 260 edit · figures/halfling-masculine/subclasses/college-of-valor · 13.1/38.7 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 261 edit · figures/human-feminine/subclasses/college-of-valor · 16.0/37.4 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 262 edit · figures/human-androgynous/subclasses/college-of-valor · 19.9/38.1 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 263 edit · figures/human-masculine/subclasses/college-of-valor · 17.7/38.2 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 264 edit · figures/orc-feminine/subclasses/college-of-valor · 25.5/41.0 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 265 edit · figures/orc-masculine/subclasses/college-of-valor · 21.8/40.5 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 266 edit · figures/tiefling-feminine/subclasses/college-of-valor · 29.1/37.9 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 267 edit · figures/tiefling-androgynous/subclasses/college-of-valor · 20.8/39.7 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 268 edit · figures/tiefling-masculine/subclasses/college-of-valor · 18.4/40.7 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 269 edit · figures/dwarf-feminine/subclasses/college-of-valor · 17.0/38.4 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 270 edit · figures/dwarf-androgynous/subclasses/college-of-valor · 10.6/49.4 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 271 edit · figures/dwarf-masculine/subclasses/college-of-valor · 24.5/18.8 · der Gitarrenhals ist leicht verzogen - korrigiere das - der muss gerade nach oben gehen
+- [~] 272 edit · figures/dragonborn-feminine/subclasses/college-of-lore · 47.6/81.6 · Fuß ist verdreht
+- [~] 273 edit · figures/fairy-masculine/subclasses/college-of-lore · 40.8/62.1 · Fuß fehlt
+- [~] 274 edit · figures/halfling-masculine/subclasses/college-of-lore · 51.7/55.9 · Bein und Fuß fehlt
+- [~] 275 edit · figures/tiefling-androgynous/subclasses/college-of-lore · 76.7/30.1 · das sieht komisch und verzerrt aus
+- [~] 276 edit · figures/elf-feminine/subclasses/college-of-glamour · 9.7/47.0 · generiere das hier neu - ist verzerrt
+- [~] 277 edit · figures/elf-androgynous/subclasses/college-of-glamour · 7.0/18.3 · ist verzerrt und schief
+- [~] 278 edit · figures/elf-masculine/subclasses/college-of-glamour · 8.0/25.4 · ist verzerrt und schief
+- [~] 279 edit · figures/fairy-feminine/subclasses/college-of-glamour · 12.1/46.5 · generiere das Instrument komplett neu
+- [~] 280 edit · figures/fairy-masculine/subclasses/college-of-glamour · 9.9/33.7 · das ist verzerrt und schief
+- [~] 281 edit · figures/gnome-androgynous/subclasses/college-of-glamour · 79.9/24.5 · generiere die Hand neu
+- [~] 282 edit · figures/gnome-masculine/subclasses/college-of-glamour · 10.9/54.0 · generiere das Instrument neu
+- [~] 283 edit · figures/human-feminine/subclasses/college-of-glamour · 16.2/38.7 · generiere den Part des Instruments neu - der ist komplett schief und verdreht
+- [~] 284 edit · figures/human-androgynous/subclasses/college-of-glamour · 9.7/48.4 · das ist verdreht und schief
+- [~] 285 edit · figures/human-masculine/subclasses/college-of-glamour · 18.2/40.5 · ist etwas schief - geht zu weit nach vorne
+- [~] 286 edit · figures/orc-feminine/subclasses/college-of-glamour · 25.7/55.6 · generiere das Instrument komplett neu
+- [~] 287 edit · figures/orc-androgynous/subclasses/college-of-glamour · 61.9/54.3 · generiere das Instrument neu + die rechte Hand - die ist verdreht
+- [~] 288 edit · figures/dwarf-masculine/subclasses/college-of-glamour · 22.1/53.3 · generiere das Instrument neu
+- [~] 289 edit · classes/rogue · 61.2/70.5 · der Arm hat 2 Hände.. ergibt keinen Sinn - generiere das neu
+- [~] 290 edit · figures/dragonborn-masculine/classes/rogue · 56.8/25.0 · Arm ist verdreht - der Arm kann nicht so weit nach hinten
+- [~] 291 edit · figures/halfling-feminine/classes/rogue · 93.2/57.7 · Arm kann nicht so hinter seinem Rücken sein
+- [~] 292 edit · figures/goliath-masculine/subclasses/oath-of-devotion · 38.3/80.8 · linkes Bein fehlt
+- [~] 293 edit · figures/halfling-feminine/subclasses/oath-of-devotion · 51.7/86.3 · linkes Bein fehlt
+- [~] 294 edit · figures/human-androgynous/subclasses/oath-of-devotion · 36.6/84.7 · linkes Bein fehlt
+- [~] 295 edit · figures/goliath-masculine/subclasses/soulknife · 57.0/33.4 · generiere die Hand neu
+- [~] 296 edit · figures/halfling-androgynous/subclasses/soulknife · 54.9/36.1 · generiere die Hand neu
+- [~] 297 edit · figures/human-feminine/subclasses/soulknife · 55.6/28.7 · generiere die Hand neu (5 Finger)
+- [~] 298 edit · figures/orc-feminine/subclasses/soulknife · 66.5/32.2 · generiere die Hand neu (5 Finger)
+- [~] 299 edit · figures/orc-androgynous/subclasses/soulknife · 54.9/35.5 · generiere die Hand neu (5 Finger)
+- [~] 300 edit · figures/tiefling-feminine/subclasses/soulknife · 54.1/33.4 · generiere die Hand neu (5 Finger)
+- [~] 301 edit · figures/tiefling-androgynous/subclasses/soulknife · 68.2/43.3 · generiere die Hand neu (5 Finger)
+- [~] 302 edit · figures/dwarf-feminine/subclasses/soulknife · 60.9/39.4 · generiere die Hand neu (5 Finger)
+- [~] 303 edit · figures/dwarf-masculine/subclasses/soulknife · 60.2/37.3 · generiere die Hand neu (5 Finger)
+- [~] 304 edit · figures/elf-feminine/subclasses/diviner · 73.1/55.1 · generiere die Hand neu (5 Finger)
+- [~] 305 edit · figures/human-androgynous/subclasses/diviner · 68.5/55.1 · generiere die Hand neu (5 Finger)
+- [~] 306 edit · figures/human-masculine/subclasses/diviner · 82.6/54.9 · generiere die Hand neu (5 Finger)
+- [~] 307 edit · figures/dwarf-masculine/subclasses/diviner · 68.5/56.2 · generiere die Hand neu (5 Finger)
+- [~] 308 edit · figures/fairy-feminine/subclasses/clockwork-sorcery · 87.7/34.0 · generiere die Hand neu (5 Finger) + die andere Hand auch
+- [~] 309 edit · figures/goliath-feminine/subclasses/clockwork-sorcery · 87.9/27.2 · generiere die Hand neu (5 Finger)
+- [~] 310 edit · figures/goliath-masculine/subclasses/clockwork-sorcery · 92.0/28.5 · generiere die Hand neu (5 Finger)
+- [~] 311 edit · figures/halfling-androgynous/subclasses/clockwork-sorcery · 75.8/44.4 · generiere die Hand neu (5 Finger)
+- [~] 312 edit · figures/human-feminine/subclasses/clockwork-sorcery · 83.0/32.9 · generiere die Hand neu (5 Finger) + die andere Hand auch
+- [~] 313 edit · figures/human-androgynous/subclasses/clockwork-sorcery · 84.0/28.4 · generiere die Hand neu (5 Finger)
+- [~] 314 edit · figures/orc-feminine/subclasses/clockwork-sorcery · 79.6/37.8 · generiere die Hand neu (5 Finger)
+- [~] 315 edit · figures/orc-masculine/subclasses/clockwork-sorcery · 21.6/41.6 · generiere die Hand neu (5 Finger)
+- [~] 316 edit · figures/tiefling-feminine/subclasses/clockwork-sorcery · 15.3/37.9 · generiere die Hand neu (5 Finger)
+- [~] 317 edit · figures/dwarf-feminine/subclasses/clockwork-sorcery · 81.8/32.9 · generiere die Hand neu (5 Finger)
+- [~] 318 edit · figures/dwarf-androgynous/subclasses/clockwork-sorcery · 15.5/45.9 · generiere die Hand neu (5 Finger)
+- [~] 319 edit · figures/dwarf-masculine/subclasses/clockwork-sorcery · 68.8/36.0 · generiere die Hand neu (5 Finger)
+- [~] 320 edit · figures/human-androgynous/subclasses/fiend-patron · 14.0/56.1 · generiere die Hand neu (5 Finger)
+- [~] 321 edit · figures/tiefling-androgynous/subclasses/fiend-patron · 11.4/68.0 · generiere die Hand neu (5 Finger)
+- [~] 322 edit · figures/tiefling-masculine/classes/ranger · 51.2/55.7 · der Schwanz darf nicht vorne sein - der ist hinten am Körper
+- [~] 323 edit · figures/dwarf-androgynous/classes/ranger · 54.1/57.2 · Bein mit Fuß sieht komisch aus
+- [~] 324 edit · figures/fairy-androgynous/subclasses/wild-magic-sorcery · 61.9/36.8 · generiere die rechte Hand neu
+- [~] 325 edit · figures/tiefling-androgynous/subclasses/wild-magic-sorcery · 56.8/31.6 · generiere die Hand neu
+- [~] 326 edit · classes/sorcerer · 17.7/16.5 · generiere die Hand neu (5 Finger)
+- [~] 327 edit · figures/gnome-feminine/classes/sorcerer · 83.3/37.8 · generiere die Hand neu (5 Finger)
+- [~] 328 edit · figures/gnome-masculine/classes/sorcerer · 15.5/33.9 · generiere die Hand neu (5 Finger)
+- [~] 329 edit · figures/halfling-feminine/classes/sorcerer · 27.2/45.9 · generiere die Hand neu (5 Finger)
+- [~] 330 edit · figures/human-feminine/classes/sorcerer · 92.0/28.0 · generiere die Hand neu (5 Finger)
+- [~] 331 edit · figures/orc-feminine/classes/sorcerer · 11.4/35.0 · generiere beide Hände neu (5 Finger)
+- [~] 332 edit · figures/tiefling-androgynous/classes/sorcerer · 29.6/25.4 · der Oberkörper ist verdreht + der Schwanz muss an der passenden Stelle sein
+- [~] 333 edit · figures/tiefling-masculine/classes/sorcerer · 12.1/14.6 · generiere die Hand neu (5 Finger)
+- [~] 334 edit · figures/dwarf-feminine/classes/sorcerer · 24.2/39.9 · generiere die Hand neu (5 Finger)
+- [~] 335 edit · figures/dwarf-androgynous/classes/sorcerer · 22.3/33.9 · generiere beide Hände neu (5 Finger)
+- [~] 336 edit · figures/elf-feminine/subclasses/circle-of-the-land · 21.8/11.8 · generiere die Hand neu (5 Finger)
+- [~] 337 edit · figures/gnome-androgynous/subclasses/circle-of-the-land · 24.0/15.9 · generiere die Hand neu (5 Finger)
+- [~] 338 edit · figures/halfling-feminine/subclasses/circle-of-the-land · 74.8/20.3 · generiere die Hand neu (5 Finger)
+- [~] 339 edit · figures/halfling-androgynous/subclasses/circle-of-the-land · 28.9/11.2 · generiere die Hand neu (5 Finger)
+- [~] 340 edit · figures/human-androgynous/subclasses/circle-of-the-land · 29.8/16.4 · generiere die Hand neu (5 Finger)
+- [~] 341 edit · figures/tiefling-feminine/subclasses/circle-of-the-land · 25.7/11.8 · generiere die Hand neu (5 Finger)
+- [~] 342 edit · figures/tiefling-masculine/subclasses/circle-of-the-land · 23.8/10.9 · generiere die Hand neu (5 Finger)
+- [~] 343 edit · figures/dwarf-androgynous/subclasses/circle-of-the-land · 25.7/11.4 · generiere die Hand neu (5 Finger)
+- [~] 344 edit · figures/aasimar-feminine/subclasses/circle-of-the-sea · 70.4/34.0 · generiere die Hand neu (5 Finger)
+- [~] 345 edit · figures/elf-feminine/subclasses/circle-of-the-sea · 75.0/34.2 · generiere die Hand neu (5 Finger)
+- [~] 346 edit · figures/elf-androgynous/subclasses/circle-of-the-sea · 69.7/32.7 · generiere die Hand neu (5 Finger)
+- [~] 347 edit · figures/elf-masculine/subclasses/circle-of-the-sea · 72.1/34.8 · generiere die Hand neu (5 Finger)
+- [~] 348 edit · figures/fairy-feminine/subclasses/circle-of-the-sea · 69.4/36.6 · generiere die Hand neu (5 Finger)
+- [~] 349 edit · figures/fairy-androgynous/subclasses/circle-of-the-sea · 62.1/32.4 · generiere die Hand neu (5 Finger)
+- [~] 350 edit · figures/gnome-feminine/subclasses/circle-of-the-sea · 66.5/32.7 · generiere die Hand neu (5 Finger)
+- [~] 351 edit · figures/gnome-androgynous/subclasses/circle-of-the-sea · 66.0/35.5 · generiere die Hand neu (5 Finger)
+- [~] 352 edit · figures/gnome-masculine/subclasses/circle-of-the-sea · 66.5/38.4 · generiere die Hand neu (5 Finger)
+- [~] 353 edit · figures/human-feminine/subclasses/circle-of-the-sea · 74.3/33.4 · generiere die Hand neu (5 Finger)
+- [~] 354 edit · figures/human-androgynous/subclasses/circle-of-the-sea · 71.9/34.2 · generiere die Hand neu (5 Finger)
+- [~] 355 edit · figures/orc-feminine/subclasses/circle-of-the-sea · 80.4/29.2 · generiere die Hand neu (5 Finger)
+- [~] 356 edit · figures/orc-masculine/subclasses/circle-of-the-sea · 66.5/30.8 · generiere die Hand neu (5 Finger)
+- [~] 357 edit · figures/tiefling-feminine/subclasses/circle-of-the-sea · 69.2/26.1 · generiere die Hand neu (5 Finger)
+- [~] 358 edit · figures/tiefling-androgynous/subclasses/circle-of-the-sea · 75.0/40.5 · generiere die Hand neu (5 Finger)
+- [~] 359 edit · figures/aasimar-feminine/subclasses/circle-of-the-moon · 91.5/59.0 · generiere die Hand neu (5 Finger)
+- [~] 360 edit · figures/fairy-feminine/subclasses/circle-of-the-moon · 10.2/38.6 · generiere die Hand neu (5 Finger)
+- [~] 361 edit · figures/gnome-feminine/subclasses/circle-of-the-moon · 77.5/48.4 · generiere beide Hände neu (5 Finger)
+- [~] 362 edit · figures/gnome-androgynous/subclasses/circle-of-the-moon · 10.4/40.8 · generiere die Hand neu (5 Finger)
+- [~] 363 edit · figures/halfling-feminine/subclasses/circle-of-the-moon · 85.5/61.1 · generiere beide Hände neu (5 Finger)
+- [~] 364 edit · figures/halfling-androgynous/subclasses/circle-of-the-moon · 80.1/52.2 · generiere die Hand neu (5 Finger)
+- [~] 365 edit · figures/human-feminine/subclasses/circle-of-the-moon · 8.9/34.8 · generiere die Hand neu (5 Finger)
+- [~] 366 edit · figures/tiefling-feminine/subclasses/circle-of-the-moon · 90.8/50.9 · generiere beide Hände neu (5 Finger)
+- [~] 367 edit · figures/aasimar-feminine/backgrounds/noble · 53.9/46.7 · generiere die Hand neu (5 Finger)
+- [~] 368 edit · figures/dragonborn-feminine/backgrounds/noble · 24.7/45.2 · generiere die Hand neu (5 Finger)
+- [~] 369 edit · figures/elf-androgynous/backgrounds/noble · 72.6/52.0 · der Stempel in seiner Hand fehlt
+- [~] 370 edit · figures/fairy-feminine/backgrounds/noble · 62.9/51.0 · die Beine sind verdreht
+- [~] 371 edit · figures/fairy-androgynous/backgrounds/noble · 51.0/71.4 · linkes Bein fehlt
+- [~] 372 edit · figures/goliath-masculine/backgrounds/noble · 71.1/58.2 · der Siegelring muss auf dem Papier sein
+- [~] 373 edit · figures/human-feminine/backgrounds/noble · 84.5/40.2 · generiere die Hand neu - sehr komisch gespreizt
+- [~] 374 edit · figures/human-masculine/backgrounds/noble · 49.5/58.2 · der Ring muss auf dem roten Wachs sein
+- [~] 375 edit · figures/orc-androgynous/backgrounds/noble · 64.6/51.5 · der Ring muss unten auf dem Wachs sein
+- [~] 376 edit · figures/orc-masculine/backgrounds/noble · 68.7/51.2 · der Stempel fehlt
+- [~] 377 edit · figures/tiefling-feminine/backgrounds/noble · 74.1/35.8 · die Hand und der Arm sind verdreht
+- [~] 378 edit · figures/tiefling-androgynous/backgrounds/noble · 78.7/45.4 · generiere die Hand neu (5 Finger)
+- [~] 379 edit · figures/dwarf-masculine/backgrounds/noble · 87.4/27.6 · generiere die Hand neu (5 Finger)
+- [~] 380 edit · figures/halfling-androgynous/backgrounds/acolyte · 75.5/35.2 · generiere die Hand neu - er hält das zwischen Daumen und Zeigefinger
+- [~] 381 edit · figures/dwarf-masculine/backgrounds/acolyte · 89.8/35.5 · generiere die Hand neu (5 Finger) + etwas weiter weg vom Feuer
+- [~] 382 edit · figures/elf-feminine/backgrounds/farmer · 39.3/23.3 · lösche den Hut + aus der Seite der Kiste dürfen die 2 Kohlköpfe oberhalb des rechten Arms nicht sein
+- [~] 383 edit · figures/gnome-feminine/backgrounds/farmer · 86.9/53.3 · das Seil muss am rechten Horn fest gemacht sein
+- [~] 384 edit · figures/fairy-feminine/backgrounds/hermit · 42.7/68.5 · das muss ihr linkes Bein und linker Fuß sein
+- [~] 385 edit · figures/human-masculine/backgrounds/hermit · 82.1/31.9 · generiere die Hand neu (5 Finger)
+- [~] 386 edit · figures/halfling-masculine/backgrounds/merchant · 45.1/47.1 · generiere die Hand neu (5 Finger) - die Handposition passt nicht
+- [~] 387 edit · figures/dwarf-feminine/backgrounds/merchant · 33.0/36.1 · generiere das Buch neu - ergibt so keinen Sinn
+- [~] 388 edit · figures/dragonborn-feminine/backgrounds/artisan · 27.6/75.5 · rechtes Bein mit Fuß sind komplett verdreht
+- [~] 389 edit · figures/goliath-feminine/backgrounds/artisan · 13.8/57.0 · füge im Hintergrund ein Paar schön verzierte Holzski hin - da baut sie gerade ein neues Paar
+- [~] 390 edit · figures/dragonborn-feminine/backgrounds/criminal · 87.7/32.2 · der Beutel oben ist doppelt + irgendwas spitzes schaut da raus??? - lösche das
+- [~] 391 edit · figures/fairy-androgynous/backgrounds/criminal · 65.1/29.2 · Gesichtsausdruck ist komisch
+- [~] 392 edit · figures/goliath-androgynous/backgrounds/criminal · 87.7/70.6 · Beutel ist komisch geformt
+- [~] 393 edit · figures/gnome-feminine/backgrounds/charlatan · 15.0/32.1 · die Hand sieht komisch aus (5 Finger)
+- [~] 394 edit · figures/halfling-masculine/backgrounds/charlatan · 25.2/68.9 · Bein ist komplett verdreht und ein Teil fehlt
+- [~] 395 edit · figures/tiefling-masculine/backgrounds/charlatan · 79.9/53.3 · generiere die Hand neu (5 Finger)
+- [~] 396 edit · figures/dwarf-masculine/backgrounds/charlatan · 87.4/66.4 · generiere die Hand neu (5 Finger)
+- [~] 397 edit · figures/aasimar-masculine/backgrounds/scribe · 68.5/19.0 · die Pose ergibt keinen Sinn - er soll etwas da im Moment drauf schreiben - Blatt liegt auf dem Tisch - die andere Person schaut gespannt zu
+- [~] 398 edit · figures/dragonborn-masculine/backgrounds/scribe · 84.3/33.2 · die Buchseiten dort ergeben keinen Sinn - wehende Buchseiten sehen anders aus - generiere den Part neu
+- [~] 399 edit · figures/dragonborn-masculine/backgrounds/sailor · 84.0/60.1 · der Teil des Seils muss weg - ergibt keinen Sinn
+- [~] 400 edit · figures/halfling-feminine/backgrounds/sailor · 51.0/44.1 · das sieht mehr nach einem Knoten aus - das Seil dort soll schöner aussehen
+- [~] 401 edit · figures/dwarf-feminine/backgrounds/sailor · 26.7/20.7 · der Teil des Kopftuchs geht durch die Hand - das soll nicht so sein!
+- [~] 402 edit · figures/dragonborn-feminine/backgrounds/soldier · 77.2/45.9 · der Arm ist komplett falsch verdreht!
+- [~] 403 edit · figures/aasimar-feminine/backgrounds/entertainer · 52.9/67.6 · die Beine sehen komisch aus - sieht aus wie 2 rechte Beine + das hintere Bein ist irgendwie zu klein und zu kurz - generiere beide Beine neu
+- [~] 404 edit · figures/elf-feminine/backgrounds/entertainer · 17.9/40.8 · das muss ihr linkes Bein sein! - das muss also an eine andere Position! ändere nur das!
+- [~] 405 edit · figures/fairy-masculine/backgrounds/entertainer · 49.0/54.6 · das muss sein linkes Bein und linker Fuß sein! ändere das!
+- [~] 406 edit · figures/gnome-feminine/backgrounds/entertainer · 60.7/50.2 · beide Beine ergeben so gar keinen Sinn! ändere beide Beine!
+- [~] 407 edit · figures/goliath-feminine/backgrounds/entertainer · 72.8/17.0 · der Ball muss in ihre rechte Hand rüber!
+- [~] 408 edit · figures/goliath-androgynous/backgrounds/entertainer · 46.1/50.9 · beide Beine ergeben so keinen Sinn! generiere die Beine neu!
+- [~] 409 edit · figures/tiefling-feminine/backgrounds/entertainer · 22.3/47.1 · das linke Bein ergibt keinen Sinn - ändere das und generiere es an die passende Stelle
+- [~] 410 edit · figures/tiefling-masculine/backgrounds/entertainer · 52.2/28.0 · unter der rechten Hand ist etwas Komisches - verändere / lösche das
+- [~] 411 edit · figures/dwarf-feminine/backgrounds/entertainer · 49.5/70.1 · das ist ihr rechtes Bein - das muss weiter nach rechts + das linke Bein fehlt komplett - generiere das
+- [~] 412 edit · figures/elf-feminine/backgrounds/guard · 88.9/42.6 · die Hand und der Arm sind verdreht - korrigiere das
+- [~] 413 edit · figures/dwarf-feminine/backgrounds/guard · 92.3/40.7 · Sie soll die Türe zuschieben, sonst ergibt das Bild keinen Sinn
+- [~] 414 edit · figures/aasimar-feminine/backgrounds/guide · 55.8/38.7 · die 2 Hände sehen katastrophal aus - so sehen 2 Hände nicht aus, wovon die eine die andere hochzieht!
+- [~] 415 edit · figures/aasimar-androgynous/backgrounds/guide · 66.0/41.8 · man muss seine Hand sehen, wie er den anderen mit zieht
+- [~] 416 edit · figures/aasimar-masculine/backgrounds/guide · 67.3/44.9 · die eine Hand zieht die andere Hand - generiere die 2 Hände neu
+- [~] 417 edit · figures/dragonborn-feminine/backgrounds/guide · 8.2/47.8 · der untere Teil des Seils muss weg - das Seil geht direkt zur Hand des Mannes
+- [~] 418 edit · figures/dragonborn-masculine/backgrounds/guide · 32.5/54.9 · das Seil muss durchgehend sein ohne Absatz
+- [~] 419 edit · figures/gnome-masculine/backgrounds/guide · 45.9/45.9 · das Seil muss auf der Höhe seines Gürtels einmal herum gehen
+- [~] 420 edit · figures/goliath-masculine/backgrounds/guide · 91.5/35.8 · das Seil soll hier nicht festgemacht sein! er soll den Rest des Seils aufgewickelt in seiner rechten Hand tragen
+- [~] 421 edit · figures/halfling-feminine/backgrounds/guide · 69.2/32.7 · so sehen keine 2 Hände aus, wovon die eine die andere stützt!
+- [~] 422 edit · figures/human-androgynous/backgrounds/guide · 31.8/34.2 · so sehen keine 2 Hände aus, wovon die eine die andere stützt! - geht in die richtige Richtung
+- [~] 423 edit · figures/human-masculine/backgrounds/guide · 67.3/41.3 · so sehen keine 2 Hände aus - sie geben sich zur Begrüßung die Hand
+- [~] 424 edit · figures/orc-feminine/backgrounds/guide · 62.4/48.0 · so sehen keine 2 Hände aus, wovon die eine die andere stützt!
+- [~] 425 edit · figures/orc-androgynous/backgrounds/guide · 56.3/37.6 · so sehen keine 2 Hände aus, wovon die eine die andere stützt!
+- [~] 426 edit · figures/orc-masculine/backgrounds/guide · 61.9/43.6 · so sehen keine 2 Hände aus, wovon die eine die andere stützt!
+- [~] 427 edit · figures/tiefling-feminine/backgrounds/guide · 61.7/45.2 · so sehen keine 2 Hände aus, wovon die eine die andere stützt!
+- [~] 428 edit · figures/tiefling-androgynous/backgrounds/guide · 60.0/32.2 · so sehen keine 2 Hände aus, wovon die eine die andere stützt!
+- [~] 429 edit · figures/tiefling-masculine/backgrounds/guide · 70.4/40.8 · so sehen keine 2 Hände aus, wovon die eine die andere stützt!
+- [~] 430 edit · figures/dwarf-feminine/backgrounds/guide · 61.7/38.7 · so sehen keine 2 Hände aus, wovon die eine die andere stützt!
+- [~] 431 edit · figures/elf-feminine/backgrounds/sage · 26.7/82.1 · ohne Brille bitte + das hier markiert ist ihr linkes Bein.. das muss weiter nach links aus ihrer Sicht
+- [~] 432 edit · figures/fairy-masculine/backgrounds/sage · 56.6/36.0 · man muss hier die Buchrückseite sehen! - sonst passt es!
+- [~] 433 edit · figures/gnome-feminine/backgrounds/sage · 31.5/35.3 · der Finger hat dort nichts verloren! lösche den + ihr linkes Bein muss weiter nach links
+- [~] 434 edit · figures/gnome-masculine/backgrounds/sage · 65.1/42.5 · generiere das Buch neu! ist komplett verzogen
+- [~] 435 edit · figures/goliath-androgynous/backgrounds/sage · 91.1/35.5 · generiere das Buch neu
+- [~] 436 edit · figures/goliath-masculine/backgrounds/sage · 37.4/63.3 · sein linkes Bein ist verdreht und muss weiter nach links! das passt so gar nicht!
+- [~] 437 edit · figures/halfling-feminine/backgrounds/sage · 50.2/68.2 · ihr Fuß ist verdreht + es muss ihr linker Fuß sein und nicht ein 2. rechter Fuß
+- [~] 438 edit · figures/human-androgynous/backgrounds/sage · 23.3/53.8 · er sitzt ja seitlich - da ist hier zu viel Stoff - das ergibt so keinen Sinn
+- [~] 439 edit · figures/orc-masculine/backgrounds/sage · 59.7/48.9 · das muss sein linkes Knie sein - ist verzerrt
+- [~] 440 edit · figures/dwarf-androgynous/backgrounds/sage · 65.1/39.5 · die 2 Bücher sind komplett deformiert und in der falschen Größe (falsches Format)!
+- [~] 441 edit · figures/dwarf-masculine/backgrounds/sage · 80.1/36.1 · seine linke Hand passt nicht! (5 Finger)

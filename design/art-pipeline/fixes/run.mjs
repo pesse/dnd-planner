@@ -49,7 +49,7 @@ const BOOK_RULE = 'Books: the image model draws open books in perspective with i
 function itemBrief(it, inputs) {
   const where = `around x ${it.x} %, y ${it.y} % of the image (measured from the top-left corner)`;
   const lines = [`### Item ${it.nr} → save as \`${it.nr}.png\``,
-    `Original: \`${inputs.orig}\`${inputs.ref ? `; reference (${isIcon(it.path) ? 'the large scene painting' : 'the small library icon'} of the same creature): \`${inputs.ref}\`` : ''}${inputs.identity ? `; identity reference of this character: \`${inputs.identity}\`` : ''}.`,
+    `Original: \`in/${inputs.orig}\`${inputs.ref ? `; reference (${isIcon(it.path) ? 'the large scene painting' : 'the small library icon'} of the same creature): \`in/${inputs.ref}\`` : ''}${inputs.identity ? `; identity reference of this character: \`in/${inputs.identity}\`` : ''}.`,
     `Subject: ${it.path} (${it.path.split('/').slice(1).join(' / ')}).`,
     `User's review note (German, verbatim): „${it.note}"`,
     `The user clicked ${where}; that is where the problem is.`];
@@ -102,7 +102,7 @@ async function prep(W, N, BATCH, dir) {
     parts.push(itemBrief(it, inputs));
     writeFileSync(join(RAW, 'tries', it.nr), String(tries(it.nr) + 1));
   }
-  writeFileSync(join(dir, 'brief.md'), `${HEAD(icon)}\nThe attached images are, in order: ${images.map((p) => p.split('/').pop()).join(', ')}.\n\n${parts.join('\n\n')}\n`);
+  writeFileSync(join(dir, 'brief.md'), `${HEAD(icon)}\nThe attached images are, in order (also on disk under in/): ${images.map((p) => p.split("/").pop()).join(", ")}.\n\n${parts.join('\n\n')}\n`);
   writeFileSync(join(dir, 'images.txt'), images.join('\n'));
   writeFileSync(join(dir, 'items.txt'), batch.map((it) => it.nr).join('\n'));
 }
