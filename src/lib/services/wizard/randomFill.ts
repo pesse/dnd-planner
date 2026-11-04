@@ -103,8 +103,7 @@ function fillFeatureChoices(w: CharacterWizard, rng: Rng): void {
 
 /** Gewürfelt wird unter den Standardsprachen, die der Charakter noch nicht spricht. */
 function newLanguages(w: CharacterWizard, count: number, rng: Rng): string[] {
-  const ids = new Set(w.plainChoices.filter(isLanguageChoice).map((c) => c.id));
-  const spoken = new Set([...w.fixedLanguages, ...w.declaredAnswers.filter((a) => ids.has(a.id)).flatMap((a) => a.choice.split(', '))]);
+  const spoken = new Set([...w.fixedLanguages, ...w.featureLanguages]);
   return shuffled(STANDARD_LANGUAGES.filter((l) => !spoken.has(l)), rng).slice(0, Math.max(1, count));
 }
 

@@ -12,6 +12,8 @@ import { buildFeaturePrep, type FeaturePrep } from './featurePrep';
 import { unredactedChoiceFeatures } from '../declaration/optionList';
 import { declarationGapLines } from '../declarationGap';
 import { declaredGrantRiders } from '../declaration/grants';
+import { isLanguageChoice } from '../declaration/languages';
+import { splitChoiceAnswer } from '../declaration/source';
 import { COMMON_LANGUAGE } from './personal';
 import { wizardAnswers, wizardDeclaredChoices, wizardRiders } from './wizardChoices';
 import { getItemsByDir } from '$lib/itemLibrary';
@@ -214,10 +216,20 @@ export class CharacterWizard {
     return this.plainChoices.every((c) => answered.has(c.id));
   }
 
-  /** Was der Charakter ohne Sprachwahl spricht — in einer Sprachwahl nicht noch einmal wählbar. */
+  /** Was Merkmale an Sprachen bringen, fest oder gewählt — im Sprachen-Schritt nicht noch einmal wählbar. */
+  get featureLanguages(): string[] {
+    const ids = new Set(this.plainChoices.filter(isLanguageChoice).map((c) => c.id));
+    const chosen = this.declaredAnswers.filter((a) => ids.has(a.id)).flatMap((a) => splitChoiceAnswer(a.choice));
+    return [...new Set([...this.#grantedLanguages, ...chosen])];
+  }
+
+  /** Was der Charakter ohne Sprachwahl eines Merkmals spricht. */
   get fixedLanguages(): string[] {
-    const granted = declaredGrantRiders(this.declared).flatMap((r) => r.proficiencies.languages);
-    return [...new Set([COMMON_LANGUAGE, ...this.languages, ...granted])];
+    return [...new Set([COMMON_LANGUAGE, ...this.languages, ...this.#grantedLanguages])];
+  }
+
+  get #grantedLanguages(): string[] {
+    return declaredGrantRiders(this.declared).flatMap((r) => r.proficiencies.languages);
   }
 
   get riders() {

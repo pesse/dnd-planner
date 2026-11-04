@@ -14,7 +14,7 @@
 <LanguagePicker
   selected={w.languages}
   max={STANDARD_LANGUAGE_PICKS}
-  known={[COMMON_LANGUAGE]}
+  known={[COMMON_LANGUAGE, ...w.featureLanguages]}
   rareCaveat="Seltene Sprachen lernt man normalerweise nur über Merkmale. Wähle eine davon nur, wenn deine Spielleitung zustimmt — sie zählt dann als eine deiner {STANDARD_LANGUAGE_PICKS} Sprachen."
   onchange={(next) => (w.languages = next)}
 />
