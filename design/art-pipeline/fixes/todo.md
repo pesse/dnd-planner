@@ -88,7 +88,7 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 080 edit · figures/human-androgynous/subclasses/thief · 68.2/23.3 · linker Arm ist verdreht
 - [~] 081 neu · figures/orc-androgynous/subclasses/thief · 58.5/46.5 · Beine sind übereinander wtf - nein - neu generieren
 - [~] 082 neu · figures/tiefling-masculine/subclasses/thief · 65.6/15.7 · wo ist der Arm??? Hilfe?!?! - ganz neu generieren
-- [~] 083 edit · figures/dwarf-feminine/subclasses/thief · 61.9/49.3 · Oberschenkel (beide) sind zu dick
+- [~] 083 neu · figures/dwarf-feminine/subclasses/thief · 61.9/49.3 · Neue Szene, gleiches Motiv Diebin bei Nacht am erleuchteten Fenster: sie kauert sprungbereit auf einem schmalen Dachsims neben dem Fenster, die erbeutete Kette in der Hand, über die Schulter zurückblickend. Schlanke Beine in eng anliegender Hose, beide Stiefel stehen sichtbar auf dem Sims
 - [~] 084 edit · figures/dwarf-androgynous/subclasses/thief · 66.3/78.2 · Fuß ist verdreht
 - [~] 085 edit · figures/orc-androgynous/subclasses/life-domain · 46.6/64.0 · rechter Arm fehlt
 - [~] 086 edit · figures/dwarf-feminine/subclasses/life-domain · 64.6/59.3 · Arm ergibt dort keinen Sinn
@@ -110,7 +110,7 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 102 edit · figures/gnome-feminine/subclasses/evoker · 20.8/47.0 · erstelle die Buchseiten neu
 - [~] 103 edit · figures/human-feminine/subclasses/evoker · 18.9/38.7 · erstelle das Buch neu
 - [~] 104 edit · figures/human-masculine/subclasses/evoker · 17.9/33.5 · erstelle das Buch neu
-- [~] 105 edit · figures/orc-feminine/subclasses/evoker · 22.3/41.3 · erstelle das Buch neu
+- [~] 105 edit · figures/orc-feminine/subclasses/evoker · 22.3/41.3 · das aufgeklappte Buch durch ein geschlossenes, dickes Buch ersetzen, das sie mit dem Unterarm flach an die Brust presst (Einband nach vorne, Buchrücken sichtbar); die andere Seite mit dem Feuer bleibt unverändert
 - [~] 106 edit · figures/orc-androgynous/subclasses/evoker · 22.1/35.2 · erstelle das Buch neu
 - [~] 107 edit · figures/tiefling-feminine/subclasses/evoker · 11.9/29.5 · erstelle das Buch neu
 - [~] 108 edit · figures/tiefling-masculine/subclasses/evoker · 19.9/29.0 · erstelle das Buch neu
@@ -144,7 +144,7 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 136 edit · figures/dwarf-feminine/subclasses/illusionist · 66.5/38.2 · erstelle die Hand neu (5 Finger)
 - [~] 137 edit · figures/aasimar-feminine/classes/fighter · 51.5/41.2 · korrigiere die Schwerthaltung
 - [~] 138 edit · figures/aasimar-masculine/classes/fighter · 56.1/45.5 · korrigiere die Schwerthaltung
-- [~] 139 edit · figures/elf-masculine/classes/fighter · 90.3/55.9 · der Speer ergibt keinen Sinn + zu viele Speere kommen so halb aus dem Bild rechts
+- [~] 139 edit · figures/elf-masculine/classes/fighter · 90.3/55.9 · nimm NUR den einen Speer an der markierten Stelle heraus (unten rechts hinter dem Schild); Schild, alle anderen Speere und alles andere bleiben exakt wie sie sind
 - [~] 140 edit · figures/fairy-masculine/classes/fighter · 72.8/40.3 · Arm ist komplett verdreht
 - [~] 141 edit · figures/aasimar-feminine/subclasses/battle-master · 59.7/25.8 · erstelle die Hand + die Schwerthaltung darunter neu
 - [~] 142 edit · figures/dragonborn-feminine/subclasses/battle-master · 6.5/50.6 · generiere die Hand neu + das Schwert, das oben fliegt muss andersherum sein
@@ -269,8 +269,8 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 261 edit · figures/human-feminine/subclasses/college-of-valor · 16.0/37.4 · generiere das Musikinstrument neu - sieht falsch aus
 - [~] 262 edit · figures/human-androgynous/subclasses/college-of-valor · 19.9/38.1 · generiere das Musikinstrument neu - sieht falsch aus
 - [~] 263 edit · figures/human-masculine/subclasses/college-of-valor · 17.7/38.2 · generiere das Musikinstrument neu - sieht falsch aus
-- [~] 264 edit · figures/orc-feminine/subclasses/college-of-valor · 25.5/41.0 · generiere das Musikinstrument neu - sieht falsch aus
-- [~] 265 edit · figures/orc-masculine/subclasses/college-of-valor · 21.8/40.5 · generiere das Musikinstrument neu - sieht falsch aus
+- [~] 264 edit · figures/orc-feminine/subclasses/college-of-valor · 25.5/41.0 · die Laute auf dem Rücken entfernen und stattdessen ein gebogenes Kriegshorn (Tierhorn mit Messingbeschlägen) an einem Riemen an ihrer Hüfte hängen lassen, vollständig sichtbar; Schwert, Pose und Gefolge unverändert
+- [~] 265 edit · figures/orc-masculine/subclasses/college-of-valor · 21.8/40.5 · die Laute auf dem Rücken entfernen und stattdessen ein gebogenes Kriegshorn (Tierhorn mit Messingbeschlägen) an einem Riemen an seiner Hüfte hängen lassen, vollständig sichtbar; Schwert, Pose und Gefolge unverändert
 - [~] 266 edit · figures/tiefling-feminine/subclasses/college-of-valor · 29.1/37.9 · generiere das Musikinstrument neu - sieht falsch aus
 - [~] 267 edit · figures/tiefling-androgynous/subclasses/college-of-valor · 20.8/39.7 · generiere das Musikinstrument neu - sieht falsch aus
 - [~] 268 edit · figures/tiefling-masculine/subclasses/college-of-valor · 18.4/40.7 · generiere das Musikinstrument neu - sieht falsch aus
@@ -328,7 +328,7 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 320 edit · figures/human-androgynous/subclasses/fiend-patron · 14.0/56.1 · generiere die Hand neu (5 Finger)
 - [~] 321 edit · figures/tiefling-androgynous/subclasses/fiend-patron · 11.4/68.0 · generiere die Hand neu (5 Finger)
 - [~] 322 edit · figures/tiefling-masculine/classes/ranger · 51.2/55.7 · der Schwanz darf nicht vorne sein - der ist hinten am Körper
-- [~] 323 edit · figures/dwarf-androgynous/classes/ranger · 54.1/57.2 · Bein mit Fuß sieht komisch aus
+- [~] 323 edit · figures/dwarf-androgynous/classes/ranger · 54.1/57.2 · das rechte Bein (links im Bild) ist unnatürlich: ein normaler weiter Schritt nach vorn, Knie leicht gebeugt, der Stiefel steht fest auf dem Felsen; das andere Bein und der Oberkörper bleiben
 - [~] 324 edit · figures/fairy-androgynous/subclasses/wild-magic-sorcery · 61.9/36.8 · generiere die rechte Hand neu
 - [~] 325 edit · figures/tiefling-androgynous/subclasses/wild-magic-sorcery · 56.8/31.6 · generiere die Hand neu
 - [~] 326 edit · classes/sorcerer · 17.7/16.5 · generiere die Hand neu (5 Finger)
@@ -420,7 +420,7 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 412 edit · figures/elf-feminine/backgrounds/guard · 88.9/42.6 · die Hand und der Arm sind verdreht - korrigiere das
 - [~] 413 edit · figures/dwarf-feminine/backgrounds/guard · 92.3/40.7 · Sie soll die Türe zuschieben, sonst ergibt das Bild keinen Sinn (Nachprüfung: sie drückt die Handfläche flach gegen die Tür, kein Griff; den neuen Querbalken über der Tür entfernen)
 - [~] 414 edit · figures/aasimar-feminine/backgrounds/guide · 55.8/38.7 · die 2 Hände sehen katastrophal aus - so sehen 2 Hände nicht aus, wovon die eine die andere hochzieht!
-- [~] 415 edit · figures/aasimar-androgynous/backgrounds/guide · 66.0/41.8 · man muss seine Hand sehen, wie er den anderen mit zieht
+- [~] 415 neu · figures/aasimar-androgynous/backgrounds/guide · 66.0/41.8 · Neue Szene, gleiches Motiv Führer in der Stadt auf steilen Treppen: der Führer geht zwei Stufen voraus, dreht sich halb um und zeigt mit dem Wanderstab den Weg nach oben; der Reisende folgt mit eigenem Gepäck. Die beiden berühren sich nicht
 - [~] 416 edit · figures/aasimar-masculine/backgrounds/guide · 67.3/44.9 · die eine Hand zieht die andere Hand - generiere die 2 Hände neu
 - [~] 417 edit · figures/dragonborn-feminine/backgrounds/guide · 8.2/47.8 · der untere Teil des Seils muss weg - das Seil geht direkt zur Hand des Mannes
 - [~] 418 edit · figures/dragonborn-masculine/backgrounds/guide · 32.5/54.9 · das Seil muss durchgehend sein ohne Absatz
@@ -442,7 +442,7 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 434 edit · figures/gnome-masculine/backgrounds/sage · 65.1/42.5 · generiere das Buch neu! ist komplett verzogen
 - [~] 435 edit · figures/goliath-androgynous/backgrounds/sage · 91.1/35.5 · generiere das Buch neu
 - [~] 436 edit · figures/goliath-masculine/backgrounds/sage · 37.4/63.3 · sein linkes Bein ist verdreht und muss weiter nach links! das passt so gar nicht!
-- [~] 437 edit · figures/halfling-feminine/backgrounds/sage · 50.2/68.2 · ihr Fuß ist verdreht + es muss ihr linker Fuß sein und nicht ein 2. rechter Fuß
+- [~] 437 edit · figures/halfling-feminine/backgrounds/sage · 50.2/68.2 · Nur ihr hinterer Fuß: er ist ein zweiter rechter Fuß. Male ihn als linken Fuß, Spiegelbild des vorderen Fußes – großer Zeh auf der Innenseite, zum anderen Fuß hin
 - [~] 438 edit · figures/human-androgynous/backgrounds/sage · 23.3/53.8 · er sitzt ja seitlich - da ist hier zu viel Stoff - das ergibt so keinen Sinn
 - [~] 439 edit · figures/orc-masculine/backgrounds/sage · 59.7/48.9 · das muss sein linkes Knie sein - ist verzerrt
 - [~] 440 edit · figures/dwarf-androgynous/backgrounds/sage · 65.1/39.5 · die 2 Bücher sind komplett deformiert und in der falschen Größe (falsches Format)!
