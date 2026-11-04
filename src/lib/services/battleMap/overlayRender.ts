@@ -2,7 +2,9 @@
  * Nebel und Dunkelheit als Canvas. Beide Leinwände decken das ganze Bild ab, aber in
  * verringerter Auflösung (`scale`) — eine 6000-px-Karte bräuchte sonst 140 MB pro Ebene.
  */
-import type { FogOp, Grid, Lighting } from '../../schemas/battleMap';
+import type { FogOp, Grid, Light, Token, TokenLight } from '../../schemas/battleMap';
+
+export type LightSpot = Pick<Light, 'x' | 'y' | 'radius' | 'color'>;
 
 const MAX_CANVAS_EDGE = 2048;
 
@@ -50,8 +52,23 @@ export function drawFog(canvas: HTMLCanvasElement, ops: FogOp[], imgW: number, i
   ctx.globalCompositeOperation = 'source-over';
 }
 
+/** Ein leuchtendes Token strahlt aus seiner Mitte, in Bildpixeln wie die festen Lichter. */
+export function tokenLights(tokens: readonly (Pick<Token, 'x' | 'y' | 'size'> & { light?: TokenLight | null })[], grid: Grid): LightSpot[] {
+  return tokens.flatMap((t) =>
+    t.light
+      ? [{ x: grid.offsetX + (t.x + t.size / 2) * grid.size, y: grid.offsetY + (t.y + t.size / 2) * grid.size, ...t.light }]
+      : [],
+  );
+}
+
 /** Dunkelheit mit weichen Lichtkreisen; darüber ein Farbschimmer je Licht. */
-export function drawLighting(canvas: HTMLCanvasElement, lighting: Lighting, grid: Grid, imgW: number, imgH: number): void {
+export function drawLighting(
+  canvas: HTMLCanvasElement,
+  lighting: { darkness: number; lights: readonly LightSpot[] },
+  grid: Grid,
+  imgW: number,
+  imgH: number,
+): void {
   const scale = overlayScale(imgW, imgH);
   const w = Math.max(1, Math.round(imgW * scale));
   const h = Math.max(1, Math.round(imgH * scale));

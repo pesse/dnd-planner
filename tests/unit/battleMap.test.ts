@@ -11,6 +11,7 @@ import {
   zoomAt,
 } from '../../src/lib/services/battleMap/geometry';
 import { clampToView, toPlayerState } from '../../src/lib/services/battleMap/playerState';
+import { tokenLights } from '../../src/lib/services/battleMap/overlayRender';
 import { markerDraft, numberedNames, occupiedCells, placeDrafts } from '../../src/lib/services/battleMap/tokenSources';
 
 const grid = battleMapSchema.parse({ name: 'x' }).grid;
@@ -68,9 +69,20 @@ describe('Spieleransicht', () => {
       ],
     });
     const state = toPlayerState(map, 'map.png', { b: 'ada.png' });
-    expect(state.tokens[0]).toEqual({ id: 'b', name: 'Ada', x: 2, y: 2, size: 1, color: '#8a2012', conditions: [], effects: [], imageUrl: 'ada.png', movable: true, down: false, bloodied: false });
+    expect(state.tokens[0]).toEqual({ id: 'b', name: 'Ada', x: 2, y: 2, size: 1, color: '#8a2012', conditions: [], effects: [], light: null, imageUrl: 'ada.png', movable: true, down: false, bloodied: false });
     expect(state.tokens[1].movable).toBe(false);
     expect(JSON.stringify(state)).not.toContain('goblin');
+  });
+
+  it('schickt leuchtende versteckte Tokens nicht mit — ihr Licht verriete sie', () => {
+    const map = battleMapSchema.parse({
+      name: 'x',
+      tokens: [
+        { id: 'a', name: 'Schleicher', x: 1, y: 1, hidden: true, light: { radius: 8 } },
+        { id: 'b', name: 'Ada', kind: 'character', x: 2, y: 2, light: { radius: 8 } },
+      ],
+    });
+    expect(toPlayerState(map, '', {}).tokens.map((t) => t.light?.radius)).toEqual([8]);
   });
 
   it('hält ein gezogenes Token im Ausschnitt', () => {
@@ -103,5 +115,14 @@ describe('Token-Entwürfe', () => {
     const taken = occupiedCells([{ x: 0, y: 0, size: 2 }]);
     const placed = placeDrafts([markerDraft('A'), markerDraft('B')], { x: 0, y: 0 }, taken);
     expect(placed.map((t) => [t.x, t.y])).toEqual([[2, 0], [3, 0]]);
+  });
+});
+
+describe('Token-Licht', () => {
+  it('strahlt aus der Tokenmitte, Raster-Versatz eingerechnet', () => {
+    const g = { ...grid, size: 50, offsetX: 10, offsetY: 5 };
+    expect(tokenLights([{ x: 2, y: 1, size: 2, light: { radius: 8, color: '#fff' } }, { x: 0, y: 0, size: 1, light: null }], g)).toEqual([
+      { x: 160, y: 105, radius: 8, color: '#fff' },
+    ]);
   });
 });

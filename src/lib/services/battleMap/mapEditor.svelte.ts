@@ -3,7 +3,7 @@
  * Frame an das Spielerfenster; `checkpoint()` vor einer Änderung macht sie rückgängig-fähig.
  */
 import { popHp } from './hpPops.svelte';
-import { TOKEN_EFFECT_KEYS, type BattleMap, type FogOp, type Light, type Token, type TokenEffect, type ViewRect } from '../../schemas/battleMap';
+import { TOKEN_EFFECT_KEYS, type BattleMap, type FogOp, type Light, type Token, type TokenLight, type TokenEffect, type ViewRect } from '../../schemas/battleMap';
 import { CONDITION_KEYS, type Condition } from '../../schemas/vocabulary';
 import { AutosaveFile } from '../../utils/autosaveFile.svelte';
 import { newUid } from '../../utils/uid';
@@ -261,6 +261,14 @@ export class MapEditor {
     if (!t) return;
     this.checkpoint();
     t.effects = toggled(t.effects, effect);
+    this.changed();
+  }
+
+  setTokenLight(id: string, light: TokenLight | null): void {
+    const t = this.map?.tokens.find((x) => x.id === id);
+    if (!t || !this.map) return;
+    t.light = light;
+    if (light && this.map.lighting.darkness === 0) this.map.lighting.darkness = 0.75;
     this.changed();
   }
 

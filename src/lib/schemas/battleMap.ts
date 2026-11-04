@@ -22,6 +22,11 @@ export const gridSchema = z.object({
   metersPerCell: z.number().positive().default(1.5),
 });
 
+export const tokenLightSchema = z.object({
+  radius: z.number().positive().default(4).describe('In Feldern.'),
+  color: z.string().default('#ffb347'),
+});
+
 export const tokenSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -42,6 +47,7 @@ export const tokenSchema = z.object({
   initiative: z.number().int().nullable().default(null).describe('null = nimmt nicht am Kampf teil.'),
   trapState: z.enum(TRAP_STATE_KEYS).default('armed'),
   trapTier: z.number().int().min(0).default(0).describe('Stufe einer Falle: 0 = Grundwerte, n = n-ter Eintrag in `tiers`.'),
+  light: tokenLightSchema.nullable().default(null).describe('Das Token leuchtet und nimmt sein Licht mit; null = kein Licht.'),
 });
 
 const point = z.tuple([z.number(), z.number()]);
@@ -116,6 +122,7 @@ export type TokenKind = (typeof TOKEN_KINDS)[number];
 export type FogOp = z.infer<typeof fogOpSchema>;
 export type FogMode = (typeof FOG_MODES)[number];
 export type Light = z.infer<typeof lightSchema>;
+export type TokenLight = z.infer<typeof tokenLightSchema>;
 export type Lighting = z.infer<typeof lightingSchema>;
 export type ViewRect = z.infer<typeof viewRectSchema>;
 export type Combat = z.infer<typeof combatSchema>;

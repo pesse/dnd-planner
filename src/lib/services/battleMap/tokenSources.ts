@@ -68,7 +68,7 @@ export function placeDrafts(drafts: TokenDraft[], origin: Point, taken: Set<stri
     const x = ox + (i % ROW);
     const y = oy + Math.floor(i / ROW);
     for (let dx = 0; dx < n; dx++) for (let dy = 0; dy < n; dy++) used.add(`${x + dx},${y + dy}`);
-    return { id: newUid(), x, y, trapState: 'armed', trapTier: 0, ...d };
+    return { id: newUid(), x, y, trapState: 'armed', trapTier: 0, light: null, ...d };
   });
 }
 

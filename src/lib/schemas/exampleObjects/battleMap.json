@@ -39,7 +39,11 @@
       ],
       "initiative": -9007199254740991,
       "trapState": "armed",
-      "trapTier": 0
+      "trapTier": 0,
+      "light": {
+        "radius": 4,
+        "color": "#ffb347"
+      }
     }
   ],
   "parkedTokens": [
@@ -66,7 +70,11 @@
       ],
       "initiative": -9007199254740991,
       "trapState": "armed",
-      "trapTier": 0
+      "trapTier": 0,
+      "light": {
+        "radius": 4,
+        "color": "#ffb347"
+      }
     }
   ],
   "fog": {

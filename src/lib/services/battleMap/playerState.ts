@@ -31,7 +31,7 @@ export function toPlayerState(map: BattleMap, imageUrl: string, tokenImages: Rec
     grid: map.grid,
     tokens: map.tokens
       .filter((t) => !t.hidden)
-      .map(({ id, name, x, y, size, color, kind, conditions, effects, hp, hpMax, trapState }) => ({
+      .map(({ id, name, x, y, size, color, kind, conditions, effects, light, hp, hpMax, trapState }) => ({
         id,
         name,
         x,
@@ -40,6 +40,7 @@ export function toPlayerState(map: BattleMap, imageUrl: string, tokenImages: Rec
         color,
         conditions,
         effects,
+        light,
         imageUrl: tokenImages[id] ?? '',
         movable: kind === 'character',
         down: hp === 0 || (kind === 'trap' && trapState === 'disarmed'),

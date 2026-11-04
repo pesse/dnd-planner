@@ -14,6 +14,7 @@
   import HpTracker from './HpTracker.svelte';
   import ConditionPicker from './ConditionPicker.svelte';
   import TrapTokenInfo from './TrapTokenInfo.svelte';
+  import TokenLightControl from './TokenLightControl.svelte';
   import TokenEncounterPicker from './TokenEncounterPicker.svelte';
   import { KIND_LABEL } from '../TokenKindIcon.svelte';
 
@@ -95,6 +96,7 @@
   {#if fighter}
     <ConditionPicker {editor} token={t} />
   {/if}
+  {#if editor.map}<TokenLightControl {editor} token={t} grid={editor.map.grid} />{/if}
   <div class="note" class:tall={t.kind === 'marker'} onfocusin={() => editor.checkpoint()}>
     {#key t.id}
       <RichTextEditor value={t.note} placeholder="Notiz (nur für dich) …" collapsedToolbar onChange={(note) => editor.updateToken(t.id, { note })} />

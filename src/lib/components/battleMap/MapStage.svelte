@@ -3,7 +3,7 @@
   import type { Snippet } from 'svelte';
   import type { FogOp, Grid, Lighting, Token } from '../../schemas/battleMap';
   import type { Camera } from '../../services/battleMap/geometry';
-  import { drawFog, drawLighting } from '../../services/battleMap/overlayRender';
+  import { drawFog, drawLighting, tokenLights } from '../../services/battleMap/overlayRender';
   import { initialsOf, shortName } from '../../services/battleMap/tokenSources';
   import { isBloodied } from '../../services/battleMap/tokenDetails';
   import { badgeIconUrl } from '../../conditionIcon';
@@ -27,6 +27,7 @@
     hpMax?: number | null;
     conditions?: Token['conditions'];
     effects?: Token['effects'];
+    light?: Token['light'];
   }
 
   let {
@@ -80,7 +81,8 @@
 
   $effect(() => {
     if (!lightCanvas || !imgW) return;
-    drawLighting(lightCanvas, lighting, grid, imgW, imgH);
+    const lights = [...lighting.lights, ...tokenLights(tokens, grid)];
+    drawLighting(lightCanvas, { darkness: lighting.darkness, lights }, grid, imgW, imgH);
   });
 
   const gridPath = $derived(`M ${grid.size} 0 L 0 0 0 ${grid.size}`);
