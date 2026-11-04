@@ -29,6 +29,7 @@
   import { ruleRefTip } from '$lib/components/ruleRefLinks.svelte';
   import TextTooltip from '$lib/components/TextTooltip.svelte';
   import { textTipState } from '$lib/components/textTip.svelte';
+  import { installTitleTips, titleTipState } from '$lib/components/titleTips.svelte';
   import { cardTypeOf } from '$lib/components/cardRegistry';
   import { actionsFor, type ContextAction } from '$lib/services/contextActions';
   import { runStartupTasks } from '$lib/services/startupTasks';
@@ -118,6 +119,7 @@
   }
 
   onMount(runStartupTasks);
+  onMount(installTitleTips);
 </script>
 
 <div class="app">
@@ -225,6 +227,7 @@
 
 <SpellTooltip spell={spellRefTip.spell} x={spellRefTip.x} y={spellRefTip.y} />
 <TextTooltip text={textTipState.text} x={textTipState.x} y={textTipState.y} />
+<TextTooltip plain text={titleTipState.text} x={titleTipState.x} y={titleTipState.y} />
 <TextTooltip text={ruleRefTip.text} x={ruleRefTip.x} y={ruleRefTip.y} />
 <ToastStack />
 <UpdateDialog />

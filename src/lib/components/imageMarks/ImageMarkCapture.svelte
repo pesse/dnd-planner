@@ -44,7 +44,7 @@
     parts.push(file ? `${file.type}: ${file.path}` : 'Startseite');
     const dialog = hit.element.closest('[role="dialog"]')?.getAttribute('aria-label');
     if (dialog) parts.push(`Dialog „${dialog}“`);
-    const alt = hit.element.getAttribute('alt') || hit.element.getAttribute('title');
+    const alt = hit.element.getAttribute('alt') || hit.element.getAttribute('title') || hit.element.getAttribute('data-tip');
     if (alt) parts.push(`„${alt}“`);
     return parts.join(' · ');
   }

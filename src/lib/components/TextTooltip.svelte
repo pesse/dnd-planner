@@ -6,7 +6,7 @@
   import Markdown from './Markdown.svelte';
   import { tipWheel } from '../utils/tipWheel';
 
-  let { text, x, y }: { text: string | null; x: number; y: number } = $props();
+  let { text, x, y, plain = false }: { text: string | null; x: number; y: number; plain?: boolean } = $props();
 
   let winW = $state(1280);
   let winH = $state(800);
@@ -21,7 +21,7 @@
 
 {#if text}
   <div class="text-tooltip" style="left:{left}px;top:{top}px" bind:clientWidth={boxW} bind:clientHeight={boxH} use:tipWheel={text}>
-    <Markdown source={text} />
+    {#if plain}{text}{:else}<Markdown source={text} />{/if}
   </div>
 {/if}
 

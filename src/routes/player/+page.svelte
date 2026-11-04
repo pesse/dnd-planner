@@ -13,6 +13,7 @@
   import { isTauri } from '$lib/services/httpFetch';
   import TextTooltip from '$lib/components/TextTooltip.svelte';
   import { textTipState } from '$lib/components/textTip.svelte';
+  import { installTitleTips, titleTipState } from '$lib/components/titleTips.svelte';
 
   let shown = $state<PlayerState | null>(null);
   let handout = $state<ShownHandout | null>(null);
@@ -97,6 +98,7 @@
     sendToGm({ type: 'move', id: d.id, x, y, done: true });
   }
 
+  onMount(installTitleTips);
   onMount(() => {
     const unlisten = onGmMessage((msg) => {
       if (msg.type === 'state') {
@@ -129,6 +131,7 @@
 <svelte:head><title>Spieleransicht</title></svelte:head>
 
 <TextTooltip text={textTipState.text} x={textTipState.x} y={textTipState.y} />
+<TextTooltip plain text={titleTipState.text} x={titleTipState.x} y={titleTipState.y} />
 
 <div
   class="player"

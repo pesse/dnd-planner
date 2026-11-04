@@ -501,8 +501,12 @@
     flex: 1;
     overflow-y: auto;
   }
+  /* Nicht display: none — sonst verlieren die Schubladen im Tab ihre Scrollposition. */
   .tab[hidden] {
-    display: none;
+    display: block;
+    position: absolute;
+    inset: 0;
+    visibility: hidden;
   }
   .right {
     position: relative;
