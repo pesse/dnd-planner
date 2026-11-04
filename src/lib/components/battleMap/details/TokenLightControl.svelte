@@ -12,7 +12,8 @@
     { label: 'Laterne', meters: 18 },
   ];
 
-  const cells = (meters: number) => Math.max(0.5, Math.round((meters / grid.metersPerCell) * 2) / 2);
+  const cells = (meters: number) => meters / grid.metersPerCell;
+  const meters = (light: TokenLight) => Math.round(light.radius * grid.metersPerCell * 2) / 2;
 
   function set(light: TokenLight | null) {
     editor.checkpoint();
@@ -33,17 +34,17 @@
     <input
       type="range"
       min="0.5"
-      max="24"
+      max="36"
       step="0.5"
-      value={light.radius}
+      value={meters(light)}
       title="Reichweite"
       onpointerdown={() => editor.checkpoint()}
-      oninput={(e) => editor.setTokenLight(t.id, { ...light, radius: Number(e.currentTarget.value) })}
+      oninput={(e) => editor.setTokenLight(t.id, { ...light, radius: cells(Number(e.currentTarget.value)) })}
     />
-    <span class="reach">{(light.radius * grid.metersPerCell).toLocaleString('de-DE')} m</span>
+    <span class="reach">{meters(light).toLocaleString('de-DE')} m</span>
     <div class="sources">
       {#each SOURCES as s (s.label)}
-        <button class:on={light.radius === cells(s.meters)} onclick={() => set({ ...light, radius: cells(s.meters) })}>{s.label}</button>
+        <button class:on={meters(light) === s.meters} onclick={() => set({ ...light, radius: cells(s.meters) })}>{s.label}</button>
       {/each}
     </div>
   {/if}
