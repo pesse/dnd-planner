@@ -44,8 +44,8 @@ async function toPng(avif, png, icon) {
 }
 
 const HAND_RULE = 'Hands: exactly five fingers (one thumb + four fingers), natural joints, the hand continuing the line of its forearm without a twisted wrist. Check handedness: for the figure\'s RIGHT hand the thumb is on the side facing the figure\'s body centre when the palm faces forward. A hand gripping a weapon or staff wraps all four fingers around the shaft with the thumb closing over them.';
-// Ohne diese Geometrie setzt das Modell den gesenkten Bogen neben/hinter das Bein, Sehne zum Körper (Test 2026-11-04: 4 von 4 mit, 0 von 4 ohne).
-const BOW_RULE = 'Bows: one continuous curved stave gripped at its middle, the string a straight line from tip to tip (a V to the drawing hand when drawn). A bow held lowered at the side is on the camera side of the leg, overlapping it, and its string runs along the OUTER side of the forearm, away from the body.';
+// Ohne diese Geometrie setzt das Modell den gesenkten Bogen neben/hinter das Bein, Sehne zum Körper (Test 2026-11-04); die D-Form muss eigens dastehen, sonst wird der Stab S-förmig.
+const BOW_RULE = 'Bows: a strung longbow is ONE smooth single arc like the letter D, farthest from the string at the grip in the middle and curving evenly toward the string at both ends; no S-curve, no kink or waist at the grip, no recurve. The hand closes around the stave at the grip. The string is one straight line from exactly the upper tip to exactly the lower tip (a V to the drawing hand when drawn). A bow held lowered at the side is on the camera side of the leg, overlapping it, and its string runs along the OUTER side of the forearm, away from the body.';
 const BOOK_RULE = 'Books: the image model draws open books in perspective with impossible geometry. Unless the note insists on readable open pages, replace the book with a CLOSED thick tome (cover, spine and page-block edge clearly readable, a single coherent box shape). If it must stay open, draw it seen straight from the front, spine vertical in the middle, two equal page blocks fanning from the spine, the cover visible only behind both page blocks.';
 
 function itemBrief(it, inputs) {

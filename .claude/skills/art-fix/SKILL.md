@@ -80,7 +80,10 @@ ohne die Maske stimmte der Schütze.
 
 **Geometrie des Gegenstands ja, Pose nein.** Was der Notiz hilft, ist eine Beschreibung, wie der
 kritisierte Gegenstand zum Körper liegt: Der Bogen sitzt vor dem Bein, die Sehne außen am Unterarm.
-Das hat im Test 4 von 4 Bögen gerettet, die knappe Notiz 0 von 4. Was schadet, ist eine neue
+Die Lage stimmte damit 4 von 4 Mal, mit der knappen Notiz 0 von 4 Mal. Die Form stimmte aber erst,
+als sie eigens beschrieben war (D-Bogen statt S-Kurve), und auch dann nur in 1 von 4 Versuchen
+vollständig. Bei solchen schwierigen Gegenständen bleibt es Glückssache: zwei Versuche bestellen
+und den besseren nehmen. Was schadet, ist eine neue
 Handlung oder Haltung („spannt den Bogen", „Faust am Griff"). Ein Ausschnitt als Edit-Grundlage
 brachte nichts gegenüber dem ganzen Bild. Feste Regeln dieser Art stehen in `run.mjs`
 (`HAND_RULE`, `BOW_RULE`, `BOOK_RULE`) und greifen über Stichwörter in der Notiz.
@@ -99,7 +102,7 @@ Läufe, Vorher/Nachher-Blatt und Status stehen in `design/art-pipeline/README.md
 „Korrekturen aus den Katalog-Markierungen". Danach jedes Ergebnis gegen die Notiz **und** die
 Triage prüfen: Hat sich die kritisierte Stelle wirklich geändert, und ist kein neuer Fehler
 entstanden? Dazu einen Ausschnitt mit `crop.mjs` ansehen und **jeden Arm von der Hand bis zur
-Schulter und jede Sehne oder jeden Schaft von Ende zu Ende verfolgen**. Ein Blick aufs Gesamtbild
+Schulter und jede Sehne oder jeden Schaft von Ende zu Ende verfolgen**, bei Bögen auch die Form des Stabs. Ein Blick aufs Gesamtbild
 reicht nicht, so ist ein Bogen mit losem Sehnenende durchgerutscht. Bei Händen die Händigkeit prüfen (siehe Memory „Bildfehler per Edit statt Neumalen").
 Ist ein Punkt zum zweiten Mal gescheitert, kommt keine dritte Edit-Runde: zurück zu Schritt 3, der
 Brief ist dann fast immer der Grund.
