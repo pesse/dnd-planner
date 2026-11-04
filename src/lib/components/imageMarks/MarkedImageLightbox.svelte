@@ -41,5 +41,6 @@
     background: rgba(20, 12, 4, 0.8);
     cursor: zoom-out;
   }
-  .image { width: 96vw; cursor: default; }
+  .image { width: 96vw; pointer-events: none; }
+  .image > :global(*) { pointer-events: auto; cursor: default; }
 </style>
