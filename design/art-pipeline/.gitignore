@@ -12,3 +12,4 @@ review/prompt-*.md
 review/sub/*.json
 review/sub/prompt-*.md
 .lock
+!refs/*.jpg
