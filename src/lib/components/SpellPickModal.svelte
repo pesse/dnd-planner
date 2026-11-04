@@ -5,7 +5,8 @@
    * schreiben live durch: Schließen heißt „fertig", es gibt kein Abbrechen.
    */
   import { onMount } from 'svelte';
-  import { resolveClass, searchSpells, SCHOOL_COLORS, type SpellInfo } from '../spellLibrary';
+  import { searchSpells, SCHOOL_COLORS, type SpellInfo } from '../spellLibrary';
+  import { spellCandidates } from '../services/spellcasting/picker';
   import type { SpellSchool } from '../schemas/vocabulary';
   import { NO_KNOWN_SPELLS, type KnownSpells } from '../services/spellcasting/known';
   import { spellInfoArtUrl } from '../libraryArt';
@@ -57,7 +58,6 @@
   let searchEl = $state<HTMLInputElement | null>(null);
   onMount(() => searchEl?.focus());
 
-  const englishClass = $derived(spellClass ? resolveClass(spellClass) : null);
   const fixedNames = $derived(new Set(fixed.map((f) => f.name.toLowerCase())));
   // Auch Grade einbeziehen, die nur ein gewährter Zauber mitbringt (ein Merkmal kann einen
   // Zauber oberhalb der eigenen Zauberplätze schenken) — sonst fiele er im Dialog stumm weg.
@@ -71,13 +71,8 @@
     const pool = query.trim()
       ? searchSpells(library, query, null, spellClass, 200).map((s) => s.spell)
       : library;
-    return pool.filter(
-      (s) =>
-        spellLevels.includes(s.level) &&
-        (!englishClass || s.classes.includes(englishClass)) &&
-        (!spellSchools.length || (spellSchools as string[]).includes(s.school)) &&
-        !fixedNames.has(s.name.toLowerCase()),
-    );
+    return spellCandidates(pool, { levels: spellLevels, spellClass, schools: spellSchools })
+      .filter((s) => !fixedNames.has(s.name.toLowerCase()));
   });
 
   const sections = $derived(

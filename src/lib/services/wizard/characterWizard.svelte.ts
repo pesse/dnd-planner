@@ -123,6 +123,7 @@ export class CharacterWizard {
   #prep: Promise<FeaturePrep> | null = null;
   #grantsLoad: Promise<CollectedGrants> | null = null;
   #equipmentLoad: Promise<EquipmentGroup[]> | null = null;
+  #loadedSig = '';
 
   get originSig(): string {
     return `${this.species.sourceKey}|${this.klass.sourceKey}|${this.background.sourceKey}`;
@@ -263,6 +264,8 @@ export class CharacterWizard {
    * Ableitungen heraus.
    */
   kickoff(): void {
+    if (this.#loadedSig === this.originSig) return;
+    this.#loadedSig = this.originSig;
     if (!this.toolLib.length) void getItemsByDir('tools').then((t) => { this.toolLib = t; }, () => {});
     this.#loadPrep();
     this.#loadGrants();
@@ -272,6 +275,15 @@ export class CharacterWizard {
     void pending.then((groups) => {
       if (this.#equipmentLoad === pending) this.equipmentGroups = groups;
     }, () => {});
+  }
+
+  /** Bis alles Nachgeladene steht — auch was ein Settle seinerseits neu angestoßen hat. */
+  async settled(): Promise<void> {
+    for (;;) {
+      const pending = [this.#prep, this.#grantsLoad, this.#equipmentLoad];
+      await Promise.allSettled(pending);
+      if (pending.every((p, i) => p === [this.#prep, this.#grantsLoad, this.#equipmentLoad][i])) return;
+    }
   }
 
   selectedOptionIndex(groupIdx: number): number {

@@ -2,24 +2,25 @@
   import { untrack } from 'svelte';
   import { CharacterWizard } from '../services/wizard/characterWizard.svelte';
   import { buildWizardCharacter } from '../services/wizard/assembleCharacter';
-  import { isComplete as pointBuyComplete } from '../services/wizard/pointBuy';
+  import { isComplete as pointBuyComplete, primaryAbilityKeys } from '../services/wizard/pointBuy';
   import { allowedKeys, isValidAllocation, type AsiAllocation } from '../services/wizard/backgroundAsi';
   import type { AbilityKey } from '../services/wizard/pointBuy';
   import { createSpellStepValues } from '../services/wizard/spellStep.svelte';
   import { createWizardPreview } from '../services/wizard/wizardPreview.svelte';
   import { getBackgroundByKey } from '../backgroundsLibrary';
-  import { abilityKeyOf } from '../schemas/abilities';
   import { loadOriginCatalog, type OriginCatalog, type OriginKind } from '../services/wizard/originCatalog';
   import { preloadSpeciesArt } from '../services/wizard/originArt';
   import { STANDARD_LANGUAGE_PICKS } from '../services/wizard/personal';
-  import { masteryOffer, type MasteryOffer } from '../services/weaponMastery';
-  import { fightingStyleOffer, type FightingStyleOffer } from '../services/fightingStyle';
-  import { loadTraitFeatOffers, type TraitFeatOffer } from '../services/traitFeat';
+  import type { MasteryOffer } from '../services/weaponMastery';
+  import type { FightingStyleOffer } from '../services/fightingStyle';
+  import type { TraitFeatOffer } from '../services/traitFeat';
   import { FEAT_CATEGORY_DE } from '../featsLibrary';
-  import { optionPoolOffers, type OptionPoolOffer } from '../services/declaration/optionPool';
+  import type { OptionPoolOffer } from '../services/declaration/optionPool';
+  import { wizardFightingStyleOffer, wizardMasteryOffer, wizardOptionPools, wizardTraitFeatOffers } from '../services/wizard/wizardOffers';
   import { createFormCasting } from '../services/characterFormCasting.svelte';
-  import { featureLedger, wizardCastingInput } from '../services/wizard/castingDraft';
+  import { wizardCastingInput } from '../services/wizard/castingDraft';
   import { getSpellLibrary } from '../spellLibrary';
+  import { fillRandom } from '../services/wizard/randomFill';
   import type { Character } from '../schemas/characterSchema';
   import WeaponMasteryPicker from './WeaponMasteryPicker.svelte';
   import FeatPicker from './FeatPicker.svelte';
@@ -41,7 +42,12 @@
   import WizardLoading from './wizard/WizardLoading.svelte';
   import './wizard/wizard.css';
 
-  let { onComplete, onCancel }: { onComplete: (character: Character) => void; onCancel: () => void } = $props();
+  let { onComplete, onCancel, random = false }: {
+    onComplete: (character: Character) => void;
+    onCancel: () => void;
+    /** Gleich nach dem Laden alles würfeln und im Überblick landen. */
+    random?: boolean;
+  } = $props();
 
   const w = new CharacterWizard();
   const preview = createWizardPreview(w);
@@ -111,13 +117,14 @@
       wait(PRELOAD_LIMIT_MS),
     ]),
     wait(PRELOAD_MIN_MS),
-  ]).finally(() => (ready = true));
+  ]).finally(() => {
+    ready = true;
+    if (random) void randomize();
+  });
   void getSpellLibrary().then((s) => (w.spellLib = s));
 
   const selectedClass = $derived(catalog?.classes.find((c) => c.key === w.klass.sourceKey) ?? null);
-  const primaryAbilities = $derived(
-    (selectedClass?.overview?.primaryAbilities ?? []).map((a) => abilityKeyOf(a)).filter((k): k is AbilityKey => !!k),
-  );
+  const primaryAbilities = $derived(primaryAbilityKeys(selectedClass));
 
   // Jede Änderung der Grundwahl lädt nach; die Wahlen dahinter bleiben stehen.
   $effect(() => {
@@ -137,19 +144,10 @@
 
   // Kontingent und wählbare Waffen kommen aus der Bibliothek.
   let mastery = $state<MasteryOffer | null>(null);
-  const weaponProfs = $derived({
-    simple: w.grants?.weapons.some((g) => g.value === 'Simple') ?? false,
-    martial: w.grants?.weapons.some((g) => g.value === 'Martial') ?? false,
-  });
   $effect(() => {
-    const key = w.klass.sourceKey;
-    const profs = weaponProfs;
-    if (!key) { mastery = null; return; }
+    if (!w.klass.sourceKey) { mastery = null; return; }
     let cancelled = false;
-    void masteryOffer({
-      classes: [{ sourceKey: key, name: w.klass.name, level: 1 }],
-      proficiencies: { simpleWeapons: profs.simple, martialWeapons: profs.martial },
-    })
+    void wizardMasteryOffer(w)
       .then((o) => { if (!cancelled) mastery = o; })
       .catch(() => { if (!cancelled) mastery = null; });
     return () => { cancelled = true; };
@@ -159,16 +157,9 @@
   // Gespeichert werden Talent-Keys; die Assembly macht daraus Talent-Links in `features[]`.
   let fightingStyle = $state<FightingStyleOffer | null>(null);
   $effect(() => {
-    const key = w.klass.sourceKey;
-    if (!key) { fightingStyle = null; return; }
-    const features = featureLedger(w);
-    const optionPicks = $state.snapshot(w.optionPicks);
+    if (!w.klass.sourceKey) { fightingStyle = null; return; }
     let cancelled = false;
-    void fightingStyleOffer({
-      classes: [{ sourceKey: key, subclassKey: w.klass.subclassKey, name: w.klass.name, level: 1 }],
-      features,
-      optionPicks,
-    })
+    void wizardFightingStyleOffer(w)
       .then((o) => {
         if (cancelled) return;
         fightingStyle = o;
@@ -182,10 +173,8 @@
 
   let traitFeatOffers = $state<TraitFeatOffer[]>([]);
   $effect(() => {
-    const speciesKey = w.species.sourceKey;
-    const backgroundKey = w.background.sourceKey;
     let cancelled = false;
-    void loadTraitFeatOffers(speciesKey, backgroundKey)
+    void wizardTraitFeatOffers(w)
       .then((o) => { if (!cancelled) traitFeatOffers = o; })
       .catch(() => { if (!cancelled) traitFeatOffers = []; });
     return () => { cancelled = true; };
@@ -200,10 +189,9 @@
   // beginnt auf Zaubererstufe 2) — der Schritt fällt dann weg.
   let pools = $state<OptionPoolOffer[]>([]);
   $effect(() => {
-    const key = w.klass.sourceKey;
-    if (!key) { pools = []; return; }
+    if (!w.klass.sourceKey) { pools = []; return; }
     let cancelled = false;
-    void optionPoolOffers({ classes: [{ sourceKey: key, subclassKey: w.klass.subclassKey, name: w.klass.name, level: 1 }] })
+    void wizardOptionPools(w)
       .then((o) => { if (!cancelled) pools = o; })
       .catch(() => { if (!cancelled) pools = []; });
     return () => { cancelled = true; };
@@ -259,6 +247,22 @@
     if (prev) go(prev.id);
   }
 
+  let filling = $state(false);
+  let fillError = $state('');
+  async function randomize() {
+    if (!catalog || filling) return;
+    filling = true;
+    fillError = '';
+    try {
+      await fillRandom(w, catalog);
+      go('review');
+    } catch (e) {
+      fillError = `Zufallsfüllung abgebrochen: ${e instanceof Error ? e.message : e}`;
+    } finally {
+      filling = false;
+    }
+  }
+
   async function create() {
     creating = true;
     createError = '';
@@ -290,6 +294,9 @@
 
 {#snippet footer()}
   <button class="secondary" onclick={onCancel}>Abbrechen</button>
+  <button class="secondary" onclick={randomize} disabled={filling || !catalog || creating}
+    title="Würfelt alles, was noch offen ist — getroffene Wahlen bleiben stehen.">{filling ? 'Würfle …' : '🎲 Rest zufällig'}</button>
+  {#if fillError}<span class="warn">{fillError}</span>{/if}
   <div class="spacer"></div>
   {#if stepIndex > 0}<button class="secondary" onclick={back} disabled={creating}>Zurück</button>{/if}
   {#if stepIndex < steps.length - 1}

@@ -72,6 +72,8 @@ export class CharacterSectionState {
   newInput = $state('');
   showChooser = $state(false);
   showWizard = $state(false);
+  /** Der nächste Wizard würfelt sofort alles. */
+  wizardRandom = $state(false);
   showImport = $state(false);
 
   async load(): Promise<void> {

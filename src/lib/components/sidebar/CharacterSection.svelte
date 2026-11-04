@@ -93,7 +93,8 @@
 
 {#if state.showChooser}
   <NewCharacterChooser
-    onwizard={() => { state.showChooser = false; state.showWizard = true; }}
+    onwizard={() => { state.showChooser = false; state.wizardRandom = false; state.showWizard = true; }}
+    onrandom={() => { state.showChooser = false; state.wizardRandom = true; state.showWizard = true; }}
     onimport={() => { state.showChooser = false; state.showImport = true; }}
     ontemplate={(id, level) => state.createFromTemplate(id, level)}
     oncancel={() => (state.showChooser = false)}
@@ -101,7 +102,7 @@
 {/if}
 
 {#if state.showWizard}
-  <CharacterWizard onComplete={(c) => state.createFromWizard(c)} onCancel={() => (state.showWizard = false)} />
+  <CharacterWizard random={state.wizardRandom} onComplete={(c) => state.createFromWizard(c)} onCancel={() => (state.showWizard = false)} />
 {/if}
 
 {#if state.showImport}

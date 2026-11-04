@@ -2,8 +2,8 @@
   import './wizard.css';
   import type { ClassProgression } from '$lib/types';
   import type { CharacterWizard } from '../../services/wizard/characterWizard.svelte';
-  import { ABILITY_LABEL, ABILITY_LABEL_BY_NAME, abilityKeyOf } from '$lib/schemas/abilities';
-  import { ABILITY_KEYS, STANDARD_ARRAY, isStandardArray, type AbilityKey, type AbilityScores } from '../../services/wizard/pointBuy';
+  import { ABILITY_LABEL, ABILITY_LABEL_BY_NAME } from '$lib/schemas/abilities';
+  import { ABILITY_KEYS, STANDARD_ARRAY, isStandardArray, primaryAbilityKeys, recommendedScores, type AbilityKey } from '../../services/wizard/pointBuy';
   import { mod } from '$lib/domain/skills';
   import { sign } from '$lib/utils/num';
   import PointBuyBlock from './PointBuyBlock.svelte';
@@ -11,20 +11,11 @@
 
   let { w, klass }: { w: CharacterWizard; klass: ClassProgression | null } = $props();
 
-  const primary = $derived(
-    (klass?.overview?.primaryAbilities ?? []).map((a) => abilityKeyOf(a)).filter((k): k is AbilityKey => !!k),
-  );
-
-  function recommended(): AbilityScores {
-    if (klass?.standardArray) return { ...klass.standardArray };
-    const s = {} as AbilityScores;
-    ABILITY_KEYS.forEach((k, i) => (s[k] = STANDARD_ARRAY[i]));
-    return s;
-  }
+  const primary = $derived(primaryAbilityKeys(klass));
 
   // Der Standardsatz bleibt immer eine Permutation — ein Wechsel tauscht zwei Werte.
   $effect(() => {
-    if (w.abilityMethod === 'standard' && !isStandardArray(w.scores)) w.scores = recommended();
+    if (w.abilityMethod === 'standard' && !isStandardArray(w.scores)) w.scores = recommendedScores(klass);
   });
 
   function assign(key: AbilityKey, value: number) {
@@ -59,7 +50,7 @@
       </label>
     {/each}
   </div>
-  <button class="secondary" onclick={() => (w.scores = recommended())}>
+  <button class="secondary" onclick={() => (w.scores = recommendedScores(klass))}>
     Empfohlene Verteilung{klass ? ` für ${klass.nameDe || klass.name}` : ''}
   </button>
 {:else}

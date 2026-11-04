@@ -3,7 +3,8 @@
  * Hintergrunds-Erhöhung und fließt direkt in `character.abilities`.
  */
 
-import { ABILITY_KEYS, type AbilityKey, type AbilityScores } from '$lib/schemas/abilities';
+import { ABILITY_KEYS, abilityKeyOf, type AbilityKey, type AbilityScores } from '$lib/schemas/abilities';
+import type { ClassProgression } from '$lib/schemas/classProgression';
 export { ABILITY_KEYS, type AbilityKey, type AbilityScores };
 
 export const POINT_BUY_BUDGET = 27;
@@ -57,3 +58,14 @@ export function isStandardArray(scores: AbilityScores): boolean {
   const sorted = ABILITY_KEYS.map((k) => scores[k]).sort((a, b) => b - a);
   return sorted.every((v, i) => v === STANDARD_ARRAY[i]);
 }
+
+/** Die SRD-Verteilung der Klasse; ohne sie der Standardsatz in Attribut-Reihenfolge. */
+export function recommendedScores(klass: ClassProgression | null): AbilityScores {
+  if (klass?.standardArray) return { ...klass.standardArray };
+  const s = {} as AbilityScores;
+  ABILITY_KEYS.forEach((k, i) => (s[k] = STANDARD_ARRAY[i]));
+  return s;
+}
+
+export const primaryAbilityKeys = (klass: ClassProgression | null): AbilityKey[] =>
+  (klass?.overview?.primaryAbilities ?? []).map((a) => abilityKeyOf(a)).filter((k): k is AbilityKey => !!k);

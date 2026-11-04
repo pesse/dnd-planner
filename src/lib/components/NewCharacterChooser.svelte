@@ -3,8 +3,9 @@
   import Modal from './ui/Modal.svelte';
   import { listCharacterTemplates, type CharacterTemplateRef } from '../services/templates/templates';
 
-  let { onwizard, onimport, ontemplate, oncancel }: {
+  let { onwizard, onrandom, onimport, ontemplate, oncancel }: {
     onwizard: () => void;
+    onrandom: () => void;
     onimport: () => void;
     ontemplate: (id: string, level: number) => Promise<void>;
     oncancel: () => void;
@@ -48,6 +49,10 @@
       <button class="option" onclick={onwizard}>
         <span class="title">Neuer Charakter</span>
         <span class="sub">Schritt für Schritt zur Stufe 1</span>
+      </button>
+      <button class="option" onclick={onrandom}>
+        <span class="title">Zufälliger Charakter</span>
+        <span class="sub">Gewürfelt, aber spielbar — danach im Wizard anpassen</span>
       </button>
       <button class="option" disabled={!templates?.length} onclick={() => (showTemplates = true)}>
         <span class="title">Aus Vorlage erstellen</span>
