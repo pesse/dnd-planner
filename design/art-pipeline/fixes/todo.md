@@ -328,7 +328,7 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 320 edit · figures/human-androgynous/subclasses/fiend-patron · 14.0/56.1 · generiere die Hand neu (5 Finger)
 - [~] 321 edit · figures/tiefling-androgynous/subclasses/fiend-patron · 11.4/68.0 · generiere die Hand neu (5 Finger)
 - [~] 322 edit · figures/tiefling-masculine/classes/ranger · 51.2/55.7 · der Schwanz darf nicht vorne sein - der ist hinten am Körper
-- [~] 323 edit · figures/dwarf-androgynous/classes/ranger · 54.1/57.2 · Pose so lassen. Nur den Rand wie bei allen Bildern der Serie: das Gemälde läuft zum Bildrand in hellen Pergamentgrund mit ausgefransten, pinselartigen Kanten aus
+- [~] 323 edit · figures/dwarf-androgynous/classes/ranger · 54.1/57.2 · Pose, Rand und alles andere so lassen. Nur: 1) das Kurzschwert in ihrer Hand bekommt eine gerade, starre Klinge; 2) die angeschnittene Waffe oben rechts am Bildrand komplett entfernen, dort nur Sturmhimmel
 - [~] 324 edit · figures/fairy-androgynous/subclasses/wild-magic-sorcery · 61.9/36.8 · generiere die rechte Hand neu
 - [~] 325 edit · figures/tiefling-androgynous/subclasses/wild-magic-sorcery · 56.8/31.6 · generiere die Hand neu
 - [~] 326 edit · classes/sorcerer · 17.7/16.5 · generiere die Hand neu (5 Finger)
