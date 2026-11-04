@@ -136,7 +136,9 @@
     max-width: 100%;
     max-height: 100%;
     min-height: 0;
+    pointer-events: none;
   }
+  .figure, .info { pointer-events: auto; }
 
   .figure-col {
     position: relative;
