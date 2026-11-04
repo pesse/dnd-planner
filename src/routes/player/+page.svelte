@@ -1,8 +1,14 @@
 <script lang="ts">
   /** Spieleransicht: zeigt nur, was die SL freigibt; Charaktere lassen sich ziehen und antippen. Doppelklick schaltet Vollbild. */
   import { onMount } from 'svelte';
-  import { fade, fly, scale } from 'svelte/transition';
+  import { fade, scale } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
+
+  /** Die Abschrift wächst in der Breite auf — so rückt das Bild mit, statt zu springen. */
+  function widen(node: HTMLElement) {
+    const w = node.offsetWidth;
+    return { duration: 450, easing: cubicOut, css: (t: number) => `max-width: ${t * w}px; opacity: ${t}` };
+  }
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import MapStage from '$lib/components/battleMap/MapStage.svelte';
   import DiceStage from '$lib/components/battleMap/DiceStage.svelte';
@@ -191,7 +197,7 @@
         <div class="handout-body" in:scale|global={{ start: 0.92, duration: 450, easing: cubicOut }}>
           <img src={handout.imageUrl} alt={handout.name} />
           {#if handout.text}
-            <p class="handout-text" transition:fly={{ x: 60, duration: 400, easing: cubicOut }}>{handout.text}</p>
+            <div class="text-slot" transition:widen><p class="handout-text">{handout.text}</p></div>
           {/if}
         </div>
         <figcaption in:fade|global={{ delay: 200, duration: 400 }}>{handout.name}</figcaption>
@@ -252,7 +258,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 3vmin;
   }
   .handout img {
     min-width: 0;
@@ -260,10 +265,17 @@
     max-height: 100%;
     object-fit: contain;
   }
-  .handout-text {
-    flex: 0 1 40%;
+  .text-slot {
+    flex: none;
+    display: flex;
     max-height: 100%;
-    margin: 0;
+    overflow: clip;
+    overflow-clip-margin: 30px;
+  }
+  .handout-text {
+    flex: none;
+    width: 36vw;
+    margin: 0 0 0 3vmin;
     padding: 2rem 2.4rem;
     overflow: auto;
     box-sizing: border-box;
