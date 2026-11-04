@@ -14,6 +14,7 @@
   import HpTracker from './HpTracker.svelte';
   import ConditionPicker from './ConditionPicker.svelte';
   import TrapTokenInfo from './TrapTokenInfo.svelte';
+  import TokenEncounterPicker from './TokenEncounterPicker.svelte';
 
   let { editor, token: t, campaignDir }: { editor: MapEditor; token: Token; campaignDir: string } = $props();
 
@@ -73,6 +74,9 @@
       </button>
     {/if}
   </p>
+  {#if t.kind === 'monster' && t.ref && !t.encounter}
+    <TokenEncounterPicker {editor} token={t} {campaignDir} />
+  {/if}
   <div class="row">
     <select value={t.size} aria-label="Größe" onchange={(e) => update({ size: Number(e.currentTarget.value) })}>
       {#each SIZES as s}<option value={s.value}>{s.label}</option>{/each}

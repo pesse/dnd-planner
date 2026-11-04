@@ -20,7 +20,7 @@
   const path = $derived(encounterPath(campaignDir, key));
   const tokens = $derived(editor.map?.tokens.filter((t) => t.encounter === key) ?? []);
   const anyHidden = $derived(tokens.some((t) => t.hidden));
-  const missing = $derived(encounter ? missingMonsters(encounter, tokens).reduce((n, m) => n + m.missing, 0) : 0);
+  const missing = $derived(encounter && !editor.map?.hiddenEncounters.includes(key) ? missingMonsters(encounter, tokens).reduce((n, m) => n + m.missing, 0) : 0);
 
   $effect(() => {
     const p = path;

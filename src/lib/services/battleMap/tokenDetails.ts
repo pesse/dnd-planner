@@ -29,26 +29,24 @@ export const encounterKeyOf = (path: string): string => {
 
 /**
  * Eine Karte bietet die Encounter ihrer Akte und die der ganzen Kampagne an, eine Vorlage alle.
- * Ein schon gesetzter Encounter bleibt in der Liste, auch wenn sein Akt nicht zur Karte gehört.
+ * Ein schon gesetzter (oder mit seinen Tokens ausgeblendeter) Encounter bleibt in der Liste, auch wenn sein Akt nicht zur Karte gehört.
  */
 export function mapEncounters<E extends { actSlug: string; slug: string }>(
   all: readonly E[],
-  map: Pick<BattleMap, 'acts' | 'tokens'>,
+  map: Pick<BattleMap, 'acts' | 'tokens'> & Partial<Pick<BattleMap, 'parkedTokens'>>,
   isTemplate: boolean,
 ): (E & { key: string })[] {
-  const placed = new Set(map.tokens.map((t) => t.encounter).filter(Boolean));
+  const placed = new Set([...map.tokens, ...(map.parkedTokens ?? [])].map((t) => t.encounter).filter(Boolean));
   return all
     .map((e) => ({ ...e, key: encounterKey(e.actSlug, e.slug) }))
     .filter((e) => isTemplate || !e.actSlug || map.acts.includes(e.actSlug) || placed.has(e.key));
 }
 
-/** Ausgeblendete fallen aus der Liste, solange keins ihrer Tokens auf der Karte steht. */
 export function splitHiddenEncounters<E extends { key: string }>(
   list: readonly E[],
-  map: Pick<BattleMap, 'hiddenEncounters' | 'tokens'>,
+  map: Pick<BattleMap, 'hiddenEncounters'>,
 ): { shown: E[]; hidden: E[] } {
-  const placed = new Set(map.tokens.map((t) => t.encounter));
-  const isHidden = (e: E) => map.hiddenEncounters.includes(e.key) && !placed.has(e.key);
+  const isHidden = (e: E) => map.hiddenEncounters.includes(e.key);
   return { shown: list.filter((e) => !isHidden(e)), hidden: list.filter(isHidden) };
 }
 

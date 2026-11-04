@@ -51,3 +51,10 @@ export function withRestored(encounter: Encounter, entry: Encounter['monsters'][
   monsters.splice(Math.min(index, monsters.length), 0, entry);
   return { ...encounter, monsters };
 }
+
+/** Zählt das Monster eines freien Tokens im Encounter mit; die Zuordnung am Token setzt der Aufrufer. */
+export async function addMonsterToEncounter(campaignDir: string, key: string, slug: string): Promise<void> {
+  const path = encounterPath(campaignDir, key);
+  const encounter = encounterSchema.parse(JSON.parse(await invoke<string>('read_file_content', { path })));
+  await invoke('write_file_content', { path, content: serializeEncounter(withMonsterCount(encounter, slug, 1)) });
+}

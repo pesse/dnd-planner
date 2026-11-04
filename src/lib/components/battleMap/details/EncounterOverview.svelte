@@ -21,11 +21,6 @@
   );
   const split = $derived(splitHiddenEncounters(offered, map));
 
-  function setHidden(key: string, hidden: boolean) {
-    editor.checkpoint();
-    map.hiddenEncounters = hidden ? [...map.hiddenEncounters, key] : map.hiddenEncounters.filter((k) => k !== key);
-    editor.changed();
-  }
 
   async function duplicate(key: string) {
     try {
@@ -47,11 +42,12 @@
     {#if prep}
       <div class="tools">
         <button title="Duplizieren" onclick={() => duplicate(e.key)}>⧉</button>
-        {#if !placed.has(e.key)}
-          <button title={hidden ? 'Für diese Karte wieder anbieten' : 'Für diese Karte ausblenden'} onclick={() => setHidden(e.key, !hidden)}>
-            <EyeIcon closed={!hidden} />
-          </button>
-        {/if}
+        <button
+          title={hidden ? 'Für diese Karte wieder anbieten — seine Tokens kehren zurück' : placed.has(e.key) ? 'Für diese Karte ausblenden — nimmt seine Tokens mit' : 'Für diese Karte ausblenden'}
+          onclick={() => editor.setEncounterOffered(e.key, hidden)}
+        >
+          <EyeIcon closed={!hidden} />
+        </button>
       </div>
     {/if}
   </div>

@@ -61,12 +61,23 @@ async function copyEncounter(fromDir: string, fromKey: string, toDir: string, to
  * `fromDir`/`toDir` sind Kampagnenordner (`./vault/campaigns/<kampagne>`). Mit `act` ziehen
  * Encounter fremder Akte in diesen Akt um, und die Tokens zeigen danach dorthin.
  */
-export async function copyMapEncounters<M extends Pick<BattleMap, 'tokens'>>(map: M, fromDir: string, toDir: string, act = ''): Promise<M> {
+export async function copyMapEncounters<M extends Pick<BattleMap, 'tokens'> & Partial<Pick<BattleMap, 'parkedTokens' | 'hiddenEncounters'>>>(
+  map: M,
+  fromDir: string,
+  toDir: string,
+  act = '',
+): Promise<M> {
   const moved = new Map<string, string>();
-  for (const key of encounterKeysOf(map)) {
+  for (const key of encounterKeysOf({ tokens: [...map.tokens, ...(map.parkedTokens ?? [])] })) {
     const toKey = act && actOf(key) && actOf(key) !== act ? encounterKey(act, slugOf(key)) : key;
     await copyEncounter(fromDir, key, toDir, toKey);
     moved.set(key, toKey);
   }
-  return { ...map, tokens: map.tokens.map((t) => (t.encounter ? { ...t, encounter: moved.get(t.encounter) ?? t.encounter } : t)) };
+  const retarget = <T extends { encounter: string }>(t: T): T => (t.encounter ? { ...t, encounter: moved.get(t.encounter) ?? t.encounter } : t);
+  return {
+    ...map,
+    tokens: map.tokens.map(retarget),
+    ...(map.parkedTokens && { parkedTokens: map.parkedTokens.map(retarget) }),
+    ...(map.hiddenEncounters && { hiddenEncounters: map.hiddenEncounters.map((k) => moved.get(k) ?? k) }),
+  };
 }

@@ -68,6 +68,7 @@
   // Hintereinander, sonst setzen zwei schnelle Klicks beide das fehlende Token.
   let syncing = Promise.resolve();
   function syncTokens(slug: string) {
+    if (editor.map?.hiddenEncounters.includes(key)) return;
     syncing = syncing.then(async () => {
       const want = countOf(slug);
       const have = tokensOf(slug);

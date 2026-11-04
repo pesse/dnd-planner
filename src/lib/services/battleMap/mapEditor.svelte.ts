@@ -314,6 +314,22 @@ export class MapEditor {
     this.changed();
   }
 
+  /** Ein ausgeblendeter Encounter nimmt seine Tokens mit von der Karte; Einblenden stellt sie zurück. */
+  setEncounterOffered(encounter: string, offered: boolean): void {
+    const map = this.map;
+    if (!map) return;
+    this.checkpoint();
+    const [from, to] = offered ? [map.parkedTokens, map.tokens] : [map.tokens, map.parkedTokens];
+    const moving = from.filter((t) => t.encounter === encounter);
+    if (offered) map.parkedTokens = from.filter((t) => t.encounter !== encounter);
+    else map.tokens = from.filter((t) => t.encounter !== encounter);
+    to.push(...moving);
+    for (const t of moving) if (!offered) this.details.forget(t.id);
+    map.hiddenEncounters = offered ? map.hiddenEncounters.filter((k) => k !== encounter) : [...map.hiddenEncounters, encounter];
+    this.changed();
+    if (offered) void Promise.all(moving.map((t) => this.#resolveToken(t))).then(() => this.changed());
+  }
+
   addFogOp(op: FogOp): void {
     if (!this.map) return;
     this.map.fog.ops.push(op);

@@ -294,10 +294,15 @@ describe('splitHiddenEncounters', () => {
   const list = [{ key: 'a1/ratten' }, { key: 'schmuggler' }, { key: 'tunnel' }];
   const tok = (encounter: string) => ({ encounter });
 
-  it('blendet aus, was die Karte nicht anbietet — außer es steht schon darauf', () => {
-    const map = { hiddenEncounters: ['schmuggler', 'tunnel'], tokens: [tok('tunnel')] } as unknown as Pick<BattleMap, 'hiddenEncounters' | 'tokens'>;
-    const { shown, hidden } = splitHiddenEncounters(list, map);
-    expect(shown.map((e) => e.key)).toEqual(['a1/ratten', 'tunnel']);
-    expect(hidden.map((e) => e.key)).toEqual(['schmuggler']);
+  it('trennt, was die Karte nicht anbietet', () => {
+    const { shown, hidden } = splitHiddenEncounters(list, { hiddenEncounters: ['schmuggler', 'tunnel'] });
+    expect(shown.map((e) => e.key)).toEqual(['a1/ratten']);
+    expect(hidden.map((e) => e.key)).toEqual(['schmuggler', 'tunnel']);
+  });
+
+  it('behält einen fremden Encounter in der Liste, dessen Tokens geparkt sind', () => {
+    const all = [{ actSlug: 'a2', slug: 'brücke' }];
+    const map = { acts: ['a1'], tokens: [], parkedTokens: [tok('a2/brücke')] } as unknown as Pick<BattleMap, 'acts' | 'tokens' | 'parkedTokens'>;
+    expect(mapEncounters(all, map, false).map((e) => e.key)).toEqual(['a2/brücke']);
   });
 });

@@ -42,6 +42,33 @@
       "trapTier": 0
     }
   ],
+  "parkedTokens": [
+    {
+      "id": "string",
+      "name": "string",
+      "kind": "marker",
+      "ref": "string",
+      "art": "string",
+      "x": 0,
+      "y": 0,
+      "size": 1,
+      "hidden": false,
+      "color": "#8a2012",
+      "note": "string",
+      "encounter": "string",
+      "hp": -9007199254740991,
+      "hpMax": -9007199254740991,
+      "conditions": [
+        "blinded"
+      ],
+      "effects": [
+        "burning"
+      ],
+      "initiative": -9007199254740991,
+      "trapState": "armed",
+      "trapTier": 0
+    }
+  ],
   "fog": {
     "enabled": true,
     "ops": [
