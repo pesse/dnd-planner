@@ -33,17 +33,18 @@
 </script>
 
 {#if options.length}
-  <select aria-label="Zu Encounter hinzufügen" disabled={busy} onchange={(e) => assign(e.currentTarget)}>
-    <option value="">+ Zu Encounter hinzufügen…</option>
+  ·
+  <select aria-label="Zu Encounter hinzufügen" title="Diesem Encounter hinzufügen" disabled={busy} onchange={(e) => assign(e.currentTarget)}>
+    <option value="">+ Encounter…</option>
     {#each options as e (e.key)}<option value={e.key}>{e.name}</option>{/each}
   </select>
 {/if}
 
 <style>
   select {
-    width: 100%;
-    margin-top: 0.3rem;
-    padding: 0.2rem 0.4rem;
-    font-size: 0.8rem;
+    max-width: 9rem;
+    padding: 0 0.2rem;
+    font-size: 0.75rem;
+    vertical-align: baseline;
   }
 </style>

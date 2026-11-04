@@ -33,9 +33,13 @@
   import { isMapTemplatePath, mapFromTemplate, renameMap, saveAsMapTemplate } from '../../services/battleMap/mapTemplates';
   import { askMapPlacement, type MapPlacement } from '../../services/battleMap/mapPlacement';
   import MapPlacementDialog from './MapPlacementDialog.svelte';
+  import PanelEdge from './PanelEdge.svelte';
+  import { createPanelLayout } from '../../utils/panelLayout.svelte';
   import { campaignTree } from '../sidebar/campaign/campaignTreeState.svelte';
 
   const editor = new MapEditor();
+  const leftPanel = createPanelLayout({ key: 'map-left-panel', min: 200, max: 480, initial: 256, side: 'left' });
+  const rightPanel = createPanelLayout({ key: 'map-right-panel', min: 280, max: 640, initial: 384, side: 'right' });
   let canvas = $state<MapCanvas>();
 
   const TOOLS: { id: MapTool; icon: string; label: string; key: string }[] = [
@@ -294,7 +298,7 @@
         <button class:active={diceTray.open} title="Würfel (W)" onclick={() => (diceTray.open = !diceTray.open)}>🎲</button>
       </div>
 
-      <aside class="panel left" aria-label="Werkzeuge und Einstellungen">
+      <aside class="panel left" class:collapsed={leftPanel.collapsed} class:no-transition={leftPanel.dragging} style:width="{leftPanel.width}px" aria-label="Werkzeuge und Einstellungen">
         {#if !isTemplate}
           <div class="tabs" role="tablist">
             <button role="tab" aria-selected={cockpit.tab === 'prep'} onclick={() => (cockpit.tab = 'prep')}>Vorbereitung</button>
@@ -313,11 +317,14 @@
         </div>
       </aside>
 
+      <PanelEdge layout={leftPanel} side="left" label="Werkzeugleiste" />
+
       <MapCanvas bind:this={canvas} {editor} />
 
       {#if diceTray.open}<DiceTray {editor} campaignDir={campaignDirOf(editor.path)} onclose={() => (diceTray.open = false)} />{/if}
 
-      <aside class="panel right" aria-label="Details">
+      <PanelEdge layout={rightPanel} side="right" label="Detailleiste" />
+      <aside class="panel right" class:collapsed={rightPanel.collapsed} class:no-transition={rightPanel.dragging} style:width="{rightPanel.width}px" aria-label="Details">
         <MapDetailsPanel {editor} campaignDir={campaignDirOf(editor.path)} {center} onleave={leaveTo} />
       </aside>
     </div>
@@ -463,14 +470,20 @@
   .panel {
     flex-shrink: 0;
     background: var(--bg-panel);
+    transition: width 0.2s ease;
+  }
+  .panel.no-transition {
+    transition: none;
+  }
+  /* Zugeklappt bleibt die Leiste montiert — Schubladen und Scrollpositionen überleben. */
+  .panel.collapsed {
+    visibility: hidden;
   }
   .left {
     position: relative;
-    width: 16rem;
     display: flex;
     flex-direction: column;
     min-height: 0;
-    border-right: 1px solid var(--surface);
   }
   .template-badge {
     padding: 0.05rem 0.5rem;
@@ -510,10 +523,8 @@
   }
   .right {
     position: relative;
-    width: clamp(20rem, 26vw, 28rem);
     display: flex;
     flex-direction: column;
     min-height: 0;
-    border-left: 1px solid var(--surface);
   }
 </style>

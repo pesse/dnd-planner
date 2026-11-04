@@ -4,7 +4,7 @@
   import { createCharacterPortrait } from '../services/characterPortrait.svelte';
   import { createCharacterGallery } from '../services/characterGallery.svelte';
   import { createFormLibraries } from '../services/characterFormLibraries.svelte';
-  import { createFeaturePanelLayout } from '../utils/featurePanelLayout.svelte';
+  import { createPanelLayout } from '../utils/panelLayout.svelte';
   import { masteryLabel } from '../itemLabels';
   import { deleteActiveEntry } from '../services/deleteEntry';
   import { arrivalReader, registerViewState } from '../services/viewState';
@@ -49,7 +49,7 @@
   const portraitUrl = createCharacterPortrait({ character: () => character, ownUrl: () => side.portraitUrl });
   const gallery = createCharacterGallery({ dirPath: () => dirPath, character: () => ed.draft });
 
-  const feats = createFeaturePanelLayout();
+  const feats = createPanelLayout({ key: 'char-features', min: 240, max: 720, initial: 360, side: 'right' });
   let featBadge = $state<CoverageBadge | null>(null);
   let featOpenCount = $state(0);
   let showLevelUp = $state(false);

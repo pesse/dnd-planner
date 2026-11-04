@@ -72,11 +72,10 @@
       · <button class="link" onclick={() => editor.details.show({ kind: 'encounter', key: t.encounter })}>
         {encounter?.name ?? 'Encounter'}
       </button>
+    {:else if t.kind === 'monster' && t.ref}
+      <TokenEncounterPicker {editor} token={t} {campaignDir} />
     {/if}
   </p>
-  {#if t.kind === 'monster' && t.ref && !t.encounter}
-    <TokenEncounterPicker {editor} token={t} {campaignDir} />
-  {/if}
   <div class="row">
     <select value={t.size} aria-label="Größe" onchange={(e) => update({ size: Number(e.currentTarget.value) })}>
       {#each SIZES as s}<option value={s.value}>{s.label}</option>{/each}

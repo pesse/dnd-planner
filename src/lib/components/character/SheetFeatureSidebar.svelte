@@ -3,14 +3,14 @@
   import type { Change } from '../../schemas/levelUp';
   import type { ApplyContext } from '../../services/applyChanges';
   import type { CoverageBadge } from '../../services/declarationCoverage';
-  import type { FeaturePanelLayout } from '../../utils/featurePanelLayout.svelte';
+  import type { PanelLayout } from '../../utils/panelLayout.svelte';
   import CharacterFeaturePanel from '../CharacterFeaturePanel.svelte';
 
   let {
     feats, dirPath, draft, saved, applyContext, onApplyChanges,
     badge = $bindable(null), openCount = $bindable(0),
   }: {
-    feats: FeaturePanelLayout;
+    feats: PanelLayout;
     dirPath: string;
     draft: Character | null;
     saved: Character | null;
