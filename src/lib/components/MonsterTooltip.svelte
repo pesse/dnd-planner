@@ -10,7 +10,6 @@
 
   let { monster, x, y }: { monster: Monster | null; x: number; y: number } = $props();
 
-  const withDetail = (value: number | string, detail?: string) => (detail ? `${value} (${detail})` : String(value));
 </script>
 
 {#if monster}
@@ -28,15 +27,20 @@
       <ArtFrame src={monsterArtUrl(monster)} color="var(--red)" />
     </div>
 
-    <div class="tt-section"><span class="tt-label">Herausforderung</span><span>{[`HG ${crLabel(monster.challenge_rating)}`, monster.xp ? `${monster.xp.toLocaleString('de-DE')} EP` : ''].filter(Boolean).join(' · ')}</span></div>
-    <div class="tt-section"><span class="tt-label">Rüstungsklasse</span><span>{withDetail(monster.armor_class, monster.armor_detail)}</span></div>
-    <div class="tt-section"><span class="tt-label">Trefferpunkte</span><span>{withDetail(monster.hit_points, monster.hit_dice)}</span></div>
+    <div class="vitals">
+      <div><span class="k">RK</span><span class="v">{monster.armor_class}</span>{#if monster.armor_detail}<span class="d">{monster.armor_detail}</span>{/if}</div>
+      <div><span class="k">TP</span><span class="v">{monster.hit_points}</span>{#if monster.hit_dice}<span class="d">{monster.hit_dice}</span>{/if}</div>
+      <div><span class="k">HG</span><span class="v">{crLabel(monster.challenge_rating)}</span>{#if monster.xp}<span class="d">{monster.xp.toLocaleString('de-DE')} EP</span>{/if}</div>
+    </div>
     <div class="tt-section"><span class="tt-label">Bewegung</span><span>{speedLine(monster.speed)}</span></div>
 
-    <div class="tt-divider"></div>
-    <div class="tt-stats">
+    <div class="abilities">
       {#each ABILITY_KEYS as key}
-        <div><span class="tt-label">{ABILITY_ABBR_DE[key]}</span>{monster.ability_scores[key]} <span class="tt-mod">{modStr(monster.ability_scores[key])}</span></div>
+        <div>
+          <span class="k">{ABILITY_ABBR_DE[key]}</span>
+          <span class="v">{monster.ability_scores[key]}</span>
+          <span class="d">{modStr(monster.ability_scores[key])}</span>
+        </div>
       {/each}
     </div>
 
@@ -49,12 +53,48 @@
 {/if}
 
 <style>
-  .tt-stats {
+  .vitals,
+  .abilities {
     display: grid;
-    grid-template-columns: repeat(3, auto);
-    gap: 0.1rem 0.8rem;
-    font-size: 0.78rem;
+    text-align: center;
+    border: 1px solid var(--surface);
+    border-radius: 4px;
+    margin: 0.1rem 0 0.45rem;
   }
-  .tt-stats .tt-label { min-width: 2.2rem; display: inline-block; }
-  .tt-mod { color: var(--ink-muted); }
+  .vitals {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .abilities {
+    grid-template-columns: repeat(6, 1fr);
+    margin: 0.45rem 0 0;
+  }
+  .vitals > div,
+  .abilities > div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.25rem 0.2rem;
+  }
+  .vitals > div + div,
+  .abilities > div + div {
+    border-left: 1px solid var(--surface);
+  }
+  .k {
+    font-size: 0.66rem;
+    letter-spacing: 0.05em;
+    color: var(--ink-muted);
+  }
+  .v {
+    font-size: 0.92rem;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+  .d {
+    font-size: 0.68rem;
+    line-height: 1.2;
+    color: var(--ink-muted);
+  }
+  .abilities .d {
+    white-space: nowrap;
+  }
 </style>
