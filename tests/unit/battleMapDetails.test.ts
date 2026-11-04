@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { battleMapSchema } from '../../src/lib/schemas/battleMap';
+import { battleMapSchema, type BattleMap } from '../../src/lib/schemas/battleMap';
 import { OVERVIEW_ONLY, forgetToken, popDetail, pushDetail } from '../../src/lib/services/battleMap/detailStack';
-import { adjustHp, campaignDirOf, concentrationDc, encounterKeyOf, encounterPath, isBloodied, mapEncounters } from '../../src/lib/services/battleMap/tokenDetails';
+import { adjustHp, campaignDirOf, concentrationDc, encounterKeyOf, encounterPath, isBloodied, mapEncounters, splitHiddenEncounters } from '../../src/lib/services/battleMap/tokenDetails';
 import { shortName } from '../../src/lib/services/battleMap/tokenSources';
 import { toPlayerState } from '../../src/lib/services/battleMap/playerState';
 import { asMapTemplate, isMapTemplatePath } from '../../src/lib/services/battleMap/mapTemplates';
@@ -287,5 +287,17 @@ describe('Encounter im Cockpit', () => {
   it('kennt den Ordner, dessen Monster den Encounter überschreiben', () => {
     expect(scopeDirOf('./vault/campaigns/k/acts/a1/encounters/brücke.json')).toBe('./vault/campaigns/k/acts/a1');
     expect(scopeDirOf('./vault/campaigns/k/encounters/brücke.json')).toBe('./vault/campaigns/k');
+  });
+});
+
+describe('splitHiddenEncounters', () => {
+  const list = [{ key: 'a1/ratten' }, { key: 'schmuggler' }, { key: 'tunnel' }];
+  const tok = (encounter: string) => ({ encounter });
+
+  it('blendet aus, was die Karte nicht anbietet — außer es steht schon darauf', () => {
+    const map = { hiddenEncounters: ['schmuggler', 'tunnel'], tokens: [tok('tunnel')] } as unknown as Pick<BattleMap, 'hiddenEncounters' | 'tokens'>;
+    const { shown, hidden } = splitHiddenEncounters(list, map);
+    expect(shown.map((e) => e.key)).toEqual(['a1/ratten', 'tunnel']);
+    expect(hidden.map((e) => e.key)).toEqual(['schmuggler']);
   });
 });

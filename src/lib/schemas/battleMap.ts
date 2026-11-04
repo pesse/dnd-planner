@@ -99,6 +99,7 @@ export const battleMapSchema = z.object({
   name: z.string(),
   image: z.string().default('').describe('Dateiname des Kartenbilds neben der Kartendatei.'),
   acts: z.array(z.string()).default([]).describe('Akt-Ordner der Karte, mindestens einer; angeboten werden deren Encounter und die der ganzen Kampagne. Eine Vorlage hat keine.'),
+  hiddenEncounters: z.array(z.string()).default([]).describe('Encounter-Schlüssel, die diese Karte nicht anbietet; ein gesetzter Encounter erscheint trotzdem.'),
   grid: gridSchema.default(gridSchema.parse({})),
   tokens: z.array(tokenSchema).default([]),
   fog: fogSchema.default(fogSchema.parse({})),

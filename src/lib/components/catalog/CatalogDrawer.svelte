@@ -7,6 +7,7 @@
   import { CatalogQuery } from './catalogFilterState.svelte';
   import CatalogFilterBar from './CatalogFilterBar.svelte';
   import CatalogTable from './CatalogTable.svelte';
+  import CatalogRowTooltip from './CatalogRowTooltip.svelte';
   import type { Snippet } from 'svelte';
   import { createHoverTip } from '../../utils/hoverTip.svelte';
 
@@ -23,7 +24,7 @@
     /** Gewählte Zeilen stehen oben. */
     count?: (row: CatalogRow) => number;
     ondecrement?: (row: CatalogRow) => void;
-    /** Schwebe-Tooltip über dem Icon statt der Bildvorschau. */
+    /** Schwebe-Tooltip über dem Icon; ohne ihn zeigt er die Spalten der Zeile. */
     tip?: Snippet<[{ row: CatalogRow | null; x: number; y: number }]>;
     onpick: (row: CatalogRow) => void;
     onclose: () => void;
@@ -107,13 +108,17 @@
     openLabel="Einsetzen"
     {count}
     {ondecrement}
-    onhover={tip ? onhover : undefined}
+    {onhover}
     onsort={(col) => query.sortBy(col, activeSort)}
     onopen={onpick}
   />
 </section>
 
-{#if tip && open}{@render tip({ row: hover.data, x: hover.x, y: hover.y })}{/if}
+{#if open && tip}
+  {@render tip({ row: hover.data, x: hover.x, y: hover.y })}
+{:else if open}
+  <CatalogRowTooltip row={hover.data} {spec} {groupLabel} x={hover.x} y={hover.y} />
+{/if}
 
 <style>
   .drawer {

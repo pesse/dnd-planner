@@ -14,6 +14,15 @@ export async function createEncounter(campaignDir: string, actSlug: string, name
   return key;
 }
 
+/** Kopie im selben Ordner, damit eigene Monster des Akts weiter greifen. @returns ihr Schlüssel. */
+export async function duplicateEncounter(campaignDir: string, key: string): Promise<string> {
+  const source = encounterSchema.parse(JSON.parse(await invoke<string>('read_file_content', { path: encounterPath(campaignDir, key) })));
+  const actSlug = key.includes('/') ? key.split('/')[0] : '';
+  const copy = await createEncounter(campaignDir, actSlug, `${source.name} (Kopie)`);
+  await invoke('write_file_content', { path: encounterPath(campaignDir, copy), content: serializeEncounter({ ...source, name: `${source.name} (Kopie)` }) });
+  return copy;
+}
+
 export const serializeEncounter = (encounter: Encounter): string => JSON.stringify(encounter, null, 2);
 
 /** Ändert die Anzahl eines Monsters; bei 0 fliegt es raus, ein neues kommt ans Ende. */

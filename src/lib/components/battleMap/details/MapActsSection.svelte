@@ -2,6 +2,10 @@
   /** Zu welchen Akten die Karte gehört — bestimmt, welche Encounter die Übersicht anbietet. */
   import type { MapEditor } from '../../../services/battleMap/mapEditor.svelte';
   import { actSummaries } from '../../../stores/context';
+  import { textTip } from '../../textTip.svelte';
+
+  const HELP =
+    'Die Akte der Kampagne, in denen diese Karte vorkommt. Die Karte bietet die Encounter dieser Akte an, dazu die der ganzen Kampagne. Ein Klick nimmt einen Akt dazu oder heraus; einer bleibt immer.';
 
   let { editor }: { editor: MapEditor } = $props();
 
@@ -17,7 +21,7 @@
 </script>
 
 <section>
-  <h3>Akte</h3>
+  <h3>Gehört zu Akt <span class="info" use:textTip={HELP}>ⓘ</span></h3>
   <div class="chips">
     {#each $actSummaries as a (a.name)}
       {@const on = map.acts.includes(a.name)}
@@ -42,6 +46,10 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--ink-muted);
+  }
+  .info {
+    cursor: help;
+    text-transform: none;
   }
   .chips {
     display: flex;

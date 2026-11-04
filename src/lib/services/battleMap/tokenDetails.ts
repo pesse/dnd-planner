@@ -42,6 +42,16 @@ export function mapEncounters<E extends { actSlug: string; slug: string }>(
     .filter((e) => isTemplate || !e.actSlug || map.acts.includes(e.actSlug) || placed.has(e.key));
 }
 
+/** Ausgeblendete fallen aus der Liste, solange keins ihrer Tokens auf der Karte steht. */
+export function splitHiddenEncounters<E extends { key: string }>(
+  list: readonly E[],
+  map: Pick<BattleMap, 'hiddenEncounters' | 'tokens'>,
+): { shown: E[]; hidden: E[] } {
+  const placed = new Set(map.tokens.map((t) => t.encounter));
+  const isHidden = (e: E) => map.hiddenEncounters.includes(e.key) && !placed.has(e.key);
+  return { shown: list.filter((e) => !isHidden(e)), hidden: list.filter(isHidden) };
+}
+
 export async function loadEncounter(path: string): Promise<Encounter | null> {
   try {
     return encounterSchema.parse(JSON.parse(await invoke<string>('read_file_content', { path })));

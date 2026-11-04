@@ -4,6 +4,9 @@
   "acts": [
     "string"
   ],
+  "hiddenEncounters": [
+    "string"
+  ],
   "grid": {
     "size": 70,
     "offsetX": 0,
