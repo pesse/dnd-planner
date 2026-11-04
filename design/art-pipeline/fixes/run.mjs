@@ -57,6 +57,8 @@ function itemBrief(it, inputs) {
     lines.push('Task: EDIT the original (give it to your image tool as the input image). Keep everything else identical: composition, framing, every figure\'s pose, faces, clothing, palette, lighting, background and painting style. Change ONLY what the note asks for.');
   } else {
     lines.push('Task: REPAINT this image from scratch as a new painting of the same subject, setting, palette and style (use the original as reference for content and style, not as an edit base). Fix what the note criticises with a clear, anatomically sound, readable pose. Keep the same drama and energy, do not make the scene tamer.');
+    // Der alte Brief war widersprüchlich; das Original zeigt genau den Fehler, den er erzwungen hat.
+    if (/Neuer Brief:/.test(it.note)) lines.push('The note contains a corrected brief ("Neuer Brief: …"). Paint the action, pose and held objects exactly as that brief says; where the original shows something different, the brief wins. Take only the character\'s identity, setting, palette and style from the original.');
   }
   if (inputs.ref) lines.push('Where the note refers to the small/large picture, match that reference image for the named features (face, clothing, colours, armour) while keeping this image\'s own composition and format.');
   if (/hand|finger|halt|arm/i.test(it.note)) lines.push(HAND_RULE);
