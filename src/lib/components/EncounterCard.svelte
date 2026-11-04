@@ -12,6 +12,7 @@
   import './encounter/encounterCard.css';
 
   let actMonsterBasePath = $state<string | undefined>(undefined);
+  const scopeDir = $derived(actMonsterBasePath?.replace(/\/monsters$/, ''));
   let showJson = $state(false);
   let rawJson = $state('');
   let jsonError = $state('');
@@ -61,116 +62,125 @@
   }
 </script>
 
-<div class="encounter-panel">
-  {#if showJson}
-    <div class="json-editor">
-      <div class="json-toolbar">
-        <span class="json-label">JSON bearbeiten</span>
-        {#if jsonError}<span class="json-error">{jsonError}</span>{/if}
-        <button class="save-btn" onclick={saveJson}>Speichern</button>
-        <button class="cancel-btn" onclick={() => showJson = false}>Abbrechen</button>
+<div class="encounter-host">
+  <div class="encounter-panel">
+    {#if showJson}
+      <div class="json-editor">
+        <div class="json-toolbar">
+          <span class="json-label">JSON bearbeiten</span>
+          {#if jsonError}<span class="json-error">{jsonError}</span>{/if}
+          <button class="save-btn" onclick={saveJson}>Speichern</button>
+          <button class="cancel-btn" onclick={() => showJson = false}>Abbrechen</button>
+        </div>
+        <textarea class="json-textarea" bind:value={rawJson} spellcheck="false"></textarea>
       </div>
-      <textarea class="json-textarea" bind:value={rawJson} spellcheck="false"></textarea>
-    </div>
-  {:else if draft}
-    <div class="enc-layout">
-      <div class="enc-main-col">
-        {#if dirty}
-          <div class="save-bar">
-            {#if saveError}<span class="save-error">{saveError}</span>{/if}
-            <button class="save-btn" onclick={() => ed.save()}>Speichern</button>
-            <button class="cancel-btn" onclick={() => ed.discard()}>Verwerfen</button>
+    {:else if draft}
+      <div class="enc-layout">
+        <div class="enc-main-col">
+          {#if dirty}
+            <div class="save-bar">
+              {#if saveError}<span class="save-error">{saveError}</span>{/if}
+              <button class="save-btn" onclick={() => ed.save()}>Speichern</button>
+              <button class="cancel-btn" onclick={() => ed.discard()}>Verwerfen</button>
+            </div>
+          {/if}
+
+          <div class="enc-card">
+            <EncounterHeader encounter={draft} />
+
+            <textarea
+              class="editable-field enc-desc-input"
+              bind:value={draft.description}
+              placeholder="Beschreibung…"
+              rows="5"
+            ></textarea>
+
+            <div class="read-aloud-section">
+              <h3 class="enc-section-title read-aloud-title">Vorlesetext</h3>
+              <textarea
+                class="editable-field enc-read-aloud-input"
+                bind:value={draft.read_aloud}
+                placeholder="Atmosphärischer Text zum Vorlesen…"
+                rows="3"
+              ></textarea>
+            </div>
+
+            <div class="enc-meta">
+              <div class="enc-meta-item">
+                <span class="meta-label">Ort</span>
+                <input class="editable-field meta-input" bind:value={draft.location} placeholder="—" />
+              </div>
+              <div class="enc-meta-item">
+                <span class="meta-label">Gruppe</span>
+                <input class="editable-field meta-num-input" type="number" bind:value={draft.party_size} />
+                <span class="meta-sep">× Lvl</span>
+                <input class="editable-field meta-num-input" type="number" bind:value={draft.party_level} />
+              </div>
+              <div class="enc-meta-item">
+                <span class="meta-label">Gesamt-EP</span>
+                <input class="editable-field meta-num-input meta-xp" type="number" bind:value={draft.xp_total} />
+                <span class="meta-sep">XP</span>
+              </div>
+            </div>
+
+            <div class="enc-divider"></div>
+
+            <EncounterMonsterSection encounter={draft} {scopeDir} />
+
+            <div class="enc-divider"></div>
+
+            <h3 class="enc-section-title">Beute</h3>
+            <textarea class="editable-field enc-text-input" bind:value={draft.loot} placeholder="Beute…" rows="2"></textarea>
+
+            <div class="enc-divider"></div>
+
+            <h3 class="enc-section-title">Notizen</h3>
+            <textarea
+              class="editable-field enc-text-input enc-notes-input"
+              bind:value={draft.notes}
+              placeholder="Notizen…"
+              rows="4"
+            ></textarea>
+
+            <div class="enc-footer">
+              {#if printError}<span class="print-error">{printError}</span>{/if}
+              <button class="json-btn" onclick={openJson}>JSON</button>
+              <button class="print-btn" onclick={openPrint} disabled={printLoading}>
+                {printLoading ? '…' : '🖨 PDF'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {#if draft.monsters.some(m => m.slug)}
+          <div class="enc-monsters-col">
+            {#each draft.monsters as m, i (i)}
+              {#if m.slug}
+                <div class="mini-card-wrap">
+                  {#if m.count > 1}
+                    <div class="mini-count-badge">{m.count}×</div>
+                  {/if}
+                  <MonsterMiniCard slug={m.slug} {actMonsterBasePath} />
+                </div>
+              {/if}
+            {/each}
           </div>
         {/if}
-
-        <div class="enc-card">
-          <EncounterHeader encounter={draft} />
-
-          <textarea
-            class="editable-field enc-desc-input"
-            bind:value={draft.description}
-            placeholder="Beschreibung…"
-            rows="5"
-          ></textarea>
-
-          <div class="read-aloud-section">
-            <h3 class="enc-section-title read-aloud-title">Vorlesetext</h3>
-            <textarea
-              class="editable-field enc-read-aloud-input"
-              bind:value={draft.read_aloud}
-              placeholder="Atmosphärischer Text zum Vorlesen…"
-              rows="3"
-            ></textarea>
-          </div>
-
-          <div class="enc-meta">
-            <div class="enc-meta-item">
-              <span class="meta-label">Ort</span>
-              <input class="editable-field meta-input" bind:value={draft.location} placeholder="—" />
-            </div>
-            <div class="enc-meta-item">
-              <span class="meta-label">Gruppe</span>
-              <input class="editable-field meta-num-input" type="number" bind:value={draft.party_size} />
-              <span class="meta-sep">× Lvl</span>
-              <input class="editable-field meta-num-input" type="number" bind:value={draft.party_level} />
-            </div>
-            <div class="enc-meta-item">
-              <span class="meta-label">Gesamt-EP</span>
-              <input class="editable-field meta-num-input meta-xp" type="number" bind:value={draft.xp_total} />
-              <span class="meta-sep">XP</span>
-            </div>
-          </div>
-
-          <div class="enc-divider"></div>
-
-          <EncounterMonsterSection encounter={draft} />
-
-          <div class="enc-divider"></div>
-
-          <h3 class="enc-section-title">Beute</h3>
-          <textarea class="editable-field enc-text-input" bind:value={draft.loot} placeholder="Beute…" rows="2"></textarea>
-
-          <div class="enc-divider"></div>
-
-          <h3 class="enc-section-title">Notizen</h3>
-          <textarea
-            class="editable-field enc-text-input enc-notes-input"
-            bind:value={draft.notes}
-            placeholder="Notizen…"
-            rows="4"
-          ></textarea>
-
-          <div class="enc-footer">
-            {#if printError}<span class="print-error">{printError}</span>{/if}
-            <button class="json-btn" onclick={openJson}>JSON</button>
-            <button class="print-btn" onclick={openPrint} disabled={printLoading}>
-              {printLoading ? '…' : '🖨 PDF'}
-            </button>
-          </div>
-        </div>
       </div>
-
-      {#if draft.monsters.some(m => m.slug)}
-        <div class="enc-monsters-col">
-          {#each draft.monsters as m, i (i)}
-            {#if m.slug}
-              <div class="mini-card-wrap">
-                {#if m.count > 1}
-                  <div class="mini-count-badge">{m.count}×</div>
-                {/if}
-                <MonsterMiniCard slug={m.slug} {actMonsterBasePath} />
-              </div>
-            {/if}
-          {/each}
-        </div>
-      {/if}
-    </div>
-  {:else}
-    <ParseError message="Ungültiges Encounter-JSON." onjson={openJson} />
-  {/if}
+    {:else}
+      <ParseError message="Ungültiges Encounter-JSON." onjson={openJson} />
+    {/if}
+  </div>
 </div>
 
 <style>
+  .encounter-host {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    position: relative;
+  }
+
   .encounter-panel {
     flex: 1;
     overflow: auto;

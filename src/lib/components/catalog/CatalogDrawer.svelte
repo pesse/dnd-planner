@@ -19,8 +19,8 @@
     /** Stehen vorn und verdrängen Katalogzeilen gleichen Eintragsnamens. */
     extraRows?: CatalogRow[];
     open: boolean;
-    /** Auf welcher Seite ihres Panels sie über die Karte fährt; das Panel bleibt frei. */
-    side: 'left' | 'right';
+    /** Auf welcher Seite ihres Panels sie über die Karte fährt; das Panel bleibt frei. `inside` liegt am rechten Rand des Panels selbst. */
+    side: 'left' | 'right' | 'inside';
     /** Gewählte Zeilen stehen oben. */
     count?: (row: CatalogRow) => number;
     ondecrement?: (row: CatalogRow) => void;
@@ -136,6 +136,11 @@
     left: 100%;
     border-right: 1px solid var(--border);
     box-shadow: 4px 0 16px color-mix(in srgb, var(--ink) 18%, transparent);
+  }
+  .drawer.inside {
+    right: 0;
+    border-left: 1px solid var(--border);
+    box-shadow: -4px 0 16px color-mix(in srgb, var(--ink) 18%, transparent);
   }
   .drawer.left {
     right: 100%;

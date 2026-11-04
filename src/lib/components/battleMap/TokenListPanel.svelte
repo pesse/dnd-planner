@@ -65,7 +65,11 @@
     border: none;
     background: none;
   }
+  .eye {
+    padding-right: 0.2rem;
+  }
   .name {
+    padding-left: 0.2rem;
     flex: 1;
     min-width: 0;
     display: flex;

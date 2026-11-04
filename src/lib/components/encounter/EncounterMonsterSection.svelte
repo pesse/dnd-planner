@@ -1,35 +1,53 @@
 <script lang="ts">
   /**
-   * Monsterbesetzung des Encounters: Zeilen mit Anzahl, Slug und Taktik-Notiz, dazu
-   * der Bibliotheks-Picker. Gespeichert wird nur der Slug — den Statblock löst die
-   * Anzeige auf.
+   * Monsterbesetzung des Encounters: Zeilen mit Anzahl, Slug und Taktik-Notiz, dazu der
+   * Katalog-Picker wie im Cockpit. Gespeichert wird nur der Slug.
    */
   import type { Encounter } from '../../schemas/encounter';
-  import { monsterLibrary } from '../../stores/context';
-  import { monsterTypeLabel } from '../../types';
-  import { crLabel } from '../../services/monsterFormat';
+  import type { Monster } from '../../types';
+  import { getMonsterLibrary } from '../../monsterLibrary';
+  import { readScopeMonsters } from '../../services/contextLoad';
+  import { scopeMonsterRows } from '../../services/catalog/monsterCatalog';
+  import type { CatalogRow } from '../../services/catalog/catalogTypes';
+  import CatalogDrawer from '../catalog/CatalogDrawer.svelte';
+  import MonsterTooltip from '../MonsterTooltip.svelte';
   import './encounterCard.css';
 
-  let { encounter }: { encounter: Encounter } = $props();
+  /** `scopeDir`: Akt- oder Kampagnenordner, dessen eigene Monster vorn im Picker stehen. */
+  let { encounter, scopeDir }: { encounter: Encounter; scopeDir?: string } = $props();
 
-  let showPicker = $state(false);
-  let pickerTag = $state<string | null>(null);
+  let open = $state(false);
+  let built = $state(false);
+  let monsters = $state<Map<string, Monster>>(new Map());
+  let ownRows = $state<CatalogRow[]>([]);
 
-  let pickerGroups = $derived.by(() => {
-    const groups: Record<string, typeof $monsterLibrary> = {};
-    for (const entry of $monsterLibrary) {
-      if (!groups[entry.group]) groups[entry.group] = [];
-      groups[entry.group].push(entry);
-    }
-    return groups;
+  $effect(() => {
+    const dir = scopeDir;
+    void Promise.all([getMonsterLibrary(), dir ? readScopeMonsters(dir) : [], dir ? scopeMonsterRows(dir) : []]).then(([library, own, rows]) => {
+      if (dir !== scopeDir) return;
+      monsters = new Map([...library, ...own].map((m) => [m.slug, m.monster]));
+      ownRows = rows;
+    });
   });
 
-  let pickerMonsters = $derived(pickerTag === null ? $monsterLibrary : (pickerGroups[pickerTag] ?? []));
+  function toggle() {
+    built = true;
+    open = !open;
+  }
 
-  function addFromPicker(slug: string) {
-    const existing = encounter.monsters.find(m => m.slug === slug);
+  const countOf = (slug: string) => encounter.monsters.find((m) => m.slug === slug)?.count ?? 0;
+
+  function add(slug: string) {
+    const existing = encounter.monsters.find((m) => m.slug === slug);
     if (existing) existing.count += 1;
     else encounter.monsters.push({ slug, count: 1, notes: '' });
+  }
+
+  function remove(slug: string) {
+    const i = encounter.monsters.findIndex((m) => m.slug === slug);
+    if (i < 0) return;
+    if (encounter.monsters[i].count > 1) encounter.monsters[i].count -= 1;
+    else encounter.monsters.splice(i, 1);
   }
 </script>
 
@@ -48,36 +66,28 @@
   {/each}
   <div class="monster-add-row">
     <button class="add-row-btn" onclick={() => encounter.monsters.push({ slug: '', count: 1, notes: '' })}>+ Leer</button>
-    <button class="add-row-btn picker-toggle-btn" onclick={() => { showPicker = !showPicker; pickerTag = null; }}>
-      {showPicker ? '▲ Bibliothek' : '▼ Bibliothek'}
-    </button>
+    <button class="add-row-btn picker-toggle-btn" class:active={open} onclick={toggle}>+ Monster…</button>
   </div>
-
-  {#if showPicker}
-    <div class="monster-picker">
-      <div class="picker-tags">
-        <button class="picker-tag-btn" class:active={pickerTag === null} onclick={() => pickerTag = null}>Alle</button>
-        {#each Object.keys(pickerGroups) as group}
-          <button
-            class="picker-tag-btn"
-            class:active={pickerTag === group}
-            onclick={() => pickerTag = group}
-          >{monsterTypeLabel(group)} ({pickerGroups[group].length})</button>
-        {/each}
-      </div>
-      <div class="picker-list">
-        {#each pickerMonsters as entry}
-          <button class="picker-monster-btn" onclick={() => addFromPicker(entry.slug)}>
-            <span class="picker-mon-name">{entry.name}</span>
-            <span class="picker-mon-cr">HG {crLabel(entry.challenge_rating)}</span>
-          </button>
-        {:else}
-          <span class="picker-empty">Keine Monster geladen</span>
-        {/each}
-      </div>
-    </div>
-  {/if}
 </div>
+
+{#if built}
+  <CatalogDrawer
+    kind="monster"
+    title="Monster für „{encounter.name || 'Encounter'}“"
+    columns={['cr']}
+    extraRows={ownRows}
+    side="inside"
+    {open}
+    count={(row) => countOf(row.entryName)}
+    ondecrement={(row) => remove(row.entryName)}
+    onpick={(row) => add(row.entryName)}
+    onclose={() => (open = false)}
+  >
+    {#snippet tip({ row, x, y })}
+      <MonsterTooltip monster={row ? (monsters.get(row.entryName) ?? null) : null} {x} {y} />
+    {/snippet}
+  </CatalogDrawer>
+{/if}
 
 <style>
   .enc-monster-list {
@@ -129,63 +139,6 @@
   }
 
   .picker-toggle-btn { color: var(--red); border-color: var(--bg-raised); }
-  .picker-toggle-btn:hover { border-color: var(--red); color: var(--ink); }
+  .picker-toggle-btn:hover, .picker-toggle-btn.active { border-color: var(--red); color: var(--red); }
 
-  .monster-picker {
-    border: 1px solid var(--surface);
-    border-radius: 4px;
-    background: var(--bg);
-    padding: 0.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-    margin-top: 0.25rem;
-  }
-
-  .picker-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.3rem;
-  }
-
-  .picker-tag-btn {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--ink-soft);
-    border-radius: 3px;
-    padding: 0.15rem 0.5rem;
-    font-size: 0.75rem;
-    cursor: pointer;
-  }
-
-  .picker-tag-btn:hover { background: var(--border); color: var(--ink); }
-  .picker-tag-btn.active { background: var(--border-strong); border-color: var(--red); color: var(--red); }
-
-  .picker-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-    max-height: 180px;
-    overflow-y: auto;
-  }
-
-  .picker-monster-btn {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: none;
-    border: none;
-    color: var(--ink);
-    padding: 0.2rem 0.4rem;
-    border-radius: 3px;
-    cursor: pointer;
-    font-size: 0.82rem;
-    text-align: left;
-  }
-
-  .picker-monster-btn:hover { background: var(--surface); }
-
-  .picker-mon-name { flex: 1; }
-  .picker-mon-cr { color: var(--gold); font-size: 0.75rem; margin-left: 0.5rem; }
-  .picker-empty { color: var(--ink-muted); font-size: 0.8rem; padding: 0.2rem 0.4rem; }
 </style>
