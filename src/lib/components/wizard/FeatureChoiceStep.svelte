@@ -4,6 +4,8 @@
   import { optionLabel, type AnalysisChoice } from '../../services/analysis/types';
   import TooltipSelect, { type TooltipOption } from '../TooltipSelect.svelte';
   import { textTip } from '../textTip.svelte';
+  import LanguagePicker from '../LanguagePicker.svelte';
+  import { isLanguageChoice } from '../../services/declaration/languages';
 
   let { w, answers = $bindable() }: {
     w: CharacterWizard;
@@ -18,6 +20,12 @@
   }
   function setChoiceAnswer(id: string, values: string[]) {
     answers = { ...answers, [id]: values };
+  }
+
+  /** Was eine andere Sprachwahl schon nimmt, ist hier nicht mehr wählbar. */
+  function knownLanguagesFor(id: string): string[] {
+    const others = w.plainChoices.filter((c) => c.id !== id && isLanguageChoice(c)).flatMap((c) => answerFor(c.id));
+    return [...w.fixedLanguages, ...others];
   }
 
   /**
@@ -48,7 +56,10 @@
         {choice.featureDe || choice.feature}: {choice.questionDe || choice.question}
         {#if choice.helpDe}<span class="info" use:textTip={choice.helpDe}>ⓘ</span>{/if}
       </span>
-      {#if choice.type === 'text'}
+      {#if isLanguageChoice(choice)}
+        <LanguagePicker selected={answerFor(choice.id)} max={choice.max} known={knownLanguagesFor(choice.id)}
+          onchange={(v) => setChoiceAnswer(choice.id, v)} />
+      {:else if choice.type === 'text'}
         <input type="text" value={answerFor(choice.id)[0] ?? ''} oninput={(e) => setSingleAnswer(choice.id, e.currentTarget.value)} />
       {:else}
         <TooltipSelect

@@ -22,7 +22,8 @@ import { whenSchema } from './when';
  *     `skillProficiency` aus den nicht geübten. Deklariert wird die Anzahl, plus `skills`, wo
  *     die Regel eingrenzt (Magier „Gelehrter").
  *   - `languages` hat gar keine Optionen: Sprachen sind deutscher Freitext, in 2024 nicht
- *     einmal mehr eine Übung. Auch hier deklariert nur `count`, gefragt wird als Freitext.
+ *     einmal mehr eine Übung. Auch hier deklariert nur `count`; gefragt wird über den
+ *     `LanguagePicker` (SRD-Sprachtabellen, dazu frei getippt für Homebrew).
  *     `toolProficiency` dagegen wählt aus `items/tools/` — ein Werkzeug IST ein Gegenstand der
  *     Bibliothek, und `toolCategory` grenzt ein, welche Sorte der Regeltext meint.
  *   - `spellcasting` vs. `spellAccess` ist die HERKUNFT der Zahlen, nicht die Mechanik: ein

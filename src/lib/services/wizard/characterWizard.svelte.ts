@@ -11,6 +11,8 @@ import type { OptionPick, Presentation } from '$lib/schemas/characterSchema';
 import { buildFeaturePrep, type FeaturePrep } from './featurePrep';
 import { unredactedChoiceFeatures } from '../declaration/optionList';
 import { declarationGapLines } from '../declarationGap';
+import { declaredGrantRiders } from '../declaration/grants';
+import { COMMON_LANGUAGE } from './personal';
 import { wizardAnswers, wizardDeclaredChoices, wizardRiders } from './wizardChoices';
 import { getItemsByDir } from '$lib/itemLibrary';
 import type { ToolItem } from '../declaration/toolProficiency';
@@ -210,6 +212,12 @@ export class CharacterWizard {
   get plainChoicesDone(): boolean {
     const answered = new Set(this.declaredAnswers.map((a) => a.id));
     return this.plainChoices.every((c) => answered.has(c.id));
+  }
+
+  /** Was der Charakter ohne Sprachwahl spricht — in einer Sprachwahl nicht noch einmal wählbar. */
+  get fixedLanguages(): string[] {
+    const granted = declaredGrantRiders(this.declared).flatMap((r) => r.proficiencies.languages);
+    return [...new Set([COMMON_LANGUAGE, ...this.languages, ...granted])];
   }
 
   get riders() {
