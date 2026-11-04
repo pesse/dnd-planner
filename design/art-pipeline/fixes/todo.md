@@ -449,3 +449,4 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 441 edit · figures/dwarf-masculine/backgrounds/sage · 80.1/36.1 · seine linke Hand passt nicht! (5 Finger)
 - [~] 442 neu · monster-scenes/tough · 67.9/37.5 · So wird keine Armbrust gehalten (Brief war widersprüchlich: Keule in die Hand schlagen UND schwere Armbrust zielen = drei Hände. Brief in scenes.tsv auf angelegte Armbrust mit beiden Händen umgestellt, Keule am Gürtel, ohne Fixes-Pipeline neu gemalt)
 - [~] 443 edit · monster-scenes/young-green-dragon · 76.0/73.3 · Bogen und Elf-Schütze passen nicht zusammen (Neuer Brief: ein Elfenschütze mit Bogen, von hinten gesehen. Vorlage: bow-carry-back)
+- [~] 444 edit · monster-scenes/young-green-dragon · 85.0/72.0 · Lass den Umhang des Elfen weg (Rücken, Köcher und Lederkleidung darunter sichtbar; Haltung und Bogen unverändert)
