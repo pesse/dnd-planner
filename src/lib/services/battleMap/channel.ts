@@ -13,6 +13,8 @@ import type { Roll } from './diceLog.svelte';
 export interface ShownHandout {
   name: string;
   imageUrl: string;
+  /** Die Abschrift, sobald die SL sie einblendet. */
+  text?: string;
 }
 
 /**

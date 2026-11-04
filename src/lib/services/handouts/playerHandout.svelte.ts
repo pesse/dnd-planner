@@ -22,6 +22,13 @@ export async function showHandout(handout: ShownHandout): Promise<void> {
   sendToPlayer({ type: 'handout', handout });
 }
 
+/** Blendet die Abschrift zum gezeigten Handout ein (`text`) oder wieder aus (leer). */
+export function setHandoutText(text: string): void {
+  if (!playerHandout.current) return;
+  playerHandout.current = { ...playerHandout.current, text };
+  sendToPlayer({ type: 'handout', handout: playerHandout.current });
+}
+
 export function hideHandout(): void {
   playerHandout.current = null;
   sendToPlayer({ type: 'handout', handout: null });

@@ -4,7 +4,7 @@
   import { invalidateVault } from '../../stores/campaign';
   import { handoutSchema, type Handout } from '../../schemas/handout';
   import { pickMapImage, vaultFileUrl } from '../../services/battleMap/mapFiles';
-  import { hideHandout, playerHandout, showHandout } from '../../services/handouts/playerHandout.svelte';
+  import { hideHandout, playerHandout, setHandoutText, showHandout } from '../../services/handouts/playerHandout.svelte';
 
   let { path }: { path: string } = $props();
 
@@ -66,6 +66,12 @@
       <button class="primary-btn" disabled={!imageUrl} onclick={toggleShown}>
         {shown ? 'Bei den Spielern ausblenden' : 'Den Spielern zeigen'}
       </button>
+      {#if shown && handout.text.trim()}
+        {@const textShown = !!playerHandout.current?.text}
+        <button class:active={textShown} onclick={() => setHandoutText(textShown ? '' : handout!.text)}>
+          {textShown ? 'Text ausblenden' : 'Text einblenden'}
+        </button>
+      {/if}
       <button onclick={pickImage}>{handout.image ? 'Bild ersetzen…' : 'Bild wählen…'}</button>
     </header>
     <div class="body">
@@ -133,6 +139,10 @@
   textarea {
     font: inherit;
     resize: vertical;
+  }
+  button.active {
+    border-color: var(--red);
+    color: var(--red);
   }
   .error {
     color: var(--danger);

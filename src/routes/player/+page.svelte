@@ -185,7 +185,10 @@
   {/if}
   {#if handout}
     <figure class="handout">
-      <img src={handout.imageUrl} alt={handout.name} />
+      <div class="handout-body">
+        <img src={handout.imageUrl} alt={handout.name} />
+        {#if handout.text}<p class="handout-text">{handout.text}</p>{/if}
+      </div>
       <figcaption>{handout.name}</figcaption>
     </figure>
   {/if}
@@ -236,11 +239,36 @@
     box-sizing: border-box;
     background: rgba(0, 0, 0, 0.88);
   }
-  .handout img {
+  .handout-body {
     flex: 1;
     min-height: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3vmin;
+  }
+  .handout img {
+    min-width: 0;
     max-width: 100%;
+    max-height: 100%;
     object-fit: contain;
+  }
+  .handout-text {
+    flex: 0 1 40%;
+    max-height: 100%;
+    margin: 0;
+    padding: 2rem 2.4rem;
+    overflow: auto;
+    box-sizing: border-box;
+    white-space: pre-wrap;
+    background: #efe2c2;
+    color: #2a1c0e;
+    border-radius: 4px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+    font-family: var(--font-display);
+    font-size: clamp(1.1rem, 2.2vmin, 1.8rem);
+    line-height: 1.5;
   }
   .handout figcaption {
     color: #d8c8a0;
