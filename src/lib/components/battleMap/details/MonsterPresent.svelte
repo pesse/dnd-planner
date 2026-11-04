@@ -3,7 +3,7 @@
   import type { Monster } from '../../../types';
   import { monsterArtSlug } from '../../../libraryArt';
   import { loadEntryArt } from '../../../services/libraryEntryArt';
-  import { hideHandout, playerHandout, showHandout } from '../../../services/handouts/playerHandout.svelte';
+  import { hideHandout, isShownImage, showHandout } from '../../../services/handouts/playerHandout.svelte';
 
   let { monster, name }: { monster: Monster; name: string } = $props();
 
@@ -17,10 +17,8 @@
     return () => { live = false; };
   });
 
-  const shownUrl = $derived(playerHandout.current?.imageUrl ?? '');
-
   function toggle(url: string) {
-    if (shownUrl === url) hideHandout();
+    if (isShownImage(url)) hideHandout();
     else void showHandout({ name, imageUrl: url });
   }
 </script>
@@ -28,8 +26,8 @@
 {#if scenes.length}
   <div class="present">
     {#each scenes as url, i (url)}
-      <button class:on={shownUrl === url} title="Szenenbild groß im Spielerfenster zeigen" onclick={() => toggle(url)}>
-        {shownUrl === url ? 'Ausblenden' : scenes.length > 1 ? `Szene ${i + 1} zeigen` : 'Den Spielern zeigen'}
+      <button class:on={isShownImage(url)} title="Szenenbild groß im Spielerfenster zeigen" onclick={() => toggle(url)}>
+        {isShownImage(url) ? 'Ausblenden' : scenes.length > 1 ? `Szene ${i + 1} zeigen` : 'Den Spielern zeigen'}
       </button>
     {/each}
   </div>

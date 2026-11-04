@@ -4,7 +4,7 @@
   import { invalidateVault } from '../../stores/campaign';
   import { handoutSchema, type Handout } from '../../schemas/handout';
   import { pickMapImage, vaultFileUrl } from '../../services/battleMap/mapFiles';
-  import { hideHandout, playerHandout, setHandoutText, showHandout } from '../../services/handouts/playerHandout.svelte';
+  import { hideHandout, isShownImage, playerHandout, setHandoutText, showHandout } from '../../services/handouts/playerHandout.svelte';
 
   let { path }: { path: string } = $props();
 
@@ -13,7 +13,7 @@
   let error = $state('');
 
   const dir = $derived(path.slice(0, path.lastIndexOf('/')));
-  const shown = $derived(!!handout && playerHandout.current?.name === handout.name && playerHandout.current?.imageUrl === imageUrl);
+  const shown = $derived(!!handout && isShownImage(imageUrl));
 
   $effect(() => {
     const p = path;

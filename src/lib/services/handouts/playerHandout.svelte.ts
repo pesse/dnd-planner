@@ -4,6 +4,12 @@ import { openPlayerWindow } from '../battleMap/playerWindow';
 
 export const playerHandout = $state<{ current: ShownHandout | null }>({ current: null });
 
+const fileOf = (url: string) => url.split('?')[0];
+
+/** Vergleicht die Bilddatei, nicht den Abruf — `vaultFileUrl` hängt bei jedem Laden ein neues `?v=` an. */
+export const isShownImage = (url: string): boolean =>
+  !!url && !!playerHandout.current && fileOf(playerHandout.current.imageUrl) === fileOf(url);
+
 let listening = false;
 
 // Ein neu geöffnetes Spielerfenster meldet sich mit `hello` und bekäme das Handout sonst nie.

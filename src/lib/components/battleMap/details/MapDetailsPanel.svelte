@@ -9,6 +9,7 @@
   import EntryCard from '../../ui/EntryCard.svelte';
   import TokenDetails from './TokenDetails.svelte';
   import EncounterDetails from './EncounterDetails.svelte';
+  import HandoutOverview from './HandoutOverview.svelte';
   import EncounterOverview from './EncounterOverview.svelte';
   import MapActsSection from './MapActsSection.svelte';
   import { cockpit } from '../../../services/battleMap/cockpitTab.svelte';
@@ -59,6 +60,7 @@
   {:else}
     {#if editor.map && !isMapTemplatePath(editor.path) && $actSummaries.length}<MapActsSection {editor} />{/if}
     <EncounterOverview {editor} {campaignDir} />
+    <HandoutOverview {campaignDir} />
     <p class="hint">Klicke ein Token an, um seine Werte, Notizen und seinen Encounter zu sehen.</p>
   {/if}
 </div>
