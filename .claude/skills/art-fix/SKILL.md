@@ -73,6 +73,11 @@ Ergebnis je Punkt, mit einem Satz Begründung:
 | **Brief lädt zum Fehler ein** (Liste oben) | Brief an der Quelle vereinfachen. Lokaler Fehler: `edit` mit dem neuen Satz in der Notiz; sonst `neu` | `edit`/`neu` |
 | **Brief sauber, Malfehler** | wie bisher, gezielter Edit am Original | `edit` |
 
+**Ausschmückung streichen statt präzisieren.** Ein Detail, das für das Motiv nichts trägt (Umhang vor
+dem Mund, Keule zusätzlich in der Hand), fliegt aus dem Brief, statt genauer beschrieben zu werden.
+Beim jungen grünen Drachen hat „Umhang als Maske" zweimal eine dritte Hand am Gesicht erzeugt, erst
+ohne die Maske stimmte der Schütze.
+
 Notizen kurz halten. Je mehr Einzelvorgaben eine Edit-Notiz macht (Fingerstellung, Winkel), desto
 eher erfindet das Modell eine neue falsche Haltung. Lieber den Sollzustand in einem Satz beschreiben
 und die Hand-Regel von `run.mjs` greifen lassen.
@@ -86,7 +91,9 @@ und damit einen Brief-Fehler gleich mit.
 Läufe, Vorher/Nachher-Blatt und Status stehen in `design/art-pipeline/README.md` unter
 „Korrekturen aus den Katalog-Markierungen". Danach jedes Ergebnis gegen die Notiz **und** die
 Triage prüfen: Hat sich die kritisierte Stelle wirklich geändert, und ist kein neuer Fehler
-entstanden? Bei Händen die Händigkeit prüfen (siehe Memory „Bildfehler per Edit statt Neumalen").
+entstanden? Dazu einen Ausschnitt mit `crop.mjs` ansehen und **jeden Arm von der Hand bis zur
+Schulter und jede Sehne oder jeden Schaft von Ende zu Ende verfolgen**. Ein Blick aufs Gesamtbild
+reicht nicht, so ist ein Bogen mit losem Sehnenende durchgerutscht. Bei Händen die Händigkeit prüfen (siehe Memory „Bildfehler per Edit statt Neumalen").
 Ist ein Punkt zum zweiten Mal gescheitert, kommt keine dritte Edit-Runde: zurück zu Schritt 3, der
 Brief ist dann fast immer der Grund.
 
