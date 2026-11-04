@@ -44,14 +44,15 @@ async function toPng(avif, png, icon) {
 }
 
 const HAND_RULE = 'Hands: exactly five fingers (one thumb + four fingers), natural joints, the hand continuing the line of its forearm without a twisted wrist. Check handedness: for the figure\'s RIGHT hand the thumb is on the side facing the figure\'s body centre when the palm faces forward. A hand gripping a weapon or staff wraps all four fingers around the shaft with the thumb closing over them.';
-// Ohne diese Geometrie setzt das Modell den gesenkten Bogen neben/hinter das Bein, Sehne zum Körper (Test 2026-11-04); die D-Form muss eigens dastehen, sonst wird der Stab S-förmig.
-const BOW_RULE = 'Bows: a strung longbow is ONE smooth single arc like the letter D, farthest from the string at the grip in the middle and curving evenly toward the string at both ends; no S-curve, no kink or waist at the grip, no recurve. The hand closes around the stave at the grip. The string is one straight line from exactly the upper tip to exactly the lower tip (a V to the drawing hand when drawn). A bow held lowered at the side is on the camera side of the leg, overlapping it, and its string runs along the OUTER side of the forearm, away from the body.';
+const BOW_RULE = 'Bows: one continuous stave with the hand closed around its grip; the string is one straight line from exactly one tip to the other (a V to the drawing hand when drawn).';
+// Haltungen findet das Modell erst mit einer Puppe in derselben Ansicht (Test 2026-11-04: 4/4 mit, 0/8 mit Text oder Fotos).
+const POSE_RULE = 'The pose reference is a technical diagram of a wooden mannequin: the held object in cyan, its string in magenta. Copy ONLY how the object is held and where it lies relative to the body (in front of / behind which limbs); paint it in the original\'s style and materials and ignore the diagram\'s colours, mannequin and background.';
 const BOOK_RULE = 'Books: the image model draws open books in perspective with impossible geometry. Unless the note insists on readable open pages, replace the book with a CLOSED thick tome (cover, spine and page-block edge clearly readable, a single coherent box shape). If it must stay open, draw it seen straight from the front, spine vertical in the middle, two equal page blocks fanning from the spine, the cover visible only behind both page blocks.';
 
 function itemBrief(it, inputs) {
   const where = `around x ${it.x} %, y ${it.y} % of the image (measured from the top-left corner)`;
   const lines = [`### Item ${it.nr} → save as \`${it.nr}.png\``,
-    `Original: \`in/${inputs.orig}\`${inputs.ref ? `; reference (${isIcon(it.path) ? 'the large scene painting' : 'the small library icon'} of the same creature): \`in/${inputs.ref}\`` : ''}${inputs.identity ? `; identity reference of this character: \`in/${inputs.identity}\`` : ''}.`,
+    `Original: \`in/${inputs.orig}\`${inputs.ref ? `; reference (${isIcon(it.path) ? 'the large scene painting' : 'the small library icon'} of the same creature): \`in/${inputs.ref}\`` : ''}${inputs.identity ? `; identity reference of this character: \`in/${inputs.identity}\`` : ''}${inputs.pose ? `; pose reference: \`in/${inputs.pose}\`` : ''}.`,
     `Subject: ${it.path} (${it.path.split('/').slice(1).join(' / ')}).`,
     `User's review note (German, verbatim): „${it.note}"`,
     `The user clicked ${where}; that is where the problem is.`];
@@ -66,6 +67,7 @@ function itemBrief(it, inputs) {
   if (/hand|finger|halt|arm/i.test(it.note)) lines.push(HAND_RULE);
   if (/buch|bücher/i.test(it.note)) lines.push(BOOK_RULE);
   if (/bogen|bögen|schütze|sehne/i.test(it.note)) lines.push(BOW_RULE);
+  if (inputs.pose) lines.push(POSE_RULE);
   return lines.join('\n');
 }
 
@@ -103,6 +105,14 @@ async function prep(W, N, BATCH, dir) {
       inputs.identity = `${it.nr}-identity.png`;
       await toPng(`figures/${fig}/species`, join(inDir, inputs.identity), false);
       images.push(join(inDir, inputs.identity));
+    }
+    const pose = it.note.match(/Vorlage: ([a-z0-9-]+)/)?.[1];
+    if (pose) {
+      const src = join(HERE, '../refs', `${pose}.jpg`);
+      if (!existsSync(src)) { console.error(`Vorlage fehlt: refs/${pose}.jpg (${it.nr})`); process.exit(1); }
+      inputs.pose = `${it.nr}-pose.jpg`;
+      copyFileSync(src, join(inDir, inputs.pose));
+      images.push(join(inDir, inputs.pose));
     }
     parts.push(itemBrief(it, inputs));
     writeFileSync(join(RAW, 'tries', it.nr), String(tries(it.nr) + 1));

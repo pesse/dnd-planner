@@ -76,4 +76,5 @@ Neu gemalte Bilder meldet `job.sh` der Werkbank als „neu gemalt“. Protokoll 
 |---|---|
 | Malen, 4 Worker, Stopp bei `LIMIT` % Kontingent oder `fixes/out/STOP` | `bash design/art-pipeline/fixes/job.sh <W> 4` je Worker |
 | Vorher/Nachher-Blatt (ohne Nummern: alle `[~]`) | `node design/art-pipeline/fixes/sheet.mjs <blatt.png> [nr…]` |
+| Haltung über eine Puppen-Vorlage (`refs/<name>.jpg`, siehe Skill `art-fix`) | `Vorlage: <name>` in die Notiz der Zeile |
 | Status setzen (`x` erledigt, ` ` nochmal (Edit setzt dann am korrigierten Bild an)) | `node design/art-pipeline/fixes/run.mjs mark <status> <nr>…` |

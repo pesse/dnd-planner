@@ -52,7 +52,7 @@ while [[ $# -gt 0 ]]; do
 		-C) target="$2"; shift 2 ;;
 		--resume) resume="$2"; shift 2 ;;
 		--out) out="$2"; shift 2 ;;
-		-i) images+=(-i "$(wslpath -w "$(realpath "$2")")"); shift 2 ;;
+		-i) [ -f "$2" ] || { echo "Vorlage fehlt: $2" >&2; exit 2; }; images+=(-i "$(wslpath -w "$(realpath "$2")")"); shift 2 ;;
 		-h|--help) sed -n '2,30p' "$0"; exit 0 ;;
 		*) prompt="$1"; shift ;;
 	esac

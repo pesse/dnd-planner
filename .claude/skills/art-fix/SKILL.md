@@ -78,15 +78,13 @@ dem Mund, Keule zusätzlich in der Hand), fliegt aus dem Brief, statt genauer be
 Beim jungen grünen Drachen hat „Umhang als Maske" zweimal eine dritte Hand am Gesicht erzeugt, erst
 ohne die Maske stimmte der Schütze.
 
-**Geometrie des Gegenstands ja, Pose nein.** Was der Notiz hilft, ist eine Beschreibung, wie der
-kritisierte Gegenstand zum Körper liegt: Der Bogen sitzt vor dem Bein, die Sehne außen am Unterarm.
-Die Lage stimmte damit 4 von 4 Mal, mit der knappen Notiz 0 von 4 Mal. Die Form stimmte aber erst,
-als sie eigens beschrieben war (D-Bogen statt S-Kurve), und auch dann nur in 1 von 4 Versuchen
-vollständig. Bei solchen schwierigen Gegenständen bleibt es Glückssache: zwei Versuche bestellen
-und den besseren nehmen. Was schadet, ist eine neue
-Handlung oder Haltung („spannt den Bogen", „Faust am Griff"). Ein Ausschnitt als Edit-Grundlage
-brachte nichts gegenüber dem ganzen Bild. Feste Regeln dieser Art stehen in `run.mjs`
-(`HAND_RULE`, `BOW_RULE`, `BOOK_RULE`) und greifen über Stichwörter in der Notiz.
+**Haltungen über eine Puppen-Vorlage, nicht über Text.** Wie ein Gegenstand gehalten wird (Bogen,
+Armbrust, Stab, Schild), findet das Modell aus Text kaum: Beim gesenkten Bogen wurde er mit Text
+senkrecht und steif oder quer hinter dem Rücken, auch mit Fotos aus anderer Ansicht (0 von 8). Mit
+einer Gliederpuppe **in derselben Ansicht wie die Figur**, Gegenstand cyan, Sehne magenta, klappte es
+4 von 4 Mal. Vorlagen liegen in `design/art-pipeline/refs/<name>.jpg`. `Vorlage: <name>` in der Notiz
+hängt eine an (`run.mjs`). Passt keine vorhandene Ansicht, erst eine Vorlage erzeugen (Abschnitt
+unten), dann korrigieren.
 
 Notizen kurz halten. Je mehr Einzelvorgaben eine Edit-Notiz macht (Fingerstellung, Winkel), desto
 eher erfindet das Modell eine neue falsche Haltung. Lieber den Sollzustand in einem Satz beschreiben
@@ -95,6 +93,16 @@ und die Hand-Regel von `run.mjs` greifen lassen.
 `neu` mit `Neuer Brief:` malt die Handlung nach dem neuen Brief und nimmt vom Original nur Figur,
 Schauplatz und Stil (`run.mjs`). Ohne `Neuer Brief:` übernimmt `neu` den Bildinhalt des Originals
 und damit einen Brief-Fehler gleich mit.
+
+## Puppen-Vorlage erzeugen
+
+In einem eigenen Codex-Lauf (`codex.sh -C design/art/posetest …`), mehrere Vorlagen in einem Auftrag:
+Holz-Gliederpuppe, ganze Figur, neutraler grauweißer Hintergrund, klares 3D-Render, keine
+Beschriftung. Der Gegenstand flächig in CYAN, Sehne oder Schnur in NEON MAGENTA, damit eindeutig zu
+sehen ist, was vor und was hinter dem Körper liegt. Je Vorlage Ansicht (von hinten, schräg von vorn
+…), welche Hand was hält und wohin die Teile zeigen. Danach die Puppe selbst prüfen: Griff, Hand,
+Sehne von Spitze zu Spitze, vorn/hinten. Eine Puppe zu prüfen ist leicht, eine Puppe ist kein
+Gemälde. Gute Vorlagen als JPEG (q85) nach `design/art-pipeline/refs/` und mitcommitten.
 
 ## 4. Malen und prüfen
 
