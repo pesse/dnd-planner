@@ -13,7 +13,7 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 005 edit · monster-scenes/awakened-tree · 17.9/29.7 · An sich ein schönes Bild, jedoch ist das Gesicht nicht passend - das sollte mehr 3 dimensionaler sein und mehr nach "Holz" ausschauen anstelle en paar dunklen Flecken als Gesicht
 - [~] 006 edit · monster-scenes/hippopotamus · 28.6/49.1 · Sehr schönes Bild - jedoch haben einige der 3 weißen Vögel im Hintergrund mehr als 2 Beine - das bitte anpassen; den Rest so lassen
 - [~] 007 edit · monster-scenes/gelatinous-cube · 68.0/9.2 · Der Gallertwürfel sieht etwas verzerrt aus - die rechte Kante ist unförmig und alles dürfte etwas mehr leuchten + das Skelett im Gallertwürfel sieht sehr komisch aus. Der Schädel ist komplett verdreht auf den Rippen, bzw. dem Brustkorb - einfach beides voneinander (Schädel + Brustkorb) getrennt abbilden ohne Verbindung zueinander
-- [~] 008 neu+ref · monster-scenes/spirit-naga · 75.3/9.5 · Erstelle das Bild komplett neu und passe optisch das dem kleinen Bild an
+- [~] 008 edit · monster-scenes/spirit-naga · 75.3/9.5 · Motiv und Pose so lassen. Nur den Rand wie bei den anderen Monsterszenen: das Gemälde läuft an den Bildrändern weich in hellen Pergamentgrund aus (unregelmäßige, pinselartige Vignette), statt randlos bis an die Kante zu gehen
 - [x] 009 edit · monster-scenes/mind-flayer-arcanist · 11.1/18.5 · Die fliegenden Bücher sehen komplett falsch aus - aufgeschlagene Bücher stehen um 90° verdreht zu den Seiten.. Kippe quasi die Seiten nach hinten, dass es einem aufgeschlagenen Buch optisch passt! + der Umhang sollte etwas mehr rötliche und goldene Elementen haben - bisschen mächtigeres Erscheinungsbild
 - [~] 010 edit · monster-scenes/githzerai-zerth · 48.1/15.4 · rechter hintere Arm ist verdreht + generelle Pose sieht komisch aus + blaue Akzente des Mantels sollen orange sein (Nachprüfung: die Pose ist noch unverändert: Rumpf weniger verdreht, Schwerpunkt über den Knien, der rechte hintere Arm hängt natürlich aus der Schulter; Mantelfarbe orange so lassen)
 - [~] 011 edit · monster-scenes/gladiator · 18.9/27.1 · Körperbau ist ziemlich männlich - passe den Körperbau zum weiblichen Geschlecht an + der Speer geht durch den Oberkörper durch, was falsch ist - er soll am Körper rechts vorbei gehen, während sie den Speer hält + ändere nichts an der generellen Pose, dem Hintergrund oder Kopf (Nachprüfung: der Speerschaft kreuzt noch Brust und Bauch: er verläuft komplett rechts neben ihrem Oberkörper (Bildseite rechts), die Hand hält ihn seitlich; weiblichen Körperbau, Kopf, Pose und Hintergrund lassen)
@@ -31,14 +31,14 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 023 edit+ref · monster-scenes/cultist-hierophant · 43.7/36.1 · nicht hell und goldene Robe, sondern dunkel und rötlich! - wie beim kleinen Bild
 - [~] 024 edit · monster-scenes/lich · 63.6/23.0 · ändere nur folgendes: vor dem Mund ist ein grüner Schatten - lösche das! das gehört da nicht hin
 - [~] 025 neu · monster-scenes/mule · 64.8/37.5 · Die Körperhaltung des Maultiers passt gar nicht - mache das neu!
-- [~] 026 neu · monster-scenes/medusa · 53.0/47.0 · Die Körperhaltung passt gar nicht! - drehe den Charakter, dass man ihn mehr von vorne sieht (also frontal) + passe die Armhaltung dementsprechend an!
+- [~] 026 edit · monster-scenes/medusa · 53.0/47.0 · Motiv und Pose so lassen. Nur den Rand wie bei den anderen Monsterszenen: das Gemälde läuft an den Bildrändern weich in hellen Pergamentgrund aus (unregelmäßige, pinselartige Vignette), statt randlos bis an die Kante zu gehen
 - [~] 027 edit · monster-scenes/brass-dragon-wyrmling · 54.2/20.9 · Erstelle die hintere Kopfpartie des Drachen neu! Das sieht nach einer komischen großen Fläche aus!
 - [~] 028 edit · monster-scenes/mezzoloth · 42.5/31.2 · Die oberen zwei Arme sind zu sehr verdreht! + die Haltung des Stabs passt nicht genau - passe das an! (Nachprüfung: beide oberen Arme neu malen: Oberarm vom Schulterpanzer nach oben, Ellbogen nach außen, Unterarm gerade zum Schaft; beide Hände umgreifen den geraden Stab mit sichtbaren Fingern. Kopf, untere Arme und Hintergrund nicht ändern)
 - [~] 029 edit · monster-scenes/myconid-sovereign · 52.9/28.7 · passe die Gesichtspartie an! - das Gesicht passt nicht + da kommt so ein Strahl aus seiner Stirn heraus - ergibt auch keinen Sinn - passe das an! (Nachprüfung: der Sporenstrom setzt noch am Kopf/Hut an: er soll aus der ausgestreckten Hand kommen, Kopf und Hut frei davon; Gesicht so lassen)
 - [~] 030 edit · monster-scenes/needle-blight · 23.7/35.1 · der linke Arm ist zu weit rechts! passe das an!
 - [~] 031 edit · monster-scenes/pixie · 65.9/22.0 · das Gesicht sieht etwas creepy aus, was nicht sein soll! überarbeite das Gesicht / den Gesichtsausdruck! (2. Runde: kaum verändert — Gesicht deutlich neu malen: freundliches, natürliches Lächeln, natürliche kindliche Proportionen, kein übertriebenes Grinsen, weiche Augen)
 - [~] 032 edit · monster-scenes/plesiosaurus · 22.6/57.0 · der Körper ist zu kurz - der Körper muss länger nach hinten gehen + es sieht so aus als hätte er zwei Schwänze auf diesem Bild! - er hat jedoch nur einen Schwanz!
-- [~] 033 neu · monster-scenes/pony · 84.7/78.1 · erstelle das ganze Bild neu - das Pony ist komisch proportioniert + keine Schlange auf dem Bild - Pferd steht woanders
+- [~] 033 edit · monster-scenes/pony · 84.7/78.1 · Motiv und Pose so lassen. Nur den Rand wie bei den anderen Monsterszenen: das Gemälde läuft an den Bildrändern weich in hellen Pergamentgrund aus (unregelmäßige, pinselartige Vignette), statt randlos bis an die Kante zu gehen
 - [~] 034 edit · monster-scenes/quaggoth · 95.7/42.8 · ändere nur folgendes: die Axt in der rechten Hand soll nicht rechts zur Seite, sondern nach vorne gedreht sein!
 - [~] 035 edit+ref · monster-scenes/quaggoth-thonot · 55.4/33.3 · passe den Kopf an - das Gesicht ist im Oberkörper drin + er hat noch Stofffetzen an - wie beim kleinen Bild
 - [~] 036 edit · monster-scenes/raven · 82.3/36.2 · generiere den Kopf + den Schnabel neu! + die Münze hängt nicht so komisch so halb am Schnabel!
@@ -46,7 +46,7 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 038 edit · monster-scenes/giant-shark · 12.0/42.8 · Ändere nur das: der hintere Teil des Hais ist noch unter Wasser, da er ja aus dem Wasser herausspringt! - sprich der hintere Teil des Körpers inklusive der Schwanzflosse ist nicht sichtbar
 - [~] 039 edit · monster-scenes/giant-octopus · 82.1/42.6 · Oktopusse haben den Teil des Körpers, aus dem das schwarze Zeugs rauskommt, am seitlichen Teil ihres Kopfes, nichts unterhalb des linken Auges! - verschiebe das also + lasse den Rest gleich!
 - [~] 040 edit+ref · monster-scenes/knight · 70.6/35.6 · Ritter soll größer sein + er soll einen Helm trag, wie auf dem kleinen Bild - den Rest nicht verändern! (Nachprüfung: der Ritter ist kaum größer geworden: deutlich größer, etwa 2/3 der Bildhöhe; Helm so lassen)
-- [~] 041 neu · monster-scenes/sphinx-of-secrets · 56.6/31.3 · erstelle das Bild neu! - Kopfhaltung ist komisch! + es soll nichts lilanes aus dem Auge kommen!
+- [~] 041 edit · monster-scenes/sphinx-of-secrets · 56.6/31.3 · Motiv und Pose so lassen. Nur den Rand wie bei den anderen Monsterszenen: das Gemälde läuft an den Bildrändern weich in hellen Pergamentgrund aus (unregelmäßige, pinselartige Vignette), statt randlos bis an die Kante zu gehen
 - [~] 042 edit+ref · monster-scenes/sphinx-of-valor · 73.0/21.1 · ändere es in weiblich mit bräunlichen Haaren - wie auf dem kleinen Bild
 - [~] 043 edit · monster-scenes/sphinx-of-lore · 85.9/34.1 · der Schrank rechts soll nicht kaputt sein + die Aura soll um das Wesen drumherum sein! - erhabeneres Erscheinungsbild
 - [~] 044 edit · monster-scenes/spy-master · 75.3/27.5 · Es muss mehr deutlich werden, dass das der Spionagemeister ist - als Meister! + evlt. mit einer schwarzen Kapuze, sodass nur noch die Augen sichtbar sind?
@@ -55,7 +55,7 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 047 edit · monster-scenes/troll · 48.4/76.1 · Abstand zwischen dem Troll und dem Menschen muss größer sein (Nachprüfung: der Troll ist jetzt winzig im Hintergrund: Troll wieder groß im Mittelgrund (etwa halbe Bildhöhe) als Hauptmotiv, den Abstand schafft der Mensch, der weiter nach vorne rechts rückt)
 - [~] 048 edit · monster-scenes/tyrannosaurus-rex · 81.2/72.3 · Der Elf rechts unten muss vom T-Rex wegrennen, nicht zu ihm hin!
 - [~] 049 edit · monster-scenes/vampire-umbral-lord · 51.9/34.7 · Soll mehr nach einem "Fürst" ausschauen - bspw. eine passende Krone hinzufügen oder so etwas in die Richtung
-- [~] 050 neu · monster-scenes/guard-captain · 61.3/36.4 · die Pose ergibt keinen Sinn, mache sie neu + passe das Gesicht an
+- [~] 050 edit · monster-scenes/guard-captain · 61.3/36.4 · Motiv und Pose so lassen. Nur den Rand wie bei den anderen Monsterszenen: das Gemälde läuft an den Bildrändern weich in hellen Pergamentgrund aus (unregelmäßige, pinselartige Vignette), statt randlos bis an die Kante zu gehen
 - [~] 051 edit · monster-scenes/revenant · 87.0/54.8 · Die Person rechts unten muss von der Gestalt wegrennen.. nicht zu ihr hin
 - [~] 052 edit · feats/mounted-combatant · 47.7/19.0 · die Lanze ergibt an dieser Stelle keinen Sinn - eine Fahne kann von der linken Seite (1/3 von unten) nach oben Mitte herausragen - wo oben eben das rot goldene ist, was du erstellt hast - jedoch muss der ganze Stoff nur nach links wehen - in beide Richtungen gleichzeitig geht nicht
 - [~] 053 edit · figures/elf-feminine/subclasses/assassin · 55.6/40.0 · ändere nur folgendes: die Handhaltung des linken Arms ist falsch (der ganze Arm ist verdreht)
@@ -110,7 +110,7 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 102 edit · figures/gnome-feminine/subclasses/evoker · 20.8/47.0 · erstelle die Buchseiten neu
 - [~] 103 edit · figures/human-feminine/subclasses/evoker · 18.9/38.7 · erstelle das Buch neu
 - [~] 104 edit · figures/human-masculine/subclasses/evoker · 17.9/33.5 · erstelle das Buch neu
-- [~] 105 edit · figures/orc-feminine/subclasses/evoker · 22.3/41.3 · das aufgeklappte Buch durch ein geschlossenes, dickes Buch ersetzen, das sie mit dem Unterarm flach an die Brust presst (Einband nach vorne, Buchrücken sichtbar); die andere Seite mit dem Feuer bleibt unverändert
+- [~] 105 edit · figures/orc-feminine/subclasses/evoker · 22.3/41.3 · Buchrücken ist auf der falschen Seite: Vorderdeckel zeigt nach vorne, also sitzt der Buchrücken auf der vom Betrachter aus LINKEN Kante des Buchs, rechts die Seitenkanten. Nur das Buch spiegeln, Hand, Arm und alles andere bleiben exakt gleich
 - [~] 106 edit · figures/orc-androgynous/subclasses/evoker · 22.1/35.2 · erstelle das Buch neu
 - [~] 107 edit · figures/tiefling-feminine/subclasses/evoker · 11.9/29.5 · erstelle das Buch neu
 - [~] 108 edit · figures/tiefling-masculine/subclasses/evoker · 19.9/29.0 · erstelle das Buch neu
@@ -328,7 +328,7 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 320 edit · figures/human-androgynous/subclasses/fiend-patron · 14.0/56.1 · generiere die Hand neu (5 Finger)
 - [~] 321 edit · figures/tiefling-androgynous/subclasses/fiend-patron · 11.4/68.0 · generiere die Hand neu (5 Finger)
 - [~] 322 edit · figures/tiefling-masculine/classes/ranger · 51.2/55.7 · der Schwanz darf nicht vorne sein - der ist hinten am Körper
-- [~] 323 edit · figures/dwarf-androgynous/classes/ranger · 54.1/57.2 · das rechte Bein (links im Bild) ist unnatürlich: ein normaler weiter Schritt nach vorn, Knie leicht gebeugt, der Stiefel steht fest auf dem Felsen; das andere Bein und der Oberkörper bleiben
+- [~] 323 edit · figures/dwarf-androgynous/classes/ranger · 54.1/57.2 · Pose so lassen. Nur den Rand wie bei allen Bildern der Serie: das Gemälde läuft zum Bildrand in hellen Pergamentgrund mit ausgefransten, pinselartigen Kanten aus
 - [~] 324 edit · figures/fairy-androgynous/subclasses/wild-magic-sorcery · 61.9/36.8 · generiere die rechte Hand neu
 - [~] 325 edit · figures/tiefling-androgynous/subclasses/wild-magic-sorcery · 56.8/31.6 · generiere die Hand neu
 - [~] 326 edit · classes/sorcerer · 17.7/16.5 · generiere die Hand neu (5 Finger)
@@ -442,7 +442,7 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 434 edit · figures/gnome-masculine/backgrounds/sage · 65.1/42.5 · generiere das Buch neu! ist komplett verzogen
 - [~] 435 edit · figures/goliath-androgynous/backgrounds/sage · 91.1/35.5 · generiere das Buch neu
 - [~] 436 edit · figures/goliath-masculine/backgrounds/sage · 37.4/63.3 · sein linkes Bein ist verdreht und muss weiter nach links! das passt so gar nicht!
-- [~] 437 edit · figures/halfling-feminine/backgrounds/sage · 50.2/68.2 · Nur ihr hinterer Fuß: er ist ein zweiter rechter Fuß. Male ihn als linken Fuß, Spiegelbild des vorderen Fußes – großer Zeh auf der Innenseite, zum anderen Fuß hin
+- [~] 437 edit · figures/halfling-feminine/backgrounds/sage · 50.2/68.2 · Pose so lassen. Nur den Rand wie bei allen Bildern der Serie: das Gemälde läuft zum Bildrand in hellen Pergamentgrund mit ausgefransten, pinselartigen Kanten aus
 - [~] 438 edit · figures/human-androgynous/backgrounds/sage · 23.3/53.8 · er sitzt ja seitlich - da ist hier zu viel Stoff - das ergibt so keinen Sinn
 - [~] 439 edit · figures/orc-masculine/backgrounds/sage · 59.7/48.9 · das muss sein linkes Knie sein - ist verzerrt
 - [~] 440 edit · figures/dwarf-androgynous/backgrounds/sage · 65.1/39.5 · die 2 Bücher sind komplett deformiert und in der falschen Größe (falsches Format)!

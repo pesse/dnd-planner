@@ -66,7 +66,7 @@ function itemBrief(it, inputs) {
 
 const HEAD = (icon) => `You are correcting paintings for a D&D app, one by one, from a user's review notes. For EACH item below make exactly one new image with your image generation tool and save it in the current directory under the given file name. Never touch any other file.
 
-Format: ${icon ? '1024 × 1024 PNG with a TRANSPARENT background (real alpha), a single isolated motif, exactly like the original library icon. No backdrop, no ground, no frame.' : '1024 × 1536 portrait PNG, full-bleed painting like the original.'}
+Format: ${icon ? '1024 × 1024 PNG with a TRANSPARENT background (real alpha), a single isolated motif, exactly like the original library icon. No backdrop, no ground, no frame.' : '1024 × 1536 portrait PNG with the original\'s edge treatment: the painting fades out into a cream parchment border with torn, brushy edges, exactly like the original.'}
 Style: the original's own style — painterly D&D Player's Handbook illustration, rich colours, dramatic light. No text, letters or signatures anywhere.
 Reading the notes: "links/rechts" for body parts means the depicted figure's OWN left/right unless the note says otherwise; the clicked position shows which part is meant. A note "ändere nur …" means: nothing else may change. Bodies: every figure has two arms and two legs that clearly attach to its torso; feet stand ON the ground (never sinking into it); weapon shafts and staffs are dead straight and rigid; nobody is hurt or hit on screen (show the moment before contact).
 After saving each image, look at it and compare it with the note. If the fix did not land (e.g. still six fingers, the limb still missing), edit again before moving on.
