@@ -15,6 +15,7 @@
   import ConditionPicker from './ConditionPicker.svelte';
   import TrapTokenInfo from './TrapTokenInfo.svelte';
   import TokenEncounterPicker from './TokenEncounterPicker.svelte';
+  import { KIND_LABEL } from '../TokenKindIcon.svelte';
 
   let { editor, token: t, campaignDir }: { editor: MapEditor; token: Token; campaignDir: string } = $props();
 
@@ -25,7 +26,6 @@
     { value: 3, label: 'Riesig' },
     { value: 4, label: 'Gigantisch' },
   ];
-  const KIND_LABEL = { character: 'Charakter', monster: 'Monster', marker: 'Markierung', trap: 'Falle' } as const;
   const fighter = $derived(t.kind === 'character' || t.kind === 'monster');
 
   let monster = $state<Monster | null>(null);

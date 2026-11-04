@@ -3,6 +3,7 @@
   import type { MapEditor } from '../../services/battleMap/mapEditor.svelte';
   import PanelSection from './PanelSection.svelte';
   import EyeIcon from '../ui/EyeIcon.svelte';
+  import TokenKindIcon from './TokenKindIcon.svelte';
 
   let { editor }: { editor: MapEditor } = $props();
 
@@ -23,7 +24,7 @@
         <button class="eye" title={t.hidden ? 'Für Spieler versteckt — zeigen' : 'Für Spieler sichtbar — verstecken'} onclick={() => editor.toggleHidden(t.id)}>
           <EyeIcon closed={t.hidden} />
         </button>
-        <button class="name" class:muted={t.hidden} onclick={() => (editor.selectedId = t.id)}>{t.name}</button>
+        <button class="name" class:muted={t.hidden} onclick={() => (editor.selectedId = t.id)}><TokenKindIcon kind={t.kind} /><span>{t.name}</span></button>
         <button class="del" title="Entfernen" onclick={() => editor.removeToken(t.id)}>✕</button>
       </li>
     {/each}
@@ -66,7 +67,13 @@
   }
   .name {
     flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
     text-align: left;
+  }
+  .name span {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
