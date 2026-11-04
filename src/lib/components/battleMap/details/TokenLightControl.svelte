@@ -6,10 +6,12 @@
   let { editor, token: t, grid }: { editor: MapEditor; token: Token; grid: Grid } = $props();
 
   /** Gesamtreichweite aus hellem plus dämmrigem Licht (SRD); das Rendern blendet ab etwa der Hälfte aus. */
+  const FIRE = '#ffb347';
   const SOURCES = [
-    { label: 'Kerze', meters: 3 },
-    { label: 'Fackel', meters: 12 },
-    { label: 'Laterne', meters: 18 },
+    { label: 'Kerze', meters: 3, color: FIRE },
+    { label: 'Fackel', meters: 12, color: FIRE },
+    { label: 'Laterne', meters: 18, color: FIRE },
+    { label: 'Magisch', meters: 12, color: '#e6eeff' },
   ];
 
   const cells = (meters: number) => meters / grid.metersPerCell;
@@ -20,7 +22,7 @@
     editor.setTokenLight(t.id, light);
   }
 
-  const toggle = () => set(t.light ? null : { radius: cells(12), color: '#ffb347' });
+  const toggle = () => set(t.light ? null : { radius: cells(12), color: FIRE });
 </script>
 
 <div class="light">
@@ -44,7 +46,7 @@
     <span class="reach">{meters(light).toLocaleString('de-DE')} m</span>
     <div class="sources">
       {#each SOURCES as s (s.label)}
-        <button class:on={meters(light) === s.meters} onclick={() => set({ ...light, radius: cells(s.meters) })}>{s.label}</button>
+        <button class:on={meters(light) === s.meters && light.color === s.color} onclick={() => set({ radius: cells(s.meters), color: s.color })}>{s.label}</button>
       {/each}
     </div>
   {/if}
