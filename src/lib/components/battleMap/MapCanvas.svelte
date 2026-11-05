@@ -29,13 +29,13 @@
   import MapStage from './MapStage.svelte';
   import LevelBar from './LevelBar.svelte';
   import { tokensOn } from '../../services/battleMap/levels';
+  import { tokenLights } from '../../services/battleMap/overlayRender';
 
   let { editor }: { editor: MapEditor } = $props();
 
   type Drag =
     | { kind: 'pan'; start: Point; cam: Camera; deselect?: boolean }
     | { kind: 'token'; id: string; grab: Point; moved: boolean; start: Point; origin: Point; stack: string[]; reselect: boolean; level: string | null }
-    | { kind: 'light'; id: string }
     | { kind: 'rect'; a: Point; b: Point }
     | { kind: 'brush'; op: Extract<FogOp, { shape: 'brush' }> }
     | { kind: 'ruler'; a: Point; b: Point }
@@ -89,17 +89,11 @@
       return;
     }
     const target = e.target as Element;
-    const lightId = target.closest<SVGElement>('[data-light-id]')?.dataset.lightId;
     const tool = editor.tool;
 
     if (tool === 'select' || tool === 'light') {
-      if (lightId && tool === 'light') {
-        editor.checkpoint();
-        drag = { kind: 'light', id: lightId };
-        return;
-      }
       const stack = tokensAt(e);
-      if (stack.length && target.closest('[data-token-id]') && tool === 'select') {
+      if (stack.length && target.closest('[data-token-id]')) {
         // Das ausgewählte Token bleibt greifbar, auch wenn ein anderes darüber liegt.
         const reselect = stack.includes(editor.selectedId ?? '');
         const tokenId = reselect ? editor.selectedId! : stack[0];
@@ -111,7 +105,7 @@
         return;
       }
       if (tool === 'light') {
-        editor.addLight(p);
+        editor.addLight(pxToCell(map.grid, p));
         return;
       }
       drag = { kind: 'pan', start: local(e), cam: { ...camera }, deselect: true };
@@ -168,10 +162,6 @@
       if (drag.level !== null) return;
       const cell = pxToCell(map.grid, p);
       editor.updateToken(drag.id, { x: cell.x - drag.grab.x, y: cell.y - drag.grab.y });
-    } else if (drag.kind === 'light') {
-      const l = layer.lighting.lights.find((x) => x.id === (drag as { id: string }).id);
-      if (l) Object.assign(l, { x: p.x, y: p.y });
-      editor.changed();
     } else if (drag.kind === 'frame') {
       editor.setPlayerView(draggedFrame(drag, p));
     } else if (drag.kind === 'brush') {
@@ -248,6 +238,7 @@
     return hit ? FRAME_CURSOR[hit] : '';
   });
   const stroke = $derived(2 / camera.zoom);
+  const selectedLight = $derived(tokenLights(tokens.filter((t) => t.id === editor.selectedId).map((t) => ({ ...t, hidden: false })), map.grid)[0] ?? null);
   const brushPreview = $derived(
     hover && (editor.tool === 'reveal-brush' || editor.tool === 'cover-brush') ? hover : null,
   );
@@ -297,10 +288,9 @@
             {/each}
           {/if}
         {/if}
-        {#each layer.lighting.lights as l (l.id)}
-          <circle cx={l.x} cy={l.y} r={l.radius * map.grid.size} class="light-range" stroke-width={stroke} />
-          <circle cx={l.x} cy={l.y} r={9 / camera.zoom} class="light-handle" class:active={editor.tool === 'light'} data-light-id={l.id} style="fill: {l.color}" stroke-width={stroke} />
-        {/each}
+        {#if selectedLight}
+          <circle cx={selectedLight.x} cy={selectedLight.y} r={selectedLight.radius * map.grid.size} class="light-range" stroke-width={stroke} />
+        {/if}
         {#if rect}
           <rect {...svgRect(rect)} class="drag-rect tool-{editor.tool}" stroke-width={stroke} />
         {/if}
@@ -366,14 +356,6 @@
   .light-range {
     fill: none;
     stroke: rgba(255, 200, 100, 0.6);
-  }
-  .light-handle {
-    stroke: #000;
-    pointer-events: none;
-  }
-  .light-handle.active {
-    pointer-events: auto;
-    cursor: move;
   }
   .drag-rect {
     fill: rgba(255, 255, 255, 0.15);

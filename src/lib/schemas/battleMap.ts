@@ -1,8 +1,11 @@
-/** Eine Kampfkarte: Bild, Raster, Tokens, Nebel und rein optisches Licht. Koordinaten in Bildpixeln. */
+/** Eine Kampfkarte: Bild, Raster, Tokens, Nebel und Dunkelheit. Koordinaten in Bildpixeln, Tokens in Feldern. */
 import { z } from 'zod';
 import { CONDITION_KEYS } from './vocabulary';
 
-export const TOKEN_KINDS = ['character', 'monster', 'marker', 'trap'] as const;
+export const TOKEN_KINDS = ['character', 'monster', 'marker', 'trap', 'light'] as const;
+
+/** Nur sie würfeln Initiative, tragen Zustände und nehmen Schaden. */
+export const isFighter = (t: { kind: TokenKind }): boolean => t.kind === 'character' || t.kind === 'monster';
 
 export const TRAP_STATES = { armed: 'Scharf', triggered: 'Ausgelöst', disarmed: 'Entschärft' } as const;
 export type TrapState = keyof typeof TRAP_STATES;
@@ -77,17 +80,8 @@ export const fogSchema = z.object({
   ops: z.array(fogOpSchema).default([]).describe('Der Reihe nach auf eine zugedeckte Karte angewandt.'),
 });
 
-export const lightSchema = z.object({
-  id: z.string(),
-  x: z.number(),
-  y: z.number(),
-  radius: z.number().positive().default(4).describe('In Feldern.'),
-  color: z.string().default('#ffb347'),
-});
-
 export const lightingSchema = z.object({
-  darkness: z.number().min(0).max(1).default(0),
-  lights: z.array(lightSchema).default([]),
+  darkness: z.number().min(0).max(1).default(0).describe('Die Lichter sind Tokens mit `light`.'),
 });
 
 export const viewRectSchema = z.object({
@@ -137,7 +131,6 @@ export type Token = z.infer<typeof tokenSchema>;
 export type TokenKind = (typeof TOKEN_KINDS)[number];
 export type FogOp = z.infer<typeof fogOpSchema>;
 export type FogMode = (typeof FOG_MODES)[number];
-export type Light = z.infer<typeof lightSchema>;
 export type TokenLight = z.infer<typeof tokenLightSchema>;
 export type Lighting = z.infer<typeof lightingSchema>;
 export type ViewRect = z.infer<typeof viewRectSchema>;

@@ -3,6 +3,7 @@ import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
 import { battleMapSchema, type BattleMap } from '../../schemas/battleMap';
 import { isTauri } from '../httpFetch';
+import { liftLegacyLights } from './legacyLights';
 import { BASE_LEVEL, levelImageBase } from './levels';
 
 export const MAP_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'avif'];
@@ -14,7 +15,7 @@ export const newBattleMap = (name: string): BattleMap => battleMapSchema.parse({
 
 export async function loadBattleMap(path: string): Promise<BattleMap> {
   const raw = await invoke<string>('read_file_content', { path });
-  return battleMapSchema.parse(JSON.parse(raw));
+  return battleMapSchema.parse(liftLegacyLights(JSON.parse(raw)));
 }
 
 export const serializeBattleMap = (map: BattleMap): string => JSON.stringify(map, null, 2);

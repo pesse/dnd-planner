@@ -43,7 +43,7 @@
     { id: 'reveal-brush', icon: '🖌', label: 'Aufdecken (Pinsel)', key: 'p' },
     { id: 'cover-rect', icon: '▣', label: 'Zudecken (Rechteck)', key: 'z' },
     { id: 'cover-brush', icon: '🖍', label: 'Zudecken (Pinsel)', key: 'x' },
-    { id: 'light', icon: '🔥', label: 'Licht setzen / verschieben', key: 'l' },
+    { id: 'light', icon: '🔥', label: 'Licht setzen', key: 'l' },
     { id: 'ruler', icon: '📏', label: 'Abstand messen', key: 'm' },
     { id: 'grid', icon: '#', label: 'Raster an einem Feld ausrichten', key: 'r' },
   ];

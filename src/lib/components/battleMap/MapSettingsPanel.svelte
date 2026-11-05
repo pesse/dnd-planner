@@ -63,16 +63,7 @@
     <span>Dunkelheit</span>
     <input type="range" min="0" max="1" step="0.05" value={layer.lighting.darkness} onpointerdown={() => editor.checkpoint()} oninput={(e) => { layer.lighting.darkness = num(e); editor.changed(); }} />
   </label>
-  {#each layer.lighting.lights as l, i (l.id)}
-    <div class="light">
-      <input type="color" value={l.color} title="Farbe" onchange={(e) => { editor.checkpoint(); l.color = e.currentTarget.value; editor.changed(); }} />
-      <input type="range" min="1" max="20" step="0.5" value={l.radius} title="Reichweite {l.radius} Felder" onpointerdown={() => editor.checkpoint()} oninput={(e) => { l.radius = num(e); editor.changed(); }} />
-      <span class="radius">{l.radius}</span>
-      <button class="del" title="Licht {i + 1} entfernen" onclick={() => editor.removeLight(l.id)}>✕</button>
-    </div>
-  {:else}
-    <p class="hint">Werkzeug „Licht“: auf die Karte klicken. Lichter sind reine Optik.</p>
-  {/each}
+  <p class="hint">Werkzeug „Licht“: auf die Karte klicken. Jedes Licht ist ein Token — Farbe, Reichweite und Sichtbarkeit stellst du dort ein.</p>
 </PanelSection>
 
 <style>
@@ -90,29 +81,12 @@
   .pair input[type='number'] {
     width: 3.4rem;
   }
-  input[type='color'] {
-    width: 2rem;
-    padding: 0;
-  }
   label input[type='range'] {
     width: 50%;
   }
   .pair {
     display: flex;
     gap: 0.25rem;
-  }
-  .light {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-  }
-  .light input[type='range'] {
-    flex: 1;
-  }
-  .radius {
-    font-size: 0.75rem;
-    color: var(--ink-muted);
-    min-width: 2ch;
   }
   button {
     background: var(--bg-raised);
@@ -122,11 +96,6 @@
     cursor: pointer;
     font-size: 0.8rem;
     padding: 0.2rem 0.5rem;
-  }
-  .del {
-    border: none;
-    background: none;
-    color: var(--danger);
   }
   .hint {
     margin: 0;

@@ -12,6 +12,7 @@ import {
 } from '../../src/lib/services/battleMap/geometry';
 import { clampToView, toPlayerState } from '../../src/lib/services/battleMap/playerState';
 import { flickerLights, tokenLights } from '../../src/lib/services/battleMap/overlayRender';
+import { liftLegacyLights } from '../../src/lib/services/battleMap/legacyLights';
 import { markerDraft, numberedNames, occupiedCells, placeDrafts } from '../../src/lib/services/battleMap/tokenSources';
 
 const NO_IMAGES = { levels: {}, tokens: {}, frame: { w: 0, h: 0 } };
@@ -71,7 +72,7 @@ describe('Spieleransicht', () => {
       ],
     });
     const state = toPlayerState(map, { levels: { '': 'map.png' }, tokens: { b: 'ada.png' }, frame: { w: 0, h: 0 } });
-    expect(state.tokens[0]).toEqual({ id: 'b', name: 'Ada', x: 2, y: 2, size: 1, color: '#8a2012', conditions: [], effects: [], light: null, imageUrl: 'ada.png', movable: true, down: false, bloodied: false });
+    expect(state.tokens[0]).toEqual({ id: 'b', name: 'Ada', x: 2, y: 2, size: 1, kind: 'character', color: '#8a2012', conditions: [], effects: [], light: null, imageUrl: 'ada.png', movable: true, down: false, bloodied: false });
     expect(state.tokens[1].movable).toBe(false);
     expect(JSON.stringify(state)).not.toContain('goblin');
   });
@@ -128,6 +129,10 @@ describe('Token-Licht', () => {
     ]);
   });
 
+  it('ein verstecktes Licht leuchtet nicht', () => {
+    expect(tokenLights([{ id: 'a', x: 0, y: 0, size: 1, hidden: true, light: { radius: 4, color: '#fff' } }], grid)).toEqual([]);
+  });
+
   it('flackert nur leicht, ungleich und unabhängig vom Ort', () => {
     const lights = [
       { id: 'fackel', x: 100, y: 100, radius: 10, color: '#fff' },
@@ -147,5 +152,31 @@ describe('Token-Licht', () => {
 
     const moved = flickerLights([{ ...lights[0], x: 137, y: 412 }], 3.3)[0].radius;
     expect(moved).toBe(flickerLights([lights[0]], 3.3)[0].radius);
+  });
+});
+
+describe('Alte Karten mit festen Lichtern', () => {
+  it('macht aus jedem Licht ein Licht-Token auf seiner Ebene, Mitte auf Mitte', () => {
+    const raw = {
+      name: 'Gruft',
+      grid: { size: 50, offsetX: 10, offsetY: 0 },
+      tokens: [{ id: 't', name: 'Ork', x: 1, y: 1 }],
+      lighting: { darkness: 0.5, lights: [{ id: 'l1', x: 135, y: 75, radius: 5, color: '#b061ff' }] },
+      levels: [{ id: 'keller', name: 'Keller', elevation: -1, lighting: { darkness: 0.8, lights: [{ id: 'l2', x: 60, y: 25 }] } }],
+    };
+    const map = battleMapSchema.parse(liftLegacyLights(raw));
+    expect(map.lighting).toEqual({ darkness: 0.5 });
+    expect(map.levels[0].lighting).toEqual({ darkness: 0.8 });
+    expect(map.tokens.map(({ id, kind, x, y, level, light }) => ({ id, kind, x, y, level, light }))).toEqual([
+      { id: 't', kind: 'marker', x: 1, y: 1, level: '', light: null },
+      { id: 'l1', kind: 'light', x: 2, y: 1, level: '', light: { radius: 5, color: '#b061ff' } },
+      { id: 'l2', kind: 'light', x: 0.5, y: 0, level: 'keller', light: { radius: 4, color: '#ffb347' } },
+    ]);
+    expect(tokenLights(map.tokens, map.grid).map(({ x, y }) => [x, y])).toEqual([[135, 75], [60, 25]]);
+  });
+
+  it('lässt neue Karten unverändert', () => {
+    const raw = { name: 'x', lighting: { darkness: 0 }, tokens: [] };
+    expect(liftLegacyLights(structuredClone(raw))).toEqual(raw);
   });
 });

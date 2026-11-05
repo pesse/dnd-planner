@@ -4,7 +4,7 @@
   import { pinnableTip } from '../tips/pinnableTip';
   import { withRule } from '../../ruleTips.svelte';
   import RichTextEditor from '../../RichTextEditor.svelte';
-  import type { Token } from '../../../schemas/battleMap';
+  import { isFighter, type Token } from '../../../schemas/battleMap';
   import type { Encounter } from '../../../schemas/encounter';
   import type { Monster } from '../../../types';
   import type { MapEditor } from '../../../services/battleMap/mapEditor.svelte';
@@ -29,7 +29,7 @@
     { value: 3, label: 'Riesig' },
     { value: 4, label: 'Gigantisch' },
   ];
-  const fighter = $derived(t.kind === 'character' || t.kind === 'monster');
+  const fighter = $derived(isFighter(t));
   const levels = $derived(editor.map?.levels.length ? levelStack(editor.map) : []);
 
   function moveToLevel(level: string) {
@@ -86,10 +86,12 @@
     {/if}
   </p>
   <div class="row">
+    {#if t.kind !== 'light'}
     <select value={t.size} aria-label="Größe" onchange={(e) => update({ size: Number(e.currentTarget.value) })}>
       {#each SIZES as s}<option value={s.value}>{s.label}</option>{/each}
     </select>
     <input type="color" value={t.color} title="Farbe" onchange={(e) => update({ color: e.currentTarget.value })} />
+    {/if}
     {#if levels.length}
       <select value={t.level} aria-label="Ebene" title="Ebene" onchange={(e) => moveToLevel(e.currentTarget.value)}>
         {#each levels as l (l.id)}<option value={l.id}>{l.name}</option>{/each}
@@ -109,7 +111,7 @@
   {#if fighter}
     <ConditionPicker {editor} token={t} />
   {/if}
-  {#if editor.map}<TokenLightControl {editor} token={t} grid={editor.map.grid} />{/if}
+  {#if editor.map}<TokenLightControl {editor} token={t} grid={editor.map.grid} fixed={t.kind === 'light'} />{/if}
   {#if monster}<MonsterPresent {monster} name={t.name} />{/if}
   <div class="note" class:tall={t.kind === 'marker'} onfocusin={() => editor.checkpoint()}>
     {#key t.id}

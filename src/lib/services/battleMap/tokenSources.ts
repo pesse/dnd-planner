@@ -2,7 +2,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { artUrl, availableArt } from '../../artUrl';
 import { monsterArtSlug, trapArtUrl } from '../../libraryArt';
-import type { Token, TokenKind } from '../../schemas/battleMap';
+import type { Token, TokenKind, TokenLight } from '../../schemas/battleMap';
 import type { Monster } from '../../types';
 import { newUid } from '../../utils/uid';
 import { normalizeCharacter } from '../../utils/schemaValidation';
@@ -28,6 +28,7 @@ export interface TokenDraft {
   initiative: number | null;
   trapState?: Token['trapState'];
   trapTier?: number;
+  light?: TokenLight | null;
 }
 
 export const KIND_COLOR: Record<TokenKind, string> = {
@@ -35,6 +36,7 @@ export const KIND_COLOR: Record<TokenKind, string> = {
   monster: '#8a2012',
   marker: '#786012',
   trap: '#4a0d0d',
+  light: '#ffb347',
 };
 
 const ROW = 6;
@@ -126,6 +128,13 @@ export const markerDraft = (name: string): TokenDraft => ({
   conditions: [],
   effects: [],
   initiative: null,
+});
+
+export const lightDraft = (name: string, light: TokenLight): TokenDraft => ({
+  ...markerDraft(name),
+  kind: 'light',
+  color: KIND_COLOR.light,
+  light,
 });
 
 /** Fallen liegen verborgen, bis die Spieler sie entdecken oder auslösen. */

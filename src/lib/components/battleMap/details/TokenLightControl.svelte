@@ -3,7 +3,8 @@
   import type { Grid, Token, TokenLight } from '../../../schemas/battleMap';
   import type { MapEditor } from '../../../services/battleMap/mapEditor.svelte';
 
-  let { editor, token: t, grid }: { editor: MapEditor; token: Token; grid: Grid } = $props();
+  /** `fixed`: ein Licht-Token leuchtet immer, nur Farbe und Reichweite sind wählbar. */
+  let { editor, token: t, grid, fixed = false }: { editor: MapEditor; token: Token; grid: Grid; fixed?: boolean } = $props();
 
   /** Gesamtreichweite aus hellem plus dämmrigem Licht (SRD). */
   const FIRE = '#ffb347';
@@ -26,10 +27,12 @@
 </script>
 
 <div class="light">
-  <label class="switch">
-    <input type="checkbox" checked={!!t.light} onchange={toggle} />
-    Licht
-  </label>
+  {#if !fixed}
+    <label class="switch">
+      <input type="checkbox" checked={!!t.light} onchange={toggle} />
+      Licht
+    </label>
+  {/if}
   {#if t.light}
     {@const light = t.light}
     <input type="color" value={light.color} title="Farbe" onchange={(e) => set({ ...light, color: e.currentTarget.value })} />

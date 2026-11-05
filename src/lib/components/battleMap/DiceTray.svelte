@@ -6,6 +6,7 @@
 
 <script lang="ts">
   /** Würfe der SL — verdeckt oder für die Spieler sichtbar — als frei verschiebbare Box über der Karte; der letzte Wurf rollt in 3D. */
+  import { isFighter } from '../../schemas/battleMap';
   import { pinnableTip } from './tips/pinnableTip';
   import { withRule } from '../ruleTips.svelte';
   import { addToPool, EMPTY_POOL, parsePool, poolDe, throwDice } from '../../utils/dice';
@@ -56,7 +57,7 @@
     if (!invalid) diceTray.formula = '';
   }
 
-  const target = $derived(editor.selected?.kind === 'marker' || editor.selected?.kind === 'trap' ? null : editor.selected);
+  const target = $derived(editor.selected && isFighter(editor.selected) ? editor.selected : null);
 
   async function applyHp(sign: 1 | -1) {
     if (!target || !latest) return;

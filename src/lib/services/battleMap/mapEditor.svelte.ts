@@ -3,7 +3,7 @@
  * Frame an das Spielerfenster; `checkpoint()` vor einer Änderung macht sie rückgängig-fähig.
  */
 import { popHp } from './hpPops.svelte';
-import { TOKEN_EFFECT_KEYS, type BattleMap, type FogOp, type Light, type Token, type TokenLight, type TokenEffect, type ViewRect } from '../../schemas/battleMap';
+import { TOKEN_EFFECT_KEYS, type BattleMap, type FogOp, type Token, type TokenLight, type TokenEffect, type ViewRect } from '../../schemas/battleMap';
 import { CONDITION_KEYS, type Condition } from '../../schemas/vocabulary';
 import type { Badge } from '../../conditionIcon';
 import { AutosaveFile } from '../../utils/autosaveFile.svelte';
@@ -16,7 +16,7 @@ import { addLevel, BASE_LEVEL, layerOf, levelStack, moveToLevel, partyOn, placed
 import { loadBattleMap, pickMapImage, serializeBattleMap } from './mapFiles';
 import { MapImages } from './mapImages.svelte';
 import { PlayerLink } from './playerLink';
-import { occupiedCells, placeDrafts, type TokenDraft } from './tokenSources';
+import { KIND_COLOR, lightDraft, occupiedCells, placeDrafts, type TokenDraft } from './tokenSources';
 
 const isTokenEffect = (b: string): b is TokenEffect => (TOKEN_EFFECT_KEYS as readonly string[]).includes(b);
 const isCondition = (b: string): b is Condition => (CONDITION_KEYS as readonly string[]).includes(b);
@@ -316,16 +316,17 @@ export class MapEditor {
     this.#edit(() => (this.layer.fog.ops = revealed ? [{ shape: 'rect', mode: 'reveal', x: 0, y: 0, w: Math.max(w, 1), h: Math.max(h, 1) }] : []));
   }
 
-  addLight(at: Point): void {
-    this.#edit(() => {
+  /** Ohne Ausweichen auf freie Felder — ein Licht darf auf einem Token oder einer Fackel im Bild stehen. */
+  addLight(cell: Point): void {
+    if (!this.map) return;
+    const n = this.map.tokens.filter((t) => t.kind === 'light').length + 1;
+    const [token] = placeDrafts([lightDraft(`Licht ${n}`, { radius: 12 / this.map.grid.metersPerCell, color: KIND_COLOR.light })], cell, new Set(), this.level);
+    this.#edit((map) => {
+      map.tokens.push(token);
       const { lighting } = this.layer;
-      lighting.lights.push({ id: newUid(), x: at.x, y: at.y, radius: 4, color: '#ffb347' } satisfies Light);
       if (lighting.darkness === 0) lighting.darkness = 0.75;
     });
-  }
-
-  removeLight(id: string): void {
-    this.#edit(() => (this.layer.lighting.lights = this.layer.lighting.lights.filter((l) => l.id !== id)));
+    this.selectedId = token.id;
   }
 
   addLevel(direction: 1 | -1): void {

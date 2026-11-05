@@ -3,7 +3,7 @@
   import { pinnableTip } from './tips/pinnableTip';
   import { badgeTip } from '../ruleTips.svelte';
   import { CONDITIONS } from '../../schemas/vocabulary';
-  import { TOKEN_EFFECTS } from '../../schemas/battleMap';
+  import { isFighter, TOKEN_EFFECTS } from '../../schemas/battleMap';
   import { rollNow } from '../../services/battleMap/diceTray.svelte';
   import { badgeIconUrl } from '../../conditionIcon';
   import { isBloodied } from '../../services/battleMap/tokenDetails';
@@ -15,7 +15,7 @@
 
   const map = $derived(editor.map!);
   const combat = $derived(map.combat);
-  const fighters = $derived(map.tokens.filter((t) => t.kind !== 'marker' && t.kind !== 'trap'));
+  const fighters = $derived(map.tokens.filter(isFighter));
   const order = $derived(initiativeOrder(fighters));
   const waiting = $derived(fighters.filter((t) => t.initiative == null && (t.kind === 'character' || !t.hidden)));
   let busy = $state(false);

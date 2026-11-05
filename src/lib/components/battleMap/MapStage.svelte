@@ -1,7 +1,7 @@
 <script lang="ts">
   /** Zeichnet Karte, Raster, Tokens, Licht und Nebel — für SL- und Spielerfenster gleich. */
   import type { Snippet } from 'svelte';
-  import type { FogOp, Grid, Lighting, Token } from '../../schemas/battleMap';
+  import type { FogOp, Grid, Lighting, Token, TokenKind } from '../../schemas/battleMap';
   import type { Camera } from '../../services/battleMap/geometry';
   import { drawFog, drawLighting, flickerLights, tokenLights, type LightSpot } from '../../services/battleMap/overlayRender';
   import { initialsOf, shortName } from '../../services/battleMap/tokenSources';
@@ -18,6 +18,7 @@
     x: number;
     y: number;
     size: number;
+    kind: TokenKind;
     color: string;
     imageUrl: string;
     hidden?: boolean;
@@ -77,7 +78,7 @@
     drawFog(fogCanvas, fog.ops, imgW, imgH, '#0c0a10');
   });
 
-  const lights = $derived([...lighting.lights, ...tokenLights(tokens, grid)]);
+  const lights = $derived(tokenLights(tokens, grid));
   const flickers = $derived(
     mode === 'player' && lights.length > 0 && lighting.darkness > 0 && !matchMedia('(prefers-reduced-motion: reduce)').matches,
   );
@@ -126,7 +127,21 @@
     </svg>
   {/if}
 
-  {#each tokens as t (t.id)}
+  {#if mode === 'gm'}
+    {#each tokens.filter((t) => t.kind === 'light') as t (t.id)}
+      {@const px = grid.size * t.size}
+      <div
+        class="lamp grab"
+        class:hidden-token={t.hidden}
+        class:selected={t.id === selectedId}
+        data-token-id={t.id}
+        style="left: {grid.offsetX + t.x * grid.size}px; top: {grid.offsetY + t.y * grid.size}px; width: {px}px; height: {px}px; --lc: {t.light?.color ?? t.color};"
+        title={t.name}
+      ></div>
+    {/each}
+  {/if}
+
+  {#each tokens.filter((t) => t.kind !== 'light') as t (t.id)}
     {@const px = grid.size * t.size}
     {@const badges = [...(t.effects ?? []), ...(t.conditions ?? [])]}
     {@const bloodied = t.bloodied || isBloodied({ hp: t.hp ?? null, hpMax: t.hpMax ?? null })}
@@ -214,8 +229,23 @@
     align-items: center;
     justify-content: center;
   }
-  .token.grab {
+  .token.grab,
+  .lamp.grab {
     cursor: grab;
+  }
+  .lamp {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle, #fff 0 8%, var(--lc) 18%, transparent 42%);
+  }
+  .lamp.hidden-token {
+    background: radial-gradient(circle, transparent 0 16%, var(--lc) 18% 22%, transparent 24%);
+    opacity: 0.8;
+  }
+  .lamp.selected {
+    z-index: 2;
+    outline: 2px dashed #ffd36b;
+    outline-offset: -15%;
   }
   .token img {
     width: 100%;

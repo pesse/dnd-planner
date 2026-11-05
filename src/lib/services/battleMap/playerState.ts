@@ -8,7 +8,7 @@ import { layerOf, levelName, placedImages, resolveLevel, type PlacedImage } from
  * `movable`: Spieler dürfen nur Charaktere ziehen. Notizen und Encounter bleiben bei der SL.
  * Von den TP erfahren die Spieler nur, ob jemand blutig oder besiegt ist, von einer Falle nur, dass sie entschärft ist.
  */
-export type PlayerToken = Omit<Token, 'hidden' | 'ref' | 'kind' | 'art' | 'note' | 'encounter' | 'hp' | 'hpMax' | 'initiative' | 'trapState' | 'trapTier' | 'level'> & {
+export type PlayerToken = Omit<Token, 'hidden' | 'ref' | 'art' | 'note' | 'encounter' | 'hp' | 'hpMax' | 'initiative' | 'trapState' | 'trapTier' | 'level'> & {
   imageUrl: string;
   movable: boolean;
   down: boolean;
@@ -58,6 +58,7 @@ export function toPlayerState(map: BattleMap, images: PlayerImages): PlayerState
         x,
         y,
         size,
+        kind,
         color,
         conditions,
         effects,
