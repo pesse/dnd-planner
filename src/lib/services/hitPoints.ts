@@ -72,7 +72,7 @@ export async function ownedGrantFeatures(c: OwnedLinks): Promise<OwnedGrantFeatu
   const links = (c.features ?? []).filter((f) => !f.choice?.trim());
   const originKey = c.backgroundRef?.sourceKey ? (await getBackgroundByKey(c.backgroundRef.sourceKey))?.featKey : '';
   // Älterer Bestand führt das Herkunftstalent zusätzlich als Link — doppelt zählte es zweimal.
-  if (originKey && !links.some((f) => f.sourceKey === originKey)) links.push({ sourceKey: originKey, name: '', choice: '', choiceDe: '', choiceId: '', desc: '' });
+  if (originKey && !links.some((f) => f.sourceKey === originKey && !f.grantedBy)) links.push({ sourceKey: originKey, name: '', choice: '', choiceDe: '', choiceId: '', desc: '' });
   const featLinks = await resolveFeatLinks(links);
   const owned = [
     ...groups.flatMap((g) => g.features.map((f) => ({ f, level: g.level ?? charLevel }))),

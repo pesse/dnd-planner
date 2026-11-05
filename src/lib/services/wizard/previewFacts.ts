@@ -32,7 +32,7 @@ async function feats(c: Character): Promise<Fact[]> {
   ]);
   return instances.map((i) => ({
     kind: 'feat',
-    prefix: i.featureKey === bg?.featKey ? 'Herkunftstalent: ' : '',
+    prefix: i.featureKey === bg?.featKey && !i.grantedBy ? 'Herkunftstalent: ' : '',
     feat: i.entry,
   }));
 }

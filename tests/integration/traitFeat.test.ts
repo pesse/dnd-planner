@@ -12,6 +12,8 @@ import { featLinks, wizardGrantInput } from '../../src/lib/services/wizard/casti
 import { collectGrants } from '../../src/lib/services/proficiencyGrants';
 import { featureChoiceGrantSchema } from '../../src/lib/schemas/featureChoice';
 import { featInstances, grantedInstanceId } from '../../src/lib/services/declaration/featInstances';
+import { previewFacts } from '../../src/lib/services/wizard/previewFacts';
+import { characterSchema } from '../../src/lib/schemas/characterSchema';
 
 const HUMAN_SAGE = {
   species: { sourceKey: 'srd-2024_human', name: 'Mensch' },
@@ -105,5 +107,15 @@ describe('Talentwahl aus einem Speziesmerkmal', () => {
   it('stellt die Fertigkeitswahl von Begabt im Übungsschritt', async () => {
     const grants = await collectGrants(wizardGrantInput(draft));
     expect(grants.choices.find((c) => c.source.sourceKey === SKILLED)?.choose).toBe(3);
+  });
+
+  it('nennt nur das Talent des Hintergrunds „Herkunftstalent", nicht sein Duplikat aus Vielseitig', async () => {
+    const c = characterSchema.parse({
+      name: 'Prüfling Duplikat',
+      backgroundRef: { sourceKey: 'phb-2024_noble', name: 'Adliger' },
+      features: featLinks({ ...draft, fightingStyles: [], traitFeats: { [VERSATILE]: [SKILLED] } } as typeof draft),
+    });
+    const talents = (await previewFacts(c)).find((g) => g.heading === 'Talente')?.facts ?? [];
+    expect(talents.map((f) => ('prefix' in f ? f.prefix : ''))).toEqual(['Herkunftstalent: ', '']);
   });
 });
