@@ -13,9 +13,7 @@
   import { translateBackground } from '$lib/services/aiActions/translateAction';
   import type { BackgroundTranslation } from '$lib/schemas/translation';
   import { createLibraryCardEditor } from '$lib/editor/libraryCard';
-  import { navigateTo } from '$lib/services/navigation';
   import { invalidateBackgroundsCache } from '$lib/backgroundsLibrary';
-  import type { FeatEntry } from '$lib/featsLibrary';
 
   const ed = createLibraryCardEditor<Background>({
     type: 'background',
@@ -27,15 +25,6 @@
   });
 
   let draft = $derived(ed.draft);
-
-  async function openFeatPage(feat: FeatEntry) {
-    if (!feat.path) return;
-    await navigateTo({
-      name: feat.path.split('/').pop()!.replace('.json', ''),
-      path: feat.path,
-      type: 'feat',
-    });
-  }
 
   let showTranslate = $state(false);
 
@@ -79,7 +68,7 @@
   >
     {#snippet karte()}
       <EntryArtStage kind="background" entryKey={draft!.key ?? ''}>
-        <BackgroundCardView background={draft!} onOpenFeat={openFeatPage} />
+        <BackgroundCardView background={draft!} />
       </EntryArtStage>
     {/snippet}
 

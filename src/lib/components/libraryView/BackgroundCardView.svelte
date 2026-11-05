@@ -6,12 +6,12 @@
   import { getFeats, featDisplayName, type FeatEntry } from '$lib/featsLibrary';
   import { abilityKeyOf, ABILITY_LABEL } from '$lib/schemas/abilities';
   import { skillLabelDe } from '$lib/services/proficiencyGrants';
+  import { navigateTo } from '$lib/services/navigation';
+  import { featEntry } from '$lib/services/vaultLinks';
+  import { createHoverTip } from '$lib/utils/hoverTip.svelte';
+  import FeatTooltip from '../FeatTooltip.svelte';
 
-  let { background, onOpenFeat }: {
-    background: Background;
-    /** Ohne Handler steht das Talent als Text da. */
-    onOpenFeat?: (feat: FeatEntry) => void;
-  } = $props();
+  let { background }: { background: Background } = $props();
 
   const benefitName = (b: Benefit): string => b.nameDe || b.name;
   const benefitDesc = (b: Benefit): string => b.descDe || b.desc;
@@ -43,6 +43,12 @@
   const linkedFeat = $derived(
     background.featKey ? (featIndex.find((f) => f.sourceKey === background.featKey) ?? null) : null,
   );
+  const featTip = createHoverTip<FeatEntry>();
+
+  function openFeat(feat: FeatEntry) {
+    featTip.hide();
+    if (feat.path) void navigateTo(featEntry({ path: feat.path }));
+  }
 </script>
 
 <LibraryCardFrame accent="var(--teal)" name={background.name} nameDe={background.nameDe}>
@@ -63,10 +69,10 @@
   {#if background.featKey}
     <div class="feat-link-row">
       <span class="feat-link-label">Herkunftstalent</span>
-      {#if linkedFeat && onOpenFeat}
-        <button class="feat-link" onclick={() => onOpenFeat(linkedFeat)}>{featDisplayName(linkedFeat)}</button>
-      {:else if linkedFeat}
-        <span>{featDisplayName(linkedFeat)}</span>
+      {#if linkedFeat}
+        <button type="button" class="feat-link" onclick={() => openFeat(linkedFeat)}
+          onmouseenter={(e) => featTip.show(e, linkedFeat)} onmousemove={featTip.move} onmouseleave={featTip.hide}
+        >{featDisplayName(linkedFeat)}</button>
       {:else}
         <span class="feat-missing" title={background.featKey}>⚠ nicht in der Bibliothek</span>
       {/if}
@@ -94,6 +100,8 @@
     <p class="empty">Keine Vorteile.</p>
   {/if}
 </LibraryCardFrame>
+
+<FeatTooltip feat={featTip.data} x={featTip.x} y={featTip.y} />
 
 <style>
   .meta { font-size: 0.8rem; color: color-mix(in srgb, var(--teal) 70%, var(--ink)); margin-top: 0.2rem; }

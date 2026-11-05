@@ -6,6 +6,7 @@
   import type { Character } from '$lib/schemas/characterSchema';
   import type { Change } from '$lib/schemas/levelUp';
   import { navigateTo } from '$lib/services/navigation';
+  import { featEntry } from '$lib/services/vaultLinks';
   import { confirmNavigation } from '$lib/stores/navigationGuard';
   import {
     getFeats, searchFeats, featDisplayName, featDesc, featPrereq, matchFeatEntry,
@@ -110,7 +111,7 @@
 
   async function openFeatPage(entry: FeatEntry) {
     if (!entry.path) return;
-    await navigateTo({ name: entry.path.split('/').pop()!.replace('.json', ''), path: entry.path, type: 'feat' });
+    await navigateTo(featEntry({ path: entry.path }));
   }
 
   /** Der Dialog öffnet den Entwurf im Editor, verlässt also den Charakter — Guard davor. */

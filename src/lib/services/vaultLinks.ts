@@ -69,6 +69,10 @@ export function itemEntry(item: { name: string; path: string }): FileEntry {
   return { name, path: item.path, type: 'item' };
 }
 
+export function featEntry(feat: { path: string }): FileEntry {
+  return { name: feat.path.split('/').pop()!.replace('.json', ''), path: feat.path, type: 'feat' };
+}
+
 export async function openItemPage(item: { name: string; path: string }): Promise<void> {
   await navigateTo(itemEntry(item));
 }
