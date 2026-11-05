@@ -17,6 +17,8 @@ import { validateRiderSpells } from '../levelUp/spells';
 import { addExtra, cloneSpellcasting, pruneSpellcasting } from '../spellcasting/write';
 import { riderGrantChanges } from '../levelUp/changes';
 import { applyChanges } from '../applyChanges';
+import { checkSources, skillCheckEffects } from '../abilityChecks';
+import { ownedGrantFeatures } from '../hitPoints';
 import { spellAccessNoteLines } from '../spellcasting/access';
 import { declaredGrantChanges } from '../declaration/grants';
 import { abilityIncreasesOf, cappedScore } from '../declaration/abilityIncrease';
@@ -101,11 +103,15 @@ async function applyProficiencies(c: Character, w: CharacterWizard, answerOf: An
   );
 }
 
-function applySkillValues(c: Character, scores: AbilityScores): void {
+/** Braucht Ledger und Talent-Links: deklarierte Zuschläge (Thaumaturg auf Religion) hängen an ihnen. */
+async function applySkillValues(c: Character, scores: AbilityScores): Promise<void> {
+  const checks = checkSources(await ownedGrantFeatures(c));
+  const pb = effectiveProficiencyBonus(c);
   for (const def of SKILL_DEFS) {
     const row = c.skills[def.key];
     const attrMod = mod(scores[def.attr]);
-    row.value = row.prof ? attrMod + effectiveProficiencyBonus(c) * (row.exp ? 2 : 1) : attrMod;
+    const bonus = skillCheckEffects(def, checks, { mods: c.mods, profBonus: pb }).rows.reduce((n, r) => n + r.value, 0);
+    row.value = (row.prof ? attrMod + pb * (row.exp ? 2 : 1) : attrMod) + bonus;
   }
 }
 
@@ -190,13 +196,13 @@ export async function buildWizardCharacter(w: CharacterWizard): Promise<Characte
   applyScores(c, scores);
   applyHitPoints(c, prog);
   await applyProficiencies(c, w, answerOf);
-  applySkillValues(c, scores);
   applyFeatureLedger(c, w);
   await applySpellPicks(c, w);
   if (w.presentation) c.presentation = w.presentation;
   c.masteries = [...w.masteries]; // Waffenmeisterschaft: im Wizard gewählt, nichts zu rechnen
   c.optionPicks = w.optionPicks.map((p) => ({ ...p }));
   await applyFeatLinks(c, w);
+  await applySkillValues(c, scores);
   applyFeatureText(c, w, answerOf);
   await applyEquipment(c, w);
 
