@@ -25,6 +25,21 @@ node scripts/srd/extract-rules.mjs [--dry-run]
 - Danach `npx vite-node -c vitest.config.ts scripts/link-rule-refs.mts --apply`, da der Lauf die Verweise in `rules/` überschreibt.
 - Diagnose erwartet: `155/155 Regelbegriffe`.
 
+## Stufe 1b — Regelabschnitte zum Nachschlagen (Vault-Bibliothek `rules/`)
+
+```bash
+node scripts/srd/extract-sections.mjs [--dry-run]
+# → vault/rules/<slug>.json   (44 Einträge, category: rule)
+```
+
+- Kapitelabschnitte und Kästen, die kein Glossarbegriff sind (Berittener Kampf,
+  Klassenkombinationen, Komponenten, Legendäre Aktionen …). Die Liste `SECTIONS` paart EN- und
+  DE-Überschrift; `aside: true` holt einen Seitenkasten statt eines Abschnitts.
+- Tabellen, deren Layout sich nicht lesen lässt, stehen von Hand übertragen in `TABLE_FIXES`.
+- PDF-Lesen und Markdown-Rendern teilen sich beide Stufen über `srdPdf.mjs` — eine Änderung
+  dort mit Stufe 1 gegenprüfen (`git diff vault/rules`).
+- Danach wie in Stufe 1 die Linker laufen lassen. Diagnose erwartet: `44/44 Abschnitte`.
+
 ## Stufe 2 — Regel-Prosa-Chunks (Volltextsuche)
 
 ```bash
