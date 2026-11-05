@@ -26,7 +26,7 @@ const BACKGROUNDS = {
   entertainer: 'Entertainer — bright performer\'s costume; juggling, acrobatics, fire-breathing, music or dancing — only ONE of these at a time. ALWAYS shown mid-performance before an audience, lively and joyful, whatever the assigned moment.',
   farmer: 'Farmer — homespun clothes, straw hat, farm tools, animals or crops.',
   guard: 'Guard — town-guard tabard, helmet, spear or halberd; keeping watch and order. MARTIAL: may hold back a threat, stop an intruder or defend a gate.',
-  guide: 'Guide — outdoor gear, rope, a smooth perfectly straight walking pole (no knots, no bends); leading others, the guide always ahead and helping the travellers, through wild terrain; a hand up is a firm wrist grip, each hand closed around the other's wrist.',
+  guide: 'Guide — outdoor gear, rope, a smooth perfectly straight walking pole (no knots, no bends); leading others, the guide always ahead through wild terrain, turned back toward the travellers; helping means handing down a rope whose other end a traveller grips with both hands, the two never touch hands.',
   hermit: 'Hermit — patched rough robe, a lantern or staff; solitary life of contemplation far from any town (never in a city or village; if the assigned setting is urban, use wilderness instead).',
   merchant: 'Merchant — fine practical coat, ledger (no writing), coin purse, goods and crates.',
   noble: 'Noble — rich formal garments in deep colours with gold trim, signet ring; commanding presence.',
