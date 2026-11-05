@@ -49,6 +49,16 @@ export async function rebuildFromTemplate(slug: string, update: TemplateUpdate, 
   await buildCampaign(target, update.template, update.progress.completed, uids);
   if (!replace) return target;
   await invoke('delete_path', { path: `${CAMPAIGNS_PATH}/${slug}` });
-  await invoke('rename_file', { oldPath: `${CAMPAIGNS_PATH}/${target}`, newPath: `${CAMPAIGNS_PATH}/${slug}` });
+  await moveDir(`${CAMPAIGNS_PATH}/${target}`, `${CAMPAIGNS_PATH}/${slug}`);
   return slug;
+}
+
+/** Windows verweigert das Umbenennen frisch kopierter Ordner, solange Virenscanner oder Indexer darin lesen. */
+async function moveDir(from: string, to: string): Promise<void> {
+  try {
+    await invoke('rename_file', { oldPath: from, newPath: to });
+  } catch {
+    await invoke('copy_dir', { from, to });
+    await invoke('delete_path', { path: from }).catch(() => {});
+  }
 }

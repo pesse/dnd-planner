@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const files = new Map<string, string>();
+let renameFails = false;
 
 const under = (dir: string) => [...files.keys()].filter((p) => p.startsWith(`${dir}/`));
 
@@ -32,6 +33,7 @@ vi.mock('@tauri-apps/api/core', () => ({
           .map((d) => under(d).sort().map((f) => `${f.slice(d.length)}=${files.get(f)}`).join('|'))
           .join('#');
       case 'rename_file':
+        if (renameFails) throw new Error('Zugriff verweigert (os error 5)');
         for (const q of under(args.oldPath)) {
           files.set(args.newPath + q.slice(args.oldPath.length), files.get(q)!);
           files.delete(q);
@@ -70,6 +72,7 @@ const T = './vault/templates';
 
 beforeEach(() => {
   files.clear();
+  renameFails = false;
   files.set(`${T}/campaigns/hfc/template.json`, JSON.stringify({ name: 'Hellfire', characters: ['hfc-will'] }));
   files.set(`${T}/campaigns/hfc/campaign.md`, '---\ncharacters: []\n---\n# Hellfire\n');
   files.set(`${T}/campaigns/hfc/maps/karte.json`, '{}');
@@ -272,6 +275,16 @@ describe('Geänderte Vorlage', () => {
     expect(files.has(`./vault/campaigns/${slug}/sessions/eins.md`)).toBe(false);
     expect(await readProgress(slug)).toMatchObject({ completed: ['eins'] });
     expect(await pendingTemplateUpdate(slug)).toBeNull();
+    expect(under('./vault/campaigns').some((p) => p.startsWith(`./vault/campaigns/${slug}-`))).toBe(false);
+  });
+
+  it('überschreibt auch, wenn Windows das Umbenennen verweigert', async () => {
+    const slug = await created();
+    files.set(`${T}/campaigns/hfc/maps/karte.json`, '{"neu":true}');
+    renameFails = true;
+
+    expect(await rebuildFromTemplate(slug, (await pendingTemplateUpdate(slug))!, true)).toBe(slug);
+    expect(files.get(`./vault/campaigns/${slug}/maps/karte.json`)).toBe('{"neu":true}');
     expect(under('./vault/campaigns').some((p) => p.startsWith(`./vault/campaigns/${slug}-`))).toBe(false);
   });
 
