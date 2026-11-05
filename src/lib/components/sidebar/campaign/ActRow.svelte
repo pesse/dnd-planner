@@ -1,6 +1,6 @@
 <script lang="ts">
   import { activeFile } from '../../../stores/campaign';
-  import NewEntryRow from './NewEntryRow.svelte';
+  import { askName } from '../../../stores/nameDialog';
   import { actKeyOf, encounterPathOf, type CampaignSection, type CampaignTreeState } from './campaignTreeState.svelte';
   import type { Campaign } from '../../../types';
   import '../tree.css';
@@ -17,6 +17,11 @@
 
   const actEncKey = $derived(actKeyOf(campaign.path, filename));
   const actEncs = $derived(tree.encounterFiles[actEncKey] ?? []);
+
+  async function addEncounter() {
+    const name = await askName({ title: `Neuer Encounter in „${tree.fileTitles[filePath] ?? filename}“` });
+    if (name) await tree.createActEncounter(campaign.path, filename, name);
+  }
 </script>
 
 <div class="act-row">
@@ -43,7 +48,7 @@
   <button
     class="add-btn"
     title="Encounter hinzufügen"
-    onclick={() => { tree.showNewActEncounterInput[actEncKey] = true; tree.newActEncounterInput[actEncKey] = ''; }}
+    onclick={addEncounter}
   >+</button>
 </div>
 
@@ -59,16 +64,6 @@
     ⚡ {encLabel}
   </button>
 {/each}
-
-{#if tree.showNewActEncounterInput[actEncKey]}
-  <NewEntryRow
-    bind:value={tree.newActEncounterInput[actEncKey]}
-    placeholder="Encounter…"
-    rowClass="act-enc-input"
-    onkeydown={(e) => { tree.createActEncounter(campaign.path, filename, e); tree.cancelNewActEncounter(actEncKey, e); }}
-    onconfirm={(e) => tree.createActEncounter(campaign.path, filename, e)}
-  />
-{/if}
 
 <style>
   .act-row {

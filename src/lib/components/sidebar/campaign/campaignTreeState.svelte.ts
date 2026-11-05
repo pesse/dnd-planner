@@ -23,18 +23,18 @@ interface EntryInfo { name: string; is_dir: boolean; }
 
 export const VAULT_BASE = './vault/campaigns';
 
-export type CampaignSection = { label: string; subdir: string; type: FileEntry['type'] };
+export type CampaignSection = { label: string; newLabel: string; subdir: string; type: FileEntry['type'] };
 
 export const SECTIONS: CampaignSection[] = [
-  { label: 'Akte', subdir: 'acts', type: 'act' },
-  { label: 'Encounter', subdir: 'encounters', type: 'encounter' },
-  { label: 'Sessions', subdir: 'sessions', type: 'session' },
-  { label: 'NPCs', subdir: 'npcs', type: 'npc' },
-  { label: 'Welt', subdir: 'world', type: 'world' },
-  { label: 'Notizen', subdir: 'notes', type: 'notes' },
-  { label: 'Handouts', subdir: 'handouts', type: 'handout' },
-  { label: 'Karten', subdir: 'maps', type: 'map' },
-  { label: 'Kartenvorlagen', subdir: MAP_TEMPLATES_SUBDIR, type: 'mapTemplate' },
+  { label: 'Akte', newLabel: 'Neuer Akt', subdir: 'acts', type: 'act' },
+  { label: 'Encounter', newLabel: 'Neuer Encounter', subdir: 'encounters', type: 'encounter' },
+  { label: 'Sessions', newLabel: 'Neue Session', subdir: 'sessions', type: 'session' },
+  { label: 'NPCs', newLabel: 'Neuer NPC', subdir: 'npcs', type: 'npc' },
+  { label: 'Welt', newLabel: 'Neuer Welt-Eintrag', subdir: 'world', type: 'world' },
+  { label: 'Notizen', newLabel: 'Neue Notiz', subdir: 'notes', type: 'notes' },
+  { label: 'Handouts', newLabel: 'Neues Handout', subdir: 'handouts', type: 'handout' },
+  { label: 'Karten', newLabel: 'Neue Karte', subdir: 'maps', type: 'map' },
+  { label: 'Kartenvorlagen', newLabel: 'Neue Kartenvorlage', subdir: MAP_TEMPLATES_SUBDIR, type: 'mapTemplate' },
 ];
 
 /** Sektionen, deren Einträge JSON-Dateien mit einem `name` sind. */
@@ -63,13 +63,9 @@ export class CampaignTreeState {
   expanded: Record<string, boolean> = $state({});
   sectionFiles: Record<string, string[]> = $state({});
   fileTitles: Record<string, string> = $state({});
-  newFileInput: Record<string, string> = $state({});
-  showNewFileInput: Record<string, boolean> = $state({});
 
   encounterFiles: Record<string, string[]> = $state({});
   encounterNames: Record<string, string> = $state({});
-  showNewActEncounterInput: Record<string, boolean> = $state({});
-  newActEncounterInput: Record<string, string> = $state({});
 
   async loadCampaigns(): Promise<void> {
     try {
@@ -152,10 +148,8 @@ export class CampaignTreeState {
     await navigateTo({ name: filename.replace('.json', ''), path, type: 'encounter' });
   }
 
-  async createActEncounter(campaignPath: string, actDirName: string, e: KeyboardEvent | MouseEvent): Promise<void> {
-    if (e instanceof KeyboardEvent && e.key !== 'Enter') return;
-    const key = actKeyOf(campaignPath, actDirName);
-    const raw = this.newActEncounterInput[key]?.trim();
+  async createActEncounter(campaignPath: string, actDirName: string, name: string): Promise<void> {
+    const raw = name.trim();
     if (!raw) return;
 
     const slug = slugKeepUmlauts(raw);
@@ -163,18 +157,12 @@ export class CampaignTreeState {
     const path = encounterPathOf(campaignPath, actDirName, filename);
     try {
       await invoke('write_file_content', { path, content: newEncounterJson(raw.charAt(0).toUpperCase() + raw.slice(1)) });
-      this.showNewActEncounterInput[key] = false;
-      this.newActEncounterInput[key] = '';
       await this.loadEncountersForAct(campaignPath, actDirName);
       await this.openEncounter(campaignPath, actDirName, filename);
       loadEncounterContext(campaignPath);
     } catch (err) {
       console.error('Encounter konnte nicht erstellt werden:', err);
     }
-  }
-
-  cancelNewActEncounter(actKey: string, e: KeyboardEvent): void {
-    if (e.key === 'Escape') { this.showNewActEncounterInput[actKey] = false; }
   }
 
   async loadSection(campaignPath: string, section: CampaignSection): Promise<void> {
@@ -278,15 +266,8 @@ export class CampaignTreeState {
     await navigateTo({ name: 'campaign', path: fullPath, type: 'campaign' }, { guard: false });
   }
 
-  startNewFile(key: string): void {
-    this.showNewFileInput[key] = true;
-    this.newFileInput[key] = '';
-  }
-
-  async createFile(campaignPath: string, section: CampaignSection, e: KeyboardEvent | MouseEvent): Promise<void> {
-    const key = sectionKeyOf(campaignPath, section);
-    if (e instanceof KeyboardEvent && e.key !== 'Enter') return;
-    const raw = this.newFileInput[key]?.trim();
+  async createFile(campaignPath: string, section: CampaignSection, name: string): Promise<void> {
+    const raw = name.trim();
     if (!raw) return;
 
     const slug = slugKeepUmlauts(raw);
@@ -309,8 +290,6 @@ export class CampaignTreeState {
         : section.type === 'handout' ? JSON.stringify(handoutSchema.parse({ name: title }), null, 2)
         : `# ${title}\n\n` + (DOCUMENT_TEMPLATES[section.type] ?? '');
       await invoke('write_file_content', { path: fullPath, content: sectionTemplate });
-      this.showNewFileInput[key] = false;
-      this.newFileInput[key] = '';
       await this.loadSection(campaignPath, section);
       await this.openFile(campaignPath, section, entryName);
       if (section.type === 'act') loadActSummaries(campaignPath);
@@ -318,10 +297,6 @@ export class CampaignTreeState {
     } catch (err) {
       console.error('Datei konnte nicht erstellt werden:', err);
     }
-  }
-
-  cancelNewFile(key: string, e: KeyboardEvent): void {
-    if (e.key === 'Escape') { this.showNewFileInput[key] = false; this.newFileInput[key] = ''; }
   }
 }
 

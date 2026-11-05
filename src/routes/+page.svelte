@@ -19,6 +19,7 @@
   import UnsavedChangesDialog from '$lib/components/UnsavedChangesDialog.svelte';
   import SaveAsDialog from '$lib/components/SaveAsDialog.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+  import NameDialog from '$lib/components/NameDialog.svelte';
   import EntryPeekHost from '$lib/components/EntryPeekHost.svelte';
   import ImageMarkCapture from '$lib/components/imageMarks/ImageMarkCapture.svelte';
   import ImageMarkOverview from '$lib/components/imageMarks/ImageMarkOverview.svelte';
@@ -239,6 +240,7 @@
   <ImageMarkOverview onclose={() => imageMarksOpen.set(false)} />
 {/if}
 <ConfirmDialog />
+<NameDialog />
 <ImageMarkCapture />
 {#if activeContextAction}
   <ContextActionModal action={activeContextAction} onclose={() => (activeContextAction = null)} />

@@ -71,21 +71,8 @@
             {/if}
           </button>
         {/each}
-      {:else if !state.showNewInput}
+      {:else}
         <span class="empty">Keine Charaktere</span>
-      {/if}
-
-      {#if state.showNewInput}
-        <div class="new-file-row">
-          <input
-            class="new-file-input"
-            bind:value={state.newInput}
-            placeholder="Name…"
-            onkeydown={(e) => { state.createCharacter(e); state.cancelNewCharacter(e); }}
-            autofocus
-          />
-          <button class="confirm-btn" onclick={(e) => state.createCharacter(e)}>✓</button>
-        </div>
       {/if}
     </div>
   {/if}

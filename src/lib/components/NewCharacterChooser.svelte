@@ -1,6 +1,7 @@
 <script lang="ts">
   /** Der Einstieg zu „Neuer Charakter": selbst erstellen, aus einer Vorlage oder aus D&D Beyond. */
   import Modal from './ui/Modal.svelte';
+  import CharacterTile from './character/CharacterTile.svelte';
   import type { CharacterTemplateRef } from '../services/templates/templates';
   import { listOfferedCharacterTemplates } from '../services/templates/campaignCharacterTemplates';
 
@@ -83,15 +84,14 @@
       <div class="grid">
         {#each list as t (t.dir)}
           {@const at = atLevel(t)}
-          <button class="template" disabled={!!busy || !at} title={at ? '' : `Diese Vorlage gibt es nicht auf Stufe ${level}`} onclick={() => pick(t)}>
-            {#if t.portraitSrc}
-              <img src={t.portraitSrc} alt="" />
-            {:else}
-              <span class="placeholder">{t.name.slice(0, 1)}</span>
-            {/if}
-            <span class="name">{busy === t.dir ? 'Wird angelegt…' : t.name}</span>
-            <span class="meta">{[t.species, at?.classLevel ?? t.classLevel].filter(Boolean).join(' · ')}</span>
-          </button>
+          <CharacterTile
+            name={busy === t.dir ? 'Wird angelegt…' : t.name}
+            meta={[t.species, at?.classLevel ?? t.classLevel].filter(Boolean).join(' · ')}
+            portrait={t.portraitSrc}
+            disabled={!!busy || !at}
+            title={at ? '' : `Diese Vorlage gibt es nicht auf Stufe ${level}`}
+            onclick={() => pick(t)}
+          />
         {/each}
       </div>
     {/each}
@@ -105,8 +105,7 @@
     flex-direction: column;
     gap: 0.6rem;
   }
-  .option,
-  .template {
+  .option {
     display: flex;
     flex-direction: column;
     gap: 0.2rem;
@@ -118,12 +117,10 @@
     color: var(--ink);
     cursor: pointer;
   }
-  .option:hover:not(:disabled),
-  .template:hover:not(:disabled) {
+  .option:hover:not(:disabled) {
     border-color: var(--red);
   }
-  .option:disabled,
-  .template:disabled {
+  .option:disabled {
     cursor: default;
     opacity: 0.55;
   }
@@ -131,8 +128,7 @@
     font-family: var(--font-display);
     font-size: 1.05rem;
   }
-  .sub,
-  .meta {
+  .sub {
     font-size: 0.8rem;
     color: var(--ink-muted);
   }
@@ -172,28 +168,6 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 0.6rem;
-  }
-  .template {
-    align-items: center;
-    text-align: center;
-    padding: 0.7rem;
-  }
-  .template img,
-  .placeholder {
-    width: 84px;
-    height: 84px;
-    border-radius: 50%;
-    object-fit: cover;
-  }
-  .placeholder {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--bg-deep);
-    font-size: 2rem;
-  }
-  .name {
-    font-weight: 600;
   }
   .error {
     margin: 0.8rem 0 0;

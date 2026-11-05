@@ -4,7 +4,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { navigateTo } from '../../services/navigation';
 import { invalidateVault } from '../../stores/campaign';
-import { createBlankCharacter, createWizardCharacter } from '../../services/characterCreate';
+import { createWizardCharacter } from '../../services/characterCreate';
 import {
   CHARACTERS_PATH,
   characterLabel,
@@ -68,8 +68,6 @@ export class CharacterSectionState {
   expanded = $state(false);
   entries: EntryInfo[] = $state([]);
   meta: Record<string, { name: string; classes: CharClass[] }> = $state({});
-  showNewInput = $state(false);
-  newInput = $state('');
   showChooser = $state(false);
   showWizard = $state(false);
   /** Der nächste Wizard würfelt sofort alles. */
@@ -121,18 +119,6 @@ export class CharacterSectionState {
     });
   }
 
-  async createCharacter(e: KeyboardEvent | MouseEvent): Promise<void> {
-    if (e instanceof KeyboardEvent && e.key !== 'Enter') return;
-    const uid = await createBlankCharacter(this.newInput);
-    if (!uid) return;
-    this.showNewInput = false;
-    this.newInput = '';
-    await this.openCreated(uid);
-  }
-
-  cancelNewCharacter(e: KeyboardEvent): void {
-    if (e.key === 'Escape') { this.showNewInput = false; this.newInput = ''; }
-  }
 
   async createFromWizard(character: Character, details = ''): Promise<void> {
     const uid = await createWizardCharacter(character, details);

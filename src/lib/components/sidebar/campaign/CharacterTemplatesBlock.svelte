@@ -3,12 +3,12 @@
   import { activeFile } from '../../../stores/campaign';
   import { navigateTo } from '../../../services/navigation';
   import { confirmAction } from '../../../stores/confirmDialog';
-  import { listCharacterRefs, type CharacterRef } from '../../../services/characterDirectory';
   import type { CharacterTemplateRef } from '../../../services/templates/templates';
   import {
     characterTemplatesDir, deleteCharacterTemplate, listCampaignCharacterTemplates, saveCharacterAsTemplate, templateLevelPath,
   } from '../../../services/templates/campaignCharacterTemplates';
   import SectionHeader from '../SectionHeader.svelte';
+  import NewCharacterTemplateChooser from '../../NewCharacterTemplateChooser.svelte';
   import type { Campaign } from '../../../types';
   import '../tree.css';
 
@@ -16,7 +16,7 @@
 
   let expanded = $state(false);
   let templates = $state<CharacterTemplateRef[]>([]);
-  let candidates = $state<CharacterRef[] | null>(null);
+  let choosing = $state(false);
 
   async function load() {
     templates = await listCampaignCharacterTemplates(campaign.path);
@@ -27,18 +27,14 @@
     if (expanded) await load();
   }
 
-  async function startAdd() {
-    expanded = true;
-    await load();
-    candidates = candidates ? null : await listCharacterRefs();
-  }
 
   const open = (t: CharacterTemplateRef, level: number) =>
     navigateTo({ name: `${t.name} (Vorlage)`, path: templateLevelPath(t, level), type: 'character', dirPath: t.dir });
 
-  async function add(c: CharacterRef) {
-    candidates = null;
-    const id = await saveCharacterAsTemplate(campaign.path, c.uid);
+  async function add(uid: string) {
+    const id = await saveCharacterAsTemplate(campaign.path, uid);
+    choosing = false;
+    expanded = true;
     await load();
     const created = templates.find((t) => t.dir === `${characterTemplatesDir(campaign.path)}/${id}`);
     if (created) await open(created, 1);
@@ -60,20 +56,12 @@
 <div class="section">
   <SectionHeader label="Charaktervorlagen" {expanded} ontoggle={toggle}>
     {#snippet actions()}
-      <button class="add-btn" title="Einen Charakter als Vorlage speichern" onclick={startAdd}>+</button>
+      <button class="add-btn" title="Einen Charakter als Vorlage speichern" onclick={() => (choosing = true)}>+</button>
     {/snippet}
   </SectionHeader>
 
   {#if expanded}
     <div class="file-list">
-      {#if candidates}
-        <p class="hint">Welcher Charakter wird zur Vorlage?</p>
-        {#each candidates as c (c.uid)}
-          <button class="file-entry pick" onclick={() => add(c)}>{c.name || 'Unbenannt'}{c.classLevel ? ` · ${c.classLevel}` : ''}</button>
-        {:else}
-          <span class="empty">Noch keine Charaktere</span>
-        {/each}
-      {/if}
       {#each templates as t (t.dir)}
         {#each t.levels as l (l.level)}
           <div class="row">
@@ -91,11 +79,15 @@
           </div>
         {/each}
       {:else}
-        {#if !candidates}<span class="empty">Keine Vorlagen</span>{/if}
+        <span class="empty">Keine Vorlagen</span>
       {/each}
     </div>
   {/if}
 </div>
+
+{#if choosing}
+  <NewCharacterTemplateChooser campaignName={campaign.name} onpick={add} oncancel={() => (choosing = false)} />
+{/if}
 
 <style>
   .section {
@@ -123,13 +115,5 @@
   }
   .del:hover {
     color: var(--danger);
-  }
-  .hint {
-    margin: 0.2rem 1rem 0.1rem 2.5rem;
-    font-size: 0.75rem;
-    color: var(--ink-muted);
-  }
-  .pick {
-    font-style: italic;
   }
 </style>
