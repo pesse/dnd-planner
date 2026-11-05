@@ -52,6 +52,20 @@ describe('Gefährte im Formular', () => {
   });
 });
 
+// D&D-Beyond-Importe und Vorlagen tragen das leere Objekt — fiele es beim Rundlauf weg,
+// zeigte schon das Öffnen des Bearbeiten-Tabs „ungespeicherte Änderungen".
+describe('Kampfwert-Anpassungen im Formular', () => {
+  const empty = { ac: [], hpMax: [], initiative: [], speed: [], proficiencyBonus: [] };
+
+  it('trägt ein leeres, aber vorhandenes Objekt unverändert zurück', () => {
+    expect(patchOf({ name: 'Testfigur', combatAdjustments: empty }).combatAdjustments).toEqual(empty);
+  });
+
+  it('legt ohne Eintrag in einer Datei ohne das Feld keines an', () => {
+    expect(patchOf({ name: 'Testfigur' }).combatAdjustments).toBeUndefined();
+  });
+});
+
 describe('Eigene Figur im Formular', () => {
   it('trägt die Bilddatei zurück und schreibt ohne sie kein Feld', () => {
     expect(patchOf({ name: 'Testfigur', figureFile: 'figure.jpg' }).figureFile).toBe('figure.jpg');

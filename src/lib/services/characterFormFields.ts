@@ -91,6 +91,8 @@ export interface CharacterFormCarry {
   totalWeight: string;
   /** VOR der Ableitung aus `classes` — Grundlage der Altformat-Umstellung. */
   legacyClassLevel: string;
+  /** Leer, aber vorhanden: zurückschreiben statt weglassen, sonst wirkt der Charakter beim Öffnen geändert. */
+  hadCombatAdjustments: boolean;
 }
 
 // `uid` ist Identität, kein Formularfeld — stünde es hier, schriebe jeder Tastendruck
@@ -182,8 +184,8 @@ const copyCombatAdjustments = (a: CombatAdjustments | undefined): CombatAdjustme
   return out;
 };
 
-const combatAdjustmentsForSave = (a: CombatAdjustments): CombatAdjustments | undefined =>
-  COMBAT_STATS.some((stat) => a[stat].length) ? copyCombatAdjustments(a) : undefined;
+const combatAdjustmentsForSave = (a: CombatAdjustments, hadField: boolean): CombatAdjustments | undefined =>
+  hadField || COMBAT_STATS.some((stat) => a[stat].length) ? copyCombatAdjustments(a) : undefined;
 
 export function initialFormFields(character: Character): CharacterFormFields {
   return {
@@ -253,6 +255,7 @@ export function initialFormCarry(character: Character): CharacterFormCarry {
     passivePerception: character.passivePerception,
     totalWeight: character.totalWeight,
     legacyClassLevel: character.classLevel ?? '',
+    hadCombatAdjustments: character.combatAdjustments !== undefined,
   };
 }
 
@@ -297,7 +300,7 @@ export function formDraftPatch(
     passivePerception: carry.passivePerception,
     hitDice: f.hitDice,
     hpDiceTotal: f.hpDiceTotal ?? undefined,
-    combatAdjustments: combatAdjustmentsForSave(f.combatAdjustments),
+    combatAdjustments: combatAdjustmentsForSave(f.combatAdjustments, carry.hadCombatAdjustments),
     saveProfs: { ...f.saveProfs },
     skills: computeSkills(f, effects, checks),
     attacks: f.attacks.filter((a) => a.name.trim() !== '').map((a) => attackForSave(a, ctx)),
