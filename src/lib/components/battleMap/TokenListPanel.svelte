@@ -4,6 +4,7 @@
   import PanelSection from './PanelSection.svelte';
   import EyeIcon from '../ui/EyeIcon.svelte';
   import TokenKindIcon from './TokenKindIcon.svelte';
+  import { levelName } from '../../services/battleMap/levels';
 
   let { editor }: { editor: MapEditor } = $props();
 
@@ -24,7 +25,7 @@
         <button class="eye" title={t.hidden ? 'Für Spieler versteckt — zeigen' : 'Für Spieler sichtbar — verstecken'} onclick={() => editor.toggleHidden(t.id)}>
           <EyeIcon closed={t.hidden} />
         </button>
-        <button class="name" class:muted={t.hidden} onclick={() => (editor.selectedId = t.id)}><TokenKindIcon kind={t.kind} /><span>{t.name}</span></button>
+        <button class="name" class:muted={t.hidden} onclick={() => (editor.selectedId = t.id)}><TokenKindIcon kind={t.kind} /><span>{t.name}</span>{#if map.levels.length}<small class:here={t.level === editor.level}>{levelName(map, t.level)}</small>{/if}</button>
         <button class="del" title="Entfernen" onclick={() => editor.removeToken(t.id)}>✕</button>
       </li>
     {/each}
@@ -76,6 +77,15 @@
     align-items: center;
     gap: 0.4rem;
     text-align: left;
+  }
+  .name small {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    color: var(--ink-muted);
+  }
+  .name small.here {
+    color: var(--ink-soft);
   }
   .name span {
     overflow: hidden;

@@ -53,7 +53,7 @@ export function occupiedCells(tokens: Pick<Token, 'x' | 'y' | 'size'>[]): Set<st
  * Legt die Entwürfe zeilenweise (je `ROW` Felder breit) ab `origin` ab und überspringt
  * Felder, auf denen schon etwas steht.
  */
-export function placeDrafts(drafts: TokenDraft[], origin: Point, taken: Set<string> = new Set()): Token[] {
+export function placeDrafts(drafts: TokenDraft[], origin: Point, taken: Set<string> = new Set(), level = ''): Token[] {
   const ox = Math.floor(origin.x);
   const oy = Math.floor(origin.y);
   const used = new Set(taken);
@@ -68,7 +68,7 @@ export function placeDrafts(drafts: TokenDraft[], origin: Point, taken: Set<stri
     const x = ox + (i % ROW);
     const y = oy + Math.floor(i / ROW);
     for (let dx = 0; dx < n; dx++) for (let dy = 0; dy < n; dy++) used.add(`${x + dx},${y + dy}`);
-    return { id: newUid(), x, y, trapState: 'armed', trapTier: 0, light: null, ...d };
+    return { id: newUid(), x, y, trapState: 'armed', trapTier: 0, light: null, level, ...d };
   });
 }
 

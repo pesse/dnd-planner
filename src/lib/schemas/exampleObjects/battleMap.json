@@ -1,6 +1,54 @@
 {
   "name": "string",
   "image": "string",
+  "baseLevelName": "string",
+  "levels": [
+    {
+      "id": "string",
+      "name": "string",
+      "elevation": -9007199254740991,
+      "image": "string",
+      "offsetX": 0,
+      "offsetY": 0,
+      "fog": {
+        "enabled": true,
+        "ops": [
+          {
+            "shape": "rect",
+            "mode": "reveal",
+            "x": 0,
+            "y": 0,
+            "w": 0,
+            "h": 0
+          },
+          {
+            "shape": "brush",
+            "mode": "reveal",
+            "r": 1,
+            "points": [
+              [
+                0,
+                0
+              ]
+            ]
+          }
+        ]
+      },
+      "lighting": {
+        "darkness": 0,
+        "lights": [
+          {
+            "id": "string",
+            "x": 0,
+            "y": 0,
+            "radius": 4,
+            "color": "#ffb347"
+          }
+        ]
+      }
+    }
+  ],
+  "playerLevel": "string",
   "acts": [
     "string"
   ],
@@ -43,7 +91,8 @@
       "light": {
         "radius": 4,
         "color": "#ffb347"
-      }
+      },
+      "level": "string"
     }
   ],
   "parkedTokens": [
@@ -74,7 +123,8 @@
       "light": {
         "radius": 4,
         "color": "#ffb347"
-      }
+      },
+      "level": "string"
     }
   ],
   "fog": {

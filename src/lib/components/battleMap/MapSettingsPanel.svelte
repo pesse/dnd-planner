@@ -2,21 +2,24 @@
   /** Kartenbild, Raster, Nebel-Pinsel und Licht. */
   import type { MapEditor } from '../../services/battleMap/mapEditor.svelte';
   import PanelSection from './PanelSection.svelte';
+  import MapLevelsSection from './MapLevelsSection.svelte';
+  import { levelName } from '../../services/battleMap/levels';
 
   let { editor }: { editor: MapEditor } = $props();
 
   const map = $derived(editor.map!);
+  const layer = $derived(editor.layer);
 
   function num(e: Event): number {
     return Number((e.currentTarget as HTMLInputElement).value);
   }
 </script>
 
-<PanelSection title="Karte">
-  <button onclick={() => editor.chooseImage()}>{map.image ? 'Bild ersetzen…' : 'Kartenbild wählen…'}</button>
+<PanelSection title={map.levels.length ? `Karte · ${levelName(map, editor.level)}` : 'Karte'}>
+  <button onclick={() => editor.chooseImage()}>{layer.image ? 'Bild ersetzen…' : 'Kartenbild wählen…'}</button>
   <label>
     <span>Nebel aktiv</span>
-    <input type="checkbox" checked={map.fog.enabled} onchange={(e) => { editor.checkpoint(); map.fog.enabled = e.currentTarget.checked; editor.changed(); }} />
+    <input type="checkbox" checked={layer.fog.enabled} onchange={(e) => { editor.checkpoint(); layer.fog.enabled = e.currentTarget.checked; editor.changed(); }} />
   </label>
   {#if editor.tool === 'reveal-brush' || editor.tool === 'cover-brush'}
     <label>
@@ -25,6 +28,8 @@
     </label>
   {/if}
 </PanelSection>
+
+<MapLevelsSection {editor} />
 
 <PanelSection title="Raster" open={false}>
   <label>
@@ -56,9 +61,9 @@
 <PanelSection title="Licht">
   <label>
     <span>Dunkelheit</span>
-    <input type="range" min="0" max="1" step="0.05" value={map.lighting.darkness} onpointerdown={() => editor.checkpoint()} oninput={(e) => { map.lighting.darkness = num(e); editor.changed(); }} />
+    <input type="range" min="0" max="1" step="0.05" value={layer.lighting.darkness} onpointerdown={() => editor.checkpoint()} oninput={(e) => { layer.lighting.darkness = num(e); editor.changed(); }} />
   </label>
-  {#each map.lighting.lights as l, i (l.id)}
+  {#each layer.lighting.lights as l, i (l.id)}
     <div class="light">
       <input type="color" value={l.color} title="Farbe" onchange={(e) => { editor.checkpoint(); l.color = e.currentTarget.value; editor.changed(); }} />
       <input type="range" min="1" max="20" step="0.5" value={l.radius} title="Reichweite {l.radius} Felder" onpointerdown={() => editor.checkpoint()} oninput={(e) => { l.radius = num(e); editor.changed(); }} />

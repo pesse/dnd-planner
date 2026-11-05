@@ -10,6 +10,7 @@
   import EyeIcon from '../ui/EyeIcon.svelte';
   import { textTip } from '../textTip.svelte';
   import type { HpPop } from '../../services/battleMap/hpPops.svelte';
+  import type { PlacedImage } from '../../services/battleMap/playerState';
 
   export interface StageToken {
     id: string;
@@ -32,7 +33,9 @@
 
   let {
     mode,
-    imageUrl,
+    image,
+    underlay = null,
+    frame,
     grid,
     tokens,
     fog,
@@ -42,11 +45,14 @@
     turnId = '',
     pops = [],
     tips,
-    onimagesize,
     overlay,
   }: {
     mode: 'gm' | 'player';
-    imageUrl: string;
+    image: PlacedImage;
+    /** Die Ebene darunter, abgedunkelt — sie scheint durch transparente Stellen von `image`. */
+    underlay?: PlacedImage | null;
+    /** Format der Grundebene; Nebel, Licht und Raster spannen sich darüber. */
+    frame: { w: number; h: number };
     grid: Grid;
     tokens: StageToken[];
     fog: { enabled: boolean; ops: FogOp[] };
@@ -57,22 +63,14 @@
     pops?: HpPop[];
     /** Nur im Spielerfenster: Regeltexte für Zustände, Effekte und `bloodied`. */
     tips?: Record<string, string>;
-    onimagesize?: (w: number, h: number) => void;
     overlay?: Snippet<[{ w: number; h: number }]>;
   } = $props();
 
-  let imgW = $state(0);
-  let imgH = $state(0);
+  const imgW = $derived(frame.w);
+  const imgH = $derived(frame.h);
   let fogCanvas = $state<HTMLCanvasElement>();
   let lightCanvas = $state<HTMLCanvasElement>();
   let brokenImages = $state<Record<string, boolean>>({});
-
-  function onload(e: Event) {
-    const img = e.currentTarget as HTMLImageElement;
-    imgW = img.naturalWidth;
-    imgH = img.naturalHeight;
-    onimagesize?.(imgW, imgH);
-  }
 
   $effect(() => {
     if (!fogCanvas || !imgW) return;
@@ -93,8 +91,11 @@
   class="layer"
   style="transform: translate({camera.tx}px, {camera.ty}px) scale({camera.zoom}); width: {imgW}px; height: {imgH}px;"
 >
-  {#if imageUrl}
-    <img class="map-image" src={imageUrl} alt="" draggable="false" {onload} />
+  {#if underlay?.url}
+    <img class="map-image underlay" src={underlay.url} alt="" draggable="false" style="left: {underlay.x}px; top: {underlay.y}px" />
+  {/if}
+  {#if image.url}
+    <img class="map-image" src={image.url} alt="" draggable="false" style="left: {image.x}px; top: {image.y}px" />
   {/if}
 
   {#if imgW && grid.visible}
@@ -164,8 +165,13 @@
     transform-origin: 0 0;
   }
   .map-image {
+    position: absolute;
     display: block;
+    max-width: none;
     user-select: none;
+  }
+  .map-image.underlay {
+    filter: brightness(0.45) saturate(0.6);
   }
   .grid,
   .overlay {

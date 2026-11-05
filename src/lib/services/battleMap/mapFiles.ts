@@ -3,6 +3,7 @@ import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
 import { battleMapSchema, type BattleMap } from '../../schemas/battleMap';
 import { isTauri } from '../httpFetch';
+import { BASE_LEVEL, levelImageBase } from './levels';
 
 export const MAP_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'avif'];
 
@@ -29,19 +30,30 @@ export async function vaultFileUrl(path: string): Promise<string> {
   }
 }
 
-export const mapImageUrl = (mapPath: string, map: BattleMap): Promise<string> =>
-  map.image ? vaultFileUrl(`${dirOf(mapPath)}/${map.image}`) : Promise.resolve('');
+export const mapImageUrl = (mapPath: string, image: string): Promise<string> =>
+  image ? vaultFileUrl(`${dirOf(mapPath)}/${image}`) : Promise.resolve('');
+
+/** Natürliche Größe eines Bilds; 0 × 0, wenn es nicht lädt. */
+export function measureImage(url: string): Promise<{ w: number; h: number }> {
+  if (!url) return Promise.resolve({ w: 0, h: 0 });
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+    img.onerror = () => resolve({ w: 0, h: 0 });
+    img.src = url;
+  });
+}
 
 /**
- * Fragt nach einer Bilddatei und legt sie als `<kartenname>.<endung>` neben die Karte.
- * @returns der Dateiname für `map.image`, oder null bei Abbruch.
+ * Fragt nach einer Bilddatei und legt sie neben die Karte (Name nach `levelImageBase`).
+ * @returns der Dateiname für das `image` der Ebene, oder null bei Abbruch.
  */
-export async function pickMapImage(mapPath: string): Promise<string | null> {
+export async function pickMapImage(mapPath: string, level = BASE_LEVEL): Promise<string | null> {
   const selected = await openFileDialog({ multiple: false, filters: [{ name: 'Bilder', extensions: MAP_IMAGE_EXTENSIONS }] });
   const src = Array.isArray(selected) ? selected[0] : selected;
   if (!src) return null;
   const ext = (src.split('.').pop() ?? 'png').toLowerCase();
-  const file = `${baseNameOf(mapPath)}.${ext}`;
+  const file = `${levelImageBase(baseNameOf(mapPath), level)}.${ext}`;
   const data = await invoke<string>('read_file_base64', { path: src });
   await invoke('write_file_base64', { path: `${dirOf(mapPath)}/${file}`, data });
   return file;

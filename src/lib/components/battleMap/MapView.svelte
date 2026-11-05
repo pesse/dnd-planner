@@ -205,7 +205,10 @@
     const sel = editor.selected;
     if (sel && (e.key === 'Delete' || e.key === 'Backspace')) editor.removeToken(sel.id);
     else if (sel && e.key.toLowerCase() === 'h') editor.toggleHidden(sel.id);
-    else if (e.key.toLowerCase() === 'w') {
+    else if (e.key === 'PageUp' || e.key === 'PageDown') {
+      e.preventDefault();
+      editor.stepLevel(e.key === 'PageUp' ? 1 : -1);
+    } else if (e.key.toLowerCase() === 'w') {
       diceTray.open = !diceTray.open;
     } else if (e.key === 'Escape') {
       fogMenu = false;

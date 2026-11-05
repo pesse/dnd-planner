@@ -18,6 +18,7 @@
   import MonsterPresent from './MonsterPresent.svelte';
   import TokenEncounterPicker from './TokenEncounterPicker.svelte';
   import { KIND_LABEL } from '../TokenKindIcon.svelte';
+  import { levelStack } from '../../../services/battleMap/levels';
 
   let { editor, token: t, campaignDir }: { editor: MapEditor; token: Token; campaignDir: string } = $props();
 
@@ -29,6 +30,12 @@
     { value: 4, label: 'Gigantisch' },
   ];
   const fighter = $derived(t.kind === 'character' || t.kind === 'monster');
+  const levels = $derived(editor.map?.levels.length ? levelStack(editor.map) : []);
+
+  function moveToLevel(level: string) {
+    update({ level });
+    editor.level = level;
+  }
 
   let monster = $state<Monster | null>(null);
   let monsterMissing = $state(false);
@@ -83,6 +90,11 @@
       {#each SIZES as s}<option value={s.value}>{s.label}</option>{/each}
     </select>
     <input type="color" value={t.color} title="Farbe" onchange={(e) => update({ color: e.currentTarget.value })} />
+    {#if levels.length}
+      <select value={t.level} aria-label="Ebene" title="Ebene" onchange={(e) => moveToLevel(e.currentTarget.value)}>
+        {#each levels as l (l.id)}<option value={l.id}>{l.name}</option>{/each}
+      </select>
+    {/if}
     {#if fighter}
       <label class="ini" use:pinnableTip={withRule('Leer: nimmt nicht am Kampf teil.', 'srd-2024_initiative')}>
         Ini

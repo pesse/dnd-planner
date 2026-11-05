@@ -2,20 +2,36 @@
 import type { BattleMap, FogOp, Grid, Lighting, Token, ViewRect } from '../../schemas/battleMap';
 import { pxToCell, type Point } from './geometry';
 import { isBloodied } from './tokenDetails';
+import { layerOf, levelBelow, levelName, resolveLevel } from './levels';
 
 /**
  * `movable`: Spieler dürfen nur Charaktere ziehen. Notizen und Encounter bleiben bei der SL.
  * Von den TP erfahren die Spieler nur, ob jemand blutig oder besiegt ist, von einer Falle nur, dass sie entschärft ist.
  */
-export type PlayerToken = Omit<Token, 'hidden' | 'ref' | 'kind' | 'art' | 'note' | 'encounter' | 'hp' | 'hpMax' | 'initiative' | 'trapState' | 'trapTier'> & {
+export type PlayerToken = Omit<Token, 'hidden' | 'ref' | 'kind' | 'art' | 'note' | 'encounter' | 'hp' | 'hpMax' | 'initiative' | 'trapState' | 'trapTier' | 'level'> & {
   imageUrl: string;
   movable: boolean;
   down: boolean;
   bloodied: boolean;
 };
 
+/** Ein Ebenenbild in Pixeln der Grundebene. */
+export interface PlacedImage {
+  url: string;
+  x: number;
+  y: number;
+}
+
 export interface PlayerState {
   imageUrl: string;
+  /** Lage von `imageUrl`; Teilkarten liegen nicht bei 0/0. */
+  imageAt: Point;
+  /** Die Ebene darunter, durch transparente Stellen sichtbar. */
+  underlay: PlacedImage | null;
+  /** Format der Grundebene — Rahmen für Nebel, Licht und Ausschnitt. */
+  frame: { w: number; h: number };
+  /** Leer, solange die Karte nur eine Ebene hat. */
+  levelName: string;
   grid: Grid;
   tokens: PlayerToken[];
   fog: { enabled: boolean; ops: FogOp[] };
@@ -25,12 +41,26 @@ export interface PlayerState {
   turn: string;
 }
 
-export function toPlayerState(map: BattleMap, imageUrl: string, tokenImages: Record<string, string>): PlayerState {
+export interface PlayerImages {
+  levels: Record<string, string>;
+  tokens: Record<string, string>;
+  frame: { w: number; h: number };
+}
+
+export function toPlayerState(map: BattleMap, images: PlayerImages): PlayerState {
+  const level = resolveLevel(map, map.playerLevel);
+  const layer = layerOf(map, level);
+  const below = levelBelow(map, level);
+  const belowLayer = below === null ? null : layerOf(map, below);
+  const onLevel = map.tokens.filter((t) => t.level === level && !t.hidden);
   return {
-    imageUrl,
+    imageUrl: images.levels[level] ?? '',
+    imageAt: { x: layer.offsetX, y: layer.offsetY },
+    underlay: belowLayer && images.levels[below!] ? { url: images.levels[below!], x: belowLayer.offsetX, y: belowLayer.offsetY } : null,
+    frame: images.frame,
+    levelName: map.levels.length ? levelName(map, level) : '',
     grid: map.grid,
-    tokens: map.tokens
-      .filter((t) => !t.hidden)
+    tokens: onLevel
       .map(({ id, name, x, y, size, color, kind, conditions, effects, light, hp, hpMax, trapState }) => ({
         id,
         name,
@@ -41,15 +71,15 @@ export function toPlayerState(map: BattleMap, imageUrl: string, tokenImages: Rec
         conditions,
         effects,
         light,
-        imageUrl: tokenImages[id] ?? '',
+        imageUrl: images.tokens[id] ?? '',
         movable: kind === 'character',
         down: hp === 0 || (kind === 'trap' && trapState === 'disarmed'),
         bloodied: isBloodied({ hp, hpMax }),
       })),
-    fog: map.fog,
-    lighting: map.lighting,
+    fog: layer.fog,
+    lighting: layer.lighting,
     view: map.playerView,
-    turn: map.tokens.some((t) => t.id === map.combat.turn && !t.hidden) ? map.combat.turn : '',
+    turn: onLevel.some((t) => t.id === map.combat.turn) ? map.combat.turn : '',
   };
 }
 

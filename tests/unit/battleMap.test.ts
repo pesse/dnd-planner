@@ -14,6 +14,8 @@ import { clampToView, toPlayerState } from '../../src/lib/services/battleMap/pla
 import { tokenLights } from '../../src/lib/services/battleMap/overlayRender';
 import { markerDraft, numberedNames, occupiedCells, placeDrafts } from '../../src/lib/services/battleMap/tokenSources';
 
+const NO_IMAGES = { levels: {}, tokens: {}, frame: { w: 0, h: 0 } };
+
 const grid = battleMapSchema.parse({ name: 'x' }).grid;
 
 describe('battleMapSchema', () => {
@@ -68,7 +70,7 @@ describe('Spieleransicht', () => {
         { id: 'c', name: 'Falltür', kind: 'marker', x: 3, y: 3 },
       ],
     });
-    const state = toPlayerState(map, 'map.png', { b: 'ada.png' });
+    const state = toPlayerState(map, { levels: { '': 'map.png' }, tokens: { b: 'ada.png' }, frame: { w: 0, h: 0 } });
     expect(state.tokens[0]).toEqual({ id: 'b', name: 'Ada', x: 2, y: 2, size: 1, color: '#8a2012', conditions: [], effects: [], light: null, imageUrl: 'ada.png', movable: true, down: false, bloodied: false });
     expect(state.tokens[1].movable).toBe(false);
     expect(JSON.stringify(state)).not.toContain('goblin');
@@ -82,7 +84,7 @@ describe('Spieleransicht', () => {
         { id: 'b', name: 'Ada', kind: 'character', x: 2, y: 2, light: { radius: 8 } },
       ],
     });
-    expect(toPlayerState(map, '', {}).tokens.map((t) => t.light?.radius)).toEqual([8]);
+    expect(toPlayerState(map, NO_IMAGES).tokens.map((t) => t.light?.radius)).toEqual([8]);
   });
 
   it('hält ein gezogenes Token im Ausschnitt', () => {

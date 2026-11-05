@@ -48,6 +48,7 @@ export const tokenSchema = z.object({
   trapState: z.enum(TRAP_STATE_KEYS).default('armed'),
   trapTier: z.number().int().min(0).default(0).describe('Stufe einer Falle: 0 = Grundwerte, n = n-ter Eintrag in `tiers`.'),
   light: tokenLightSchema.nullable().default(null).describe('Das Token leuchtet und nimmt sein Licht mit; null = kein Licht.'),
+  level: z.string().default('').describe('ID der Ebene, auf der das Token steht; leer = Grundebene.'),
 });
 
 const point = z.tuple([z.number(), z.number()]);
@@ -101,9 +102,23 @@ export const combatSchema = z.object({
   turn: z.string().default('').describe('Token-ID, die gerade am Zug ist.'),
 });
 
+export const mapLevelSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  elevation: z.number().int().describe('Stockwerk relativ zur Grundebene (0): 1 = darüber, −1 = darunter.'),
+  image: z.string().default('').describe('Dateiname neben der Kartendatei. Transparente Stellen zeigen die Ebene darunter.'),
+  offsetX: z.number().default(0).describe('Linke obere Bildecke in Pixeln der Grundebene; Bildpixel und Raster entsprechen denen der Grundebene.'),
+  offsetY: z.number().default(0),
+  fog: fogSchema.default(fogSchema.parse({})),
+  lighting: lightingSchema.default(lightingSchema.parse({})),
+});
+
 export const battleMapSchema = z.object({
   name: z.string(),
-  image: z.string().default('').describe('Dateiname des Kartenbilds neben der Kartendatei.'),
+  image: z.string().default('').describe('Dateiname des Kartenbilds neben der Kartendatei. Sein Format ist der Rahmen aller Ebenen.'),
+  baseLevelName: z.string().default('').describe('Anzeigename der Grundebene, sobald es weitere Ebenen gibt.'),
+  levels: z.array(mapLevelSchema).default([]).describe('Weitere Stockwerke, auch als Teilkarten; Raster und Spieleransicht teilen sie mit der Grundebene.'),
+  playerLevel: z.string().default('').describe('Ebene, die das Spielerfenster zeigt; leer = Grundebene.'),
   acts: z.array(z.string()).default([]).describe('Akt-Ordner der Karte, mindestens einer; angeboten werden deren Encounter und die der ganzen Kampagne. Eine Vorlage hat keine.'),
   hiddenEncounters: z.array(z.string()).default([]).describe('Encounter-Schlüssel, die diese Karte nicht anbietet.'),
   grid: gridSchema.default(gridSchema.parse({})),
@@ -116,6 +131,7 @@ export const battleMapSchema = z.object({
 });
 
 export type BattleMap = z.infer<typeof battleMapSchema>;
+export type MapLevel = z.infer<typeof mapLevelSchema>;
 export type Grid = z.infer<typeof gridSchema>;
 export type Token = z.infer<typeof tokenSchema>;
 export type TokenKind = (typeof TOKEN_KINDS)[number];

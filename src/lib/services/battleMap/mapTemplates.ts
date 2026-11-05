@@ -7,6 +7,7 @@ import { slugKeepUmlauts } from '../../utils/text';
 import type { MapPlacement } from './mapPlacement';
 import { campaignDirOf } from './tokenDetails';
 import { copyMapEncounters } from './mapEncounterCopy';
+import { levelImageBase, mapImageSlots, withLevelImage } from './levels';
 
 export const MAP_TEMPLATES_SUBDIR = 'map-templates';
 
@@ -29,19 +30,24 @@ export const asMapTemplate = (map: BattleMap): BattleMap => ({
           : { ...t, conditions: [], effects: [], initiative: null },
     ),
   fog: { ...map.fog, ops: [] },
+  levels: map.levels.map((l) => ({ ...l, fog: { ...l.fog, ops: [] } })),
+  playerLevel: '',
   combat: { round: 0, turn: '' },
 });
 
-/** Das Bild zieht mit und heißt wie die neue Datei, damit zwei Vorlagen sich kein Bild überschreiben. */
+const extOf = (file: string): string => file.split('.').pop() ?? '';
+
+/** Die Bilder ziehen mit und heißen nach der neuen Datei, damit zwei Vorlagen sich kein Bild überschreiben. */
 async function writeMapCopy(srcPath: string, map: BattleMap, targetDir: string, base: string): Promise<string> {
-  let image = '';
-  if (map.image) {
-    image = `${base}.${map.image.split('.').pop()}`;
-    const data = await invoke<string>('read_file_base64', { path: `${dirOf(srcPath)}/${map.image}` });
+  let copy = map;
+  for (const slot of mapImageSlots(map)) {
+    const image = `${levelImageBase(base, slot.level)}.${extOf(slot.file)}`;
+    const data = await invoke<string>('read_file_base64', { path: `${dirOf(srcPath)}/${slot.file}` });
     await invoke('write_file_base64', { path: `${targetDir}/${image}`, data });
+    copy = withLevelImage(copy, slot.level, image);
   }
   const path = `${targetDir}/${base}.json`;
-  await invoke('write_file_content', { path, content: serializeBattleMap({ ...map, image }) });
+  await invoke('write_file_content', { path, content: serializeBattleMap(copy) });
   return path;
 }
 
@@ -79,21 +85,23 @@ export const saveAsMapTemplate = (mapPath: string, map: BattleMap, to: MapPlacem
 export const mapFromTemplate = (templatePath: string, map: BattleMap, to: MapPlacement): Promise<string | null> =>
   writePlaced(templatePath, map, to, 'maps', 'Karte');
 
-/** Datei und Bild heißen nach dem Namen; das Bild zieht nur mit, wenn es nach der Karte hieß. @returns der neue Pfad, oder null bei Abbruch. */
+/** Datei und Bilder heißen nach dem Namen; ein Bild zieht nur mit, wenn es nach der Karte hieß. @returns der neue Pfad, oder null bei Abbruch. */
 export async function renameMap(path: string, map: BattleMap, name: string): Promise<string | null> {
   const dir = dirOf(path);
   const oldBase = baseOf(path);
   const base = slugKeepUmlauts(name);
   if (!base) return null;
   if (base !== oldBase && !(await mayReplace(dir, base, isMapTemplatePath(path) ? 'Vorlage' : 'Karte'))) return null;
-  let image = map.image;
-  const ext = image.split('.').pop();
-  if (base !== oldBase && image === `${oldBase}.${ext}`) {
-    image = `${base}.${ext}`;
-    await invoke('rename_file', { oldPath: `${dir}/${map.image}`, newPath: `${dir}/${image}` });
+  let renamed = { ...map, name };
+  for (const slot of base === oldBase ? [] : mapImageSlots(map)) {
+    const ext = extOf(slot.file);
+    if (slot.file !== `${levelImageBase(oldBase, slot.level)}.${ext}`) continue;
+    const image = `${levelImageBase(base, slot.level)}.${ext}`;
+    await invoke('rename_file', { oldPath: `${dir}/${slot.file}`, newPath: `${dir}/${image}` });
+    renamed = withLevelImage(renamed, slot.level, image);
   }
   const newPath = `${dir}/${base}.json`;
   if (newPath !== path) await invoke('rename_file', { oldPath: path, newPath });
-  await invoke('write_file_content', { path: newPath, content: serializeBattleMap({ ...map, name, image }) });
+  await invoke('write_file_content', { path: newPath, content: serializeBattleMap(renamed) });
   return newPath;
 }

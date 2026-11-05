@@ -12,7 +12,8 @@ import { DetailHistory } from './detailHistory.svelte';
 import { cockpit } from './cockpitTab.svelte';
 import { gridFromCell, snapCell, type Point } from './geometry';
 import { advanceTurn, startCombat } from './initiative';
-import { loadBattleMap, mapImageUrl, pickMapImage, serializeBattleMap } from './mapFiles';
+import { addLevel, BASE_LEVEL, layerOf, levelBelow, levelStack, removeLevel, resolveLevel, tokensOn, withLevelImage, type LevelLayer } from './levels';
+import { loadBattleMap, mapImageUrl, measureImage, pickMapImage, serializeBattleMap } from './mapFiles';
 import { toPlayerState } from './playerState';
 import { loadPlayerTips } from './playerTips';
 import { occupiedCells, placeDrafts, resolveTokenImage, type TokenDraft } from './tokenSources';
@@ -28,7 +29,11 @@ const UNDO_LIMIT = 50;
 export class MapEditor {
   path = $state('');
   map = $state<BattleMap | null>(null);
-  imageUrl = $state('');
+  /** Die Ebene, die die SL gerade sieht; die Spieler sehen `map.playerLevel`. */
+  level = $state(BASE_LEVEL);
+  /** Bild-URL je Ebene. */
+  levelImages = $state<Record<string, string>>({});
+  /** Format des Grundebenen-Bilds — der Rahmen aller Ebenen. */
   imageSize = $state({ w: 0, h: 0 });
   tokenImages = $state<Record<string, string>>({});
   readonly details = new DetailHistory();
@@ -69,6 +74,8 @@ export class MapEditor {
 
   /** In der Vorbereitung bleibt ein offener Encounter stehen, solange seine eigenen Tokens gewählt werden — die SL stellt sie gerade auf. */
   set selectedId(id: string | null) {
+    const level = this.map?.tokens.find((t) => t.id === id)?.level;
+    if (level !== undefined) this.level = level;
     const d = this.details.current;
     if (cockpit.tab === 'prep' && d.kind === 'encounter' && (!id || this.#ownToken(id, d.key))) {
       this.#focusId = id;
@@ -79,6 +86,21 @@ export class MapEditor {
 
   #ownToken(id: string | null, encounter: string): boolean {
     return !!id && !!this.map?.tokens.some((t) => t.id === id && t.encounter === encounter);
+  }
+
+  get layer(): LevelLayer {
+    return layerOf(this.map!, this.level);
+  }
+
+  get imageUrl(): string {
+    return this.levelImages[this.level] ?? '';
+  }
+
+  /** Scheint durch transparente Stellen der aktuellen Ebene. */
+  get underlay(): { url: string; layer: LevelLayer } | null {
+    const below = this.map ? levelBelow(this.map, this.level) : null;
+    if (below === null || !this.levelImages[below]) return null;
+    return { url: this.levelImages[below], layer: layerOf(this.map!, below) };
   }
 
   get selected(): Token | null {
@@ -92,6 +114,8 @@ export class MapEditor {
     this.#undo = [];
     this.#redo = [];
     this.details.reset();
+    this.level = BASE_LEVEL;
+    this.levelImages = {};
     try {
       const map = await loadBattleMap(path);
       if (this.path !== path) return;
@@ -114,11 +138,12 @@ export class MapEditor {
   async chooseImage(): Promise<void> {
     if (!this.map) return;
     try {
-      const file = await pickMapImage(this.path);
+      const level = this.level;
+      const file = await pickMapImage(this.path, level);
       if (!file) return;
       this.checkpoint();
-      this.map.image = file;
-      this.imageUrl = await mapImageUrl(this.path, this.map);
+      this.map = withLevelImage(this.map, level, file);
+      await this.#refreshLevelImage(level);
       this.changed();
     } catch (e) {
       this.error = `Bild konnte nicht übernommen werden: ${e}`;
@@ -145,6 +170,7 @@ export class MapEditor {
     if (!prev || !this.map) return;
     to.push(serializeBattleMap($state.snapshot(this.map) as BattleMap));
     this.map = JSON.parse(prev) as BattleMap;
+    this.level = resolveLevel(this.map, this.level);
     for (const id of this.details.tokenIds()) if (!this.map.tokens.some((t) => t.id === id)) this.details.forget(id);
     void this.#refreshImages();
     this.changed();
@@ -161,7 +187,7 @@ export class MapEditor {
   // Dieselben Regeln wie beim Senden: nur sichtbare Charaktere — das Fenster könnte veraltet sein.
   #playerMove(msg: Extract<ToGm, { type: 'move' }>): void {
     const t = this.map?.tokens.find((x) => x.id === msg.id);
-    if (!t || t.kind !== 'character' || t.hidden) return;
+    if (!t || t.kind !== 'character' || t.hidden || t.level !== this.map?.playerLevel) return;
     if (this.#playerDrag !== t.id) this.checkpoint();
     this.#playerDrag = msg.done ? null : t.id;
     const x = msg.done ? snapCell(msg.x, t.size) : msg.x;
@@ -171,7 +197,7 @@ export class MapEditor {
 
   #playerBadge(msg: Extract<ToGm, { type: 'badge' }>): void {
     const t = this.map?.tokens.find((x) => x.id === msg.id);
-    if (!t || t.kind !== 'character' || t.hidden) return;
+    if (!t || t.kind !== 'character' || t.hidden || t.level !== this.map?.playerLevel) return;
     if (isTokenEffect(msg.badge)) this.toggleEffect(t.id, msg.badge);
     else if (isCondition(msg.badge)) this.toggleCondition(t.id, msg.badge);
   }
@@ -179,13 +205,21 @@ export class MapEditor {
   #broadcastNow(): void {
     if (!this.map) return;
     const map = $state.snapshot(this.map) as BattleMap;
-    sendToPlayer({ type: 'state', state: toPlayerState(map, this.imageUrl, $state.snapshot(this.tokenImages)) });
+    const images = { levels: $state.snapshot(this.levelImages), tokens: $state.snapshot(this.tokenImages), frame: $state.snapshot(this.imageSize) };
+    sendToPlayer({ type: 'state', state: toPlayerState(map, images) });
   }
 
   async #refreshImages(): Promise<void> {
     if (!this.map) return;
-    this.imageUrl = await mapImageUrl(this.path, this.map);
-    await Promise.all(this.map.tokens.map((t) => this.#resolveToken(t)));
+    const levels = [BASE_LEVEL, ...this.map.levels.map((l) => l.id)];
+    await Promise.all([...levels.map((l) => this.#refreshLevelImage(l)), ...this.map.tokens.map((t) => this.#resolveToken(t))]);
+  }
+
+  async #refreshLevelImage(level: string): Promise<void> {
+    if (!this.map) return;
+    const url = await mapImageUrl(this.path, layerOf(this.map, level).image);
+    this.levelImages[level] = url;
+    if (level === BASE_LEVEL) this.imageSize = await measureImage(url);
   }
 
   async #resolveToken(t: Token): Promise<void> {
@@ -196,7 +230,7 @@ export class MapEditor {
   addTokens(drafts: TokenDraft[], originCell: Point): void {
     if (!this.map || !drafts.length) return;
     this.checkpoint();
-    const tokens = placeDrafts(drafts, originCell, occupiedCells(this.map.tokens));
+    const tokens = placeDrafts(drafts, originCell, occupiedCells(tokensOn(this.map.tokens, this.level)), this.level);
     this.map.tokens.push(...tokens);
     if (tokens.length === 1) this.selectedId = tokens[0].id;
     this.changed();
@@ -268,7 +302,8 @@ export class MapEditor {
     const t = this.map?.tokens.find((x) => x.id === id);
     if (!t || !this.map) return;
     t.light = light;
-    if (light && this.map.lighting.darkness === 0) this.map.lighting.darkness = 0.75;
+    const { lighting } = layerOf(this.map, t.level);
+    if (light && lighting.darkness === 0) lighting.darkness = 0.75;
     this.changed();
   }
 
@@ -340,7 +375,7 @@ export class MapEditor {
 
   addFogOp(op: FogOp): void {
     if (!this.map) return;
-    this.map.fog.ops.push(op);
+    this.layer.fog.ops.push(op);
     this.changed();
   }
 
@@ -349,7 +384,7 @@ export class MapEditor {
     if (!this.map) return;
     this.checkpoint();
     const { w, h } = this.imageSize;
-    this.map.fog.ops = revealed ? [{ shape: 'rect', mode: 'reveal', x: 0, y: 0, w: Math.max(w, 1), h: Math.max(h, 1) }] : [];
+    this.layer.fog.ops = revealed ? [{ shape: 'rect', mode: 'reveal', x: 0, y: 0, w: Math.max(w, 1), h: Math.max(h, 1) }] : [];
     this.changed();
   }
 
@@ -357,8 +392,9 @@ export class MapEditor {
     if (!this.map) return null;
     this.checkpoint();
     const light: Light = { id: newUid(), x: at.x, y: at.y, radius: 4, color: '#ffb347' };
-    this.map.lighting.lights.push(light);
-    if (this.map.lighting.darkness === 0) this.map.lighting.darkness = 0.75;
+    const { lighting } = this.layer;
+    lighting.lights.push(light);
+    if (lighting.darkness === 0) lighting.darkness = 0.75;
     this.changed();
     return light;
   }
@@ -366,7 +402,37 @@ export class MapEditor {
   removeLight(id: string): void {
     if (!this.map) return;
     this.checkpoint();
-    this.map.lighting.lights = this.map.lighting.lights.filter((l) => l.id !== id);
+    this.layer.lighting.lights = this.layer.lighting.lights.filter((l) => l.id !== id);
+    this.changed();
+  }
+
+  addLevel(direction: 1 | -1): void {
+    if (!this.map) return;
+    this.checkpoint();
+    this.level = addLevel(this.map, direction, newUid()).id;
+    this.changed();
+  }
+
+  removeLevel(id: string): void {
+    if (!this.map || id === BASE_LEVEL) return;
+    this.checkpoint();
+    for (const t of removeLevel(this.map, id)) this.details.forget(t);
+    this.level = resolveLevel(this.map, this.level);
+    this.changed();
+  }
+
+  /** Bild auf/ab: eine Ebene höher bzw. tiefer, am Ende bleibt sie stehen. */
+  stepLevel(direction: 1 | -1): void {
+    if (!this.map) return;
+    const stack = levelStack(this.map);
+    const i = stack.findIndex((l) => l.id === this.level) - direction;
+    if (stack[i]) this.level = stack[i].id;
+  }
+
+  showLevelToPlayers(id: string): void {
+    if (!this.map) return;
+    this.checkpoint();
+    this.map.playerLevel = resolveLevel(this.map, id);
     this.changed();
   }
 

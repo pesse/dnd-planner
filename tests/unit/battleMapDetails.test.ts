@@ -12,6 +12,8 @@ import { missingMonsters } from '../../src/lib/services/battleMap/tokenSources';
 import { formatMonsterList } from '../../src/lib/services/contextLoad';
 import { encounterSchema } from '../../src/lib/schemas/encounter';
 
+const NO_IMAGES = { levels: {}, tokens: {}, frame: { w: 0, h: 0 } };
+
 const token = (id: string) => ({ kind: 'token', id }) as const;
 
 describe('Detailverlauf der Karte', () => {
@@ -65,7 +67,7 @@ describe('Encounter-Verweis am Token', () => {
         { id: 'g', name: 'Goblin', kind: 'monster', x: 1, y: 1, hp: 3, hpMax: 7 },
       ],
     });
-    expect(JSON.stringify(toPlayerState(map, '', {}))).not.toMatch(/Geheimgang|akt-1|hp/i);
+    expect(JSON.stringify(toPlayerState(map, NO_IMAGES))).not.toMatch(/Geheimgang|akt-1|hp/i);
   });
 
   it('zeigt eine Falle erst entdeckt, ohne Bibliotheks-Key, Stufe oder Zustand außer „entschärft"', () => {
@@ -76,7 +78,7 @@ describe('Encounter-Verweis am Token', () => {
         { id: 'b', name: 'Nadel', kind: 'trap', ref: 'srd-2024_poisoned-needle', x: 2, y: 1, trapState: 'disarmed' },
       ],
     });
-    const { tokens } = toPlayerState(map, '', {});
+    const { tokens } = toPlayerState(map, NO_IMAGES);
     expect(tokens.map((t) => [t.id, t.down])).toEqual([['b', true]]);
     expect(JSON.stringify(tokens)).not.toMatch(/srd-2024|trapState|trapTier/);
   });
@@ -89,7 +91,7 @@ describe('Encounter-Verweis am Token', () => {
         { id: 'o', name: 'Ork', kind: 'monster', x: 2, y: 1, hp: 4, hpMax: 15 },
       ],
     });
-    const { tokens } = toPlayerState(map, '', {});
+    const { tokens } = toPlayerState(map, NO_IMAGES);
     expect(tokens.map((t) => t.down)).toEqual([true, false]);
     expect(JSON.stringify(tokens)).not.toMatch(/"hp/);
   });
@@ -134,7 +136,7 @@ describe('Initiative und Zugwechsel', () => {
       tokens: [{ id: 'g', name: 'Goblin', kind: 'monster', x: 1, y: 1, hidden: true, initiative: 15, conditions: ['prone'] }],
       combat: { round: 1, turn: 'g' },
     });
-    const state = toPlayerState(map, '', {});
+    const state = toPlayerState(map, NO_IMAGES);
     expect(state.turn).toBe('');
     expect(JSON.stringify(state)).not.toMatch(/initiative/);
   });

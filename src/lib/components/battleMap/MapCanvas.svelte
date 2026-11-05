@@ -27,6 +27,8 @@
     type FrameHit,
   } from '../../services/battleMap/viewFrame';
   import MapStage from './MapStage.svelte';
+  import LevelBar from './LevelBar.svelte';
+  import { tokensOn } from '../../services/battleMap/levels';
 
   let { editor }: { editor: MapEditor } = $props();
 
@@ -48,7 +50,8 @@
   let fitted = '';
 
   const map = $derived(editor.map!);
-  const tokens = $derived(map.tokens.map((t) => ({ ...t, imageUrl: editor.tokenImages[t.id] ?? '', down: t.kind === 'trap' && t.trapState === 'disarmed' })));
+  const layer = $derived(editor.layer);
+  const tokens = $derived(tokensOn(map.tokens, editor.level).map((t) => ({ ...t, imageUrl: editor.tokenImages[t.id] ?? '', down: t.kind === 'trap' && t.trapState === 'disarmed' })));
 
   export function fit() {
     const { w, h } = editor.imageSize;
@@ -122,7 +125,7 @@
         points: [[p.x, p.y]],
       };
       editor.addFogOp(op);
-      drag = { kind: 'brush', op: map.fog.ops[map.fog.ops.length - 1] as typeof op };
+      drag = { kind: 'brush', op: layer.fog.ops[layer.fog.ops.length - 1] as typeof op };
       return;
     }
     if (tool === 'view') {
@@ -145,7 +148,7 @@
         .map((el) => (el as HTMLElement).dataset?.tokenId)
         .filter((id): id is string => !!id),
     );
-    return map.tokens.filter((t) => ids.has(t.id)).map((t) => t.id).reverse();
+    return tokensOn(map.tokens, editor.level).filter((t) => ids.has(t.id)).map((t) => t.id).reverse();
   }
 
   function onpointermove(e: PointerEvent) {
@@ -163,7 +166,7 @@
       drag.moved = true;
       editor.updateToken(drag.id, { x: cell.x - drag.grab.x, y: cell.y - drag.grab.y });
     } else if (drag.kind === 'light') {
-      const l = map.lighting.lights.find((x) => x.id === (drag as { id: string }).id);
+      const l = layer.lighting.lights.find((x) => x.id === (drag as { id: string }).id);
       if (l) Object.assign(l, { x: p.x, y: p.y });
       editor.changed();
     } else if (drag.kind === 'frame') {
@@ -257,16 +260,17 @@
 >
   <MapStage
     mode="gm"
-    imageUrl={editor.imageUrl}
+    image={{ url: editor.imageUrl, x: layer.offsetX, y: layer.offsetY }}
+    underlay={editor.underlay && { url: editor.underlay.url, x: editor.underlay.layer.offsetX, y: editor.underlay.layer.offsetY }}
+    frame={editor.imageSize}
     grid={map.grid}
     {tokens}
-    fog={map.fog}
-    lighting={map.lighting}
+    fog={layer.fog}
+    lighting={layer.lighting}
     {camera}
     selectedId={editor.selectedId}
     turnId={map.combat.turn}
     pops={hpPops.list}
-    onimagesize={(w, h) => (editor.imageSize = { w, h })}
   >
     {#snippet overlay({ w, h })}
       <svg class="gm-overlay" width={w} height={h} aria-hidden="true">
@@ -281,7 +285,7 @@
             {/each}
           {/if}
         {/if}
-        {#each map.lighting.lights as l (l.id)}
+        {#each layer.lighting.lights as l (l.id)}
           <circle cx={l.x} cy={l.y} r={l.radius * map.grid.size} class="light-range" stroke-width={stroke} />
           <circle cx={l.x} cy={l.y} r={9 / camera.zoom} class="light-handle" class:active={editor.tool === 'light'} data-light-id={l.id} style="fill: {l.color}" stroke-width={stroke} />
         {/each}
@@ -303,9 +307,12 @@
 
   {#if !editor.imageUrl}
     <div class="empty">
-      <p>Diese Karte hat noch kein Bild.</p>
+      <p>{editor.level ? 'Diese Ebene' : 'Diese Karte'} hat noch kein Bild.</p>
       <button onclick={() => editor.chooseImage()}>Kartenbild wählen…</button>
     </div>
+  {/if}
+  {#if map.levels.length}
+    <LevelBar {editor} />
   {/if}
 </div>
 

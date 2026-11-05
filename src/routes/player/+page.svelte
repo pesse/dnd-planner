@@ -27,7 +27,6 @@
   let handout = $state<ShownHandout | null>(null);
   let vw = $state(0);
   let vh = $state(0);
-  let img = $state({ w: 0, h: 0 });
   let idle = $state(false);
   let idleTimer: ReturnType<typeof setTimeout> | undefined;
   let drag = $state<{ id: string; grab: Point; at: Point; moved: boolean } | null>(null);
@@ -41,6 +40,7 @@
     idleTimer = setTimeout(() => (idle = true), 2000);
   }
 
+  const img = $derived(shown?.frame ?? { w: 0, h: 0 });
   const view = $derived(shown?.view ?? { x: 0, y: 0, w: img.w, h: img.h });
   const camera = $derived.by((): Camera => {
     if (!shown || !img.w || !vw) return { zoom: 1, tx: 0, ty: 0 };
@@ -109,10 +109,8 @@
   onMount(installTitleTips);
   onMount(() => {
     const unlisten = onGmMessage((msg) => {
-      if (msg.type === 'state') {
-        if (msg.state.imageUrl !== shown?.imageUrl) img = { w: 0, h: 0 };
-        shown = msg.state;
-      } else if (msg.type === 'hp') popHp(msg.id, msg.delta);
+      if (msg.type === 'state') shown = msg.state;
+      else if (msg.type === 'hp') popHp(msg.id, msg.delta);
       else if (msg.type === 'tips') tips = msg.tips;
       else if (msg.type === 'dice') dice = msg;
       else if (msg.type === 'handout') handout = msg.handout;
@@ -153,7 +151,9 @@
   {#if shown?.imageUrl}
     <MapStage
       mode="player"
-      imageUrl={shown.imageUrl}
+      image={{ url: shown.imageUrl, ...shown.imageAt }}
+      underlay={shown.underlay}
+      frame={shown.frame}
       grid={shown.grid}
       {tokens}
       fog={shown.fog}
@@ -162,8 +162,10 @@
       turnId={shown.turn}
       pops={hpPops.list}
       {tips}
-      onimagesize={(w, h) => (img = { w, h })}
     />
+    {#key shown.levelName}
+      {#if shown.levelName}<div class="level" in:fade={{ duration: 400 }}>{shown.levelName}</div>{/if}
+    {/key}
     {#if menuToken}
       <PlayerBadgeMenu
         name={menuToken.name}
@@ -237,6 +239,20 @@
   }
   .player.idle {
     cursor: none;
+  }
+  .level {
+    position: absolute;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.3rem 1.2rem;
+    color: #f3e6c8;
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    background: rgba(12, 10, 16, 0.75);
+    border: 1px solid rgba(243, 230, 200, 0.2);
+    border-radius: 6px;
+    pointer-events: none;
   }
   .handout {
     position: absolute;
