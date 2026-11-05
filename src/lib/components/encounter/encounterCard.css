@@ -42,25 +42,6 @@
 
 .encounter-panel .diff-select option { background: var(--bg); color: var(--ink); }
 
-.encounter-panel .enc-desc-input {
-  width: 100%;
-  color: var(--ink-soft);
-  font-style: italic;
-  resize: vertical;
-  line-height: 1.6;
-  font-size: 0.85rem;
-  margin-bottom: 0.5rem;
-}
-
-.encounter-panel .enc-read-aloud-input {
-  width: 100%;
-  color: var(--arcane);
-  font-style: italic;
-  resize: vertical;
-  line-height: 1.7;
-  font-size: 0.85rem;
-}
-
 .encounter-panel .meta-input { min-width: 80px; flex: 1; }
 .encounter-panel .meta-num-input { width: 44px; text-align: center; }
 .encounter-panel .meta-xp { width: 60px; }
@@ -89,11 +70,27 @@
   line-height: 1.5;
 }
 
-.encounter-panel .enc-text-input {
-  width: 100%;
-  resize: vertical;
+.encounter-panel .enc-rich {
+  display: flex;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  transition: border-color 0.1s;
+}
+
+.encounter-panel .enc-rich:hover,
+.encounter-panel .enc-rich:focus-within { border-color: var(--steel); }
+
+.encounter-panel .enc-rich .editor-shell { background: transparent; }
+
+.encounter-panel .enc-rich .ProseMirror {
+  padding: 0.3rem 0.5rem;
+  font-size: 0.85rem;
   line-height: 1.6;
   color: var(--ink-soft);
 }
 
-.encounter-panel .enc-notes-input { white-space: pre-wrap; font-size: 0.82rem; }
+.encounter-panel .enc-rich .ProseMirror p:last-child { margin-bottom: 0; }
+
+.encounter-panel .enc-desc { margin-bottom: 0.5rem; }
+.encounter-panel .enc-desc .ProseMirror { font-style: italic; }
+.encounter-panel .enc-read-aloud .ProseMirror { color: var(--arcane); font-style: italic; line-height: 1.7; }

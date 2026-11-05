@@ -5,6 +5,7 @@
   import EncounterHeader from './encounter/EncounterHeader.svelte';
   import EncounterMonsterSection from './encounter/EncounterMonsterSection.svelte';
   import ParseError from './ui/ParseError.svelte';
+  import RichTextEditor from './RichTextEditor.svelte';
   import { printEncounter } from '../services/encounterPrint';
   import { loadEncounterMonsters } from '../stores/context';
   import { parseEncounter, jsonParser } from '../utils/schemaValidation';
@@ -88,21 +89,11 @@
           <div class="enc-card">
             <EncounterHeader encounter={draft} />
 
-            <textarea
-              class="editable-field enc-desc-input"
-              bind:value={draft.description}
-              placeholder="Beschreibung…"
-              rows="5"
-            ></textarea>
+            <div class="enc-rich enc-desc"><RichTextEditor value={draft.description} placeholder="Beschreibung…" collapsedToolbar onChange={(md) => (draft.description = md)} /></div>
 
             <div class="read-aloud-section">
               <h3 class="enc-section-title read-aloud-title">Vorlesetext</h3>
-              <textarea
-                class="editable-field enc-read-aloud-input"
-                bind:value={draft.read_aloud}
-                placeholder="Atmosphärischer Text zum Vorlesen…"
-                rows="3"
-              ></textarea>
+              <div class="enc-rich enc-read-aloud"><RichTextEditor value={draft.read_aloud} placeholder="Atmosphärischer Text zum Vorlesen…" collapsedToolbar onChange={(md) => (draft.read_aloud = md)} /></div>
             </div>
 
             <div class="enc-meta">
@@ -130,17 +121,12 @@
             <div class="enc-divider"></div>
 
             <h3 class="enc-section-title">Beute</h3>
-            <textarea class="editable-field enc-text-input" bind:value={draft.loot} placeholder="Beute…" rows="2"></textarea>
+            <div class="enc-rich"><RichTextEditor value={draft.loot} placeholder="Beute…" collapsedToolbar onChange={(md) => (draft.loot = md)} /></div>
 
             <div class="enc-divider"></div>
 
             <h3 class="enc-section-title">Notizen</h3>
-            <textarea
-              class="editable-field enc-text-input enc-notes-input"
-              bind:value={draft.notes}
-              placeholder="Notizen…"
-              rows="4"
-            ></textarea>
+            <div class="enc-rich"><RichTextEditor value={draft.notes} placeholder="Notizen…" collapsedToolbar onChange={(md) => (draft.notes = md)} /></div>
 
             <div class="enc-footer">
               {#if printError}<span class="print-error">{printError}</span>{/if}
