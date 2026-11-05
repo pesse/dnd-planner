@@ -19,6 +19,9 @@
     expertise: 'Expertise',
     weapons: 'Waffen',
     armor: 'Rüstung',
+    masteries: 'Waffenbeherrschung',
+    optionPicks: 'Optionen',
+    tools: 'Werkzeuge',
     languages: 'Sprachen',
   };
 

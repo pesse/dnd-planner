@@ -32,6 +32,7 @@
   import AbilitiesStep from './wizard/AbilitiesStep.svelte';
   import PersonalStep from './wizard/PersonalStep.svelte';
   import CharacterPreview from './wizard/CharacterPreview.svelte';
+  import WizardFacts from './wizard/WizardFacts.svelte';
   import GlossaryTerm from './GlossaryTerm.svelte';
   import BackgroundAsiStep from './wizard/BackgroundAsiStep.svelte';
   import SkillPickStep from './wizard/SkillPickStep.svelte';
@@ -285,7 +286,9 @@
     character={preview.character}
     emptyText="Noch unvollständig — wähle zuerst ein Volk."
     note={preview.pending ? `Zwischenstand — noch offen: ${preview.pending}.` : ''}
-  />
+  >
+    <WizardFacts character={preview.character} />
+  </CharacterPreview>
 {/snippet}
 
 {#snippet nameField()}

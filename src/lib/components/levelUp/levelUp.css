@@ -3,8 +3,6 @@
 
 .lvlup .questions { display: flex; flex-direction: column; gap: 0.7rem; }
 
-.lvlup .facts { display: flex; flex-direction: column; gap: 0.5rem; }
-.lvlup .fact { font-size: 0.76rem; color: var(--ink-soft); }
 
 .lvlup .creator { border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem; background: var(--surface); }
 
