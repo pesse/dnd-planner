@@ -62,7 +62,7 @@ export const SCENES = {
   'way-of-shadow': {
     cls: 'monk', status: 'frozen',
     core: 'Monk (Warrior of Shadow) — dark close-fitting wraps, a scarf pulled down so the face shows, barefoot or soft shoes, no weapon.',
-    scene: 'Stepping out of the shadows: the monk emerges mid-stride from a pool of living darkness on a wall (the darkness clings to the trailing leg and shoulder like smoke), one hand reaching toward a hanging lantern on the right whose flame is being snuffed by tendrils of shadow from the fingers. Silent, focused; eyes on the lantern.',
+    scene: 'Stepping out of the shadows: the monk emerges mid-stride from a pool of living darkness on a wall (the darkness clings to the trailing leg and shoulder like smoke), one hand reaching toward a hanging lantern on the right whose flame is being snuffed by tendrils of shadow from the outstretched hand. Silent, focused; eyes on the lantern.',
     camera: 'Knee-up, slightly low three-quarter view.',
     setting: 'A rooftop of a sleeping city at night, moonlight, no people.',
   },
@@ -83,14 +83,14 @@ export const SCENES = {
   thief: {
     cls: 'rogue', status: 'frozen',
     core: 'Rogue (Thief) — dark fitted leathers, hood pushed back so the face shows, a belt of lockpicks; nimble fingers and climbing skill.',
-    scene: 'The getaway climb: clinging to the outside of a manor tower, one hand gripping a stone ledge, both feet on the wall, the other hand clutching a glittering stolen necklace; glancing back to the right at a lit window they just left. Tense but pleased, a sly half-smile allowed. No rope.',
+    scene: 'The getaway climb: clinging to the outside of a manor tower, body turned three-quarters toward the viewer, one hand gripping a stone ledge above, the other hand clutching a glittering stolen necklace; legs clearly apart, each foot on its own ledge, one left and one right of the hips; glancing back to the right at a lit window they just left. Tense but pleased, a sly half-smile allowed. No rope.',
     camera: 'Full figure, view from slightly below and to the side.',
     setting: 'A manor tower at night under moonlight, rooftops below.',
   },
   assassin: {
     cls: 'rogue', status: 'frozen',
     core: 'Rogue (Assassin) — dark fitted leathers, hood pushed back so the face shows, a single straight dagger with a faint green sheen of poison.',
-    scene: 'The strike from the shadows: lunging out of pitch darkness toward a big armoured bodyguard (human-sized, half-turned away, only now noticing) on the right, the straight dagger thrust forward toward the gap in the armour — the moment just BEFORE the blow lands, no wound, no blood. The free arm stays bent close to the body for balance (natural length, not stretched out behind). Cold, deadly focus, eyes on the target. The assassin\'s trailing cloak still dissolves into the darkness behind.',
+    scene: 'The strike from the shadows: lunging out of pitch darkness toward a big armoured bodyguard (human-sized, half-turned away, only now noticing) on the right, the straight dagger thrust forward toward the gap in the armour — the moment just BEFORE the blow lands, no wound, no blood. The free arm is out of sight behind the body. Cold, deadly focus, eyes on the target. The assassin\'s trailing cloak still dissolves into the darkness behind.',
     camera: 'Knee-up, slightly low three-quarter view.',
     setting: 'A castle corridor at night, very dark and low-key: deep black shadows, the only light a single torch on the wall that rims the figures in orange.',
   },
@@ -117,7 +117,7 @@ export const SCENES = {
   },
   evoker: {
     cls: 'wizard', status: 'frozen',
-    core: 'Wizard (Evoker) — scholar\'s robes, a spellbook (no writing) held open in one hand; a battle mage of raw destructive power.',
+    core: 'Wizard (Evoker) — scholar\'s robes, a closed spellbook (no writing) held flat against the chest in the other arm, its cover facing the viewer; a battle mage of raw destructive power.',
     scene: 'Battle magic: the free hand thrust forward to the right hurls a roaring fireball into a charging war band of gnolls (hyena-headed humanoids, human-sized); the fireball bursts at close range among the lead gnolls, which recoil and are thrown back by the blast. Wind and heat whip the robes and hair. Fierce, commanding concentration, eyes on the explosion.',
     camera: 'Knee-up, low three-quarter view.',
     setting: 'A ruined battlefield ridge at night under a stormy sky, lit by the fire.',
@@ -159,14 +159,14 @@ export const SCENES = {
   },
   'college-of-glamour': {
     cls: 'bard', status: 'frozen',
-    core: 'Bard (College of Glamour) — splendid shimmering stage garments in jewel tones, a lute (never a fiddle or violin) held in one hand at the side, rigid and intact with a dead-straight neck; otherworldly fey charm.',
+    core: 'Bard (College of Glamour) — splendid shimmering stage garments in jewel tones, a lute slung on the back, mostly hidden behind the body — only its neck shows above one shoulder (never a fiddle or violin); otherworldly fey charm.',
     scene: 'Mantle of Majesty: standing on a stage of moss and flowers, one hand raised gracefully; an aura of shimmering silver-violet fey light and floating petals radiates from the bard. On the right, a small audience of four or five ordinary townsfolk gazes up, enraptured, some reaching out. Serene, captivating expression, eyes on the audience.',
     camera: 'Knee-up, slightly low three-quarter view.',
     setting: 'An enchanted Feywild glade at dusk, giant glowing flowers and fireflies.',
   },
   'college-of-valor': {
     cls: 'bard', status: 'frozen',
-    core: 'Bard (College of Valor) — a light chain shirt over colourful clothes, a bright sash, a lute strapped on the back (never a fiddle or violin), a straight rapier.',
+    core: 'Bard (College of Valor) — a light chain shirt over colourful clothes, a bright sash, a lute slung on the back, mostly hidden behind the body — only its neck shows above one shoulder (never a fiddle or violin), a straight rapier.',
     scene: 'Leading the charge with song: standing on a low broken wall, the rapier raised high in ONE hand (blade dead straight, pointing up), singing out loud; golden ribbons of light and musical motes stream from the bard to a group of four armoured soldiers on the right, who surge forward inspired. Fierce battle cry with the mouth wide open, furrowed brow, a war-hardened bearing even for a small folk — not cute, not a cheerful smile; eyes on the soldiers.',
     camera: 'Full figure, low three-quarter view.',
     setting: 'A battlefield at sunrise, smoke and banners without symbols.',
@@ -195,7 +195,7 @@ export const SCENES = {
   'circle-of-the-sea': {
     cls: 'druid', status: 'frozen',
     core: 'Druid (Circle of the Sea) — garments of hide, kelp and shells, coral and pearl charms; a STRAIGHT driftwood staff (the shaft straight and rigid).',
-    scene: 'Wrath of the Sea: standing on wave-washed rocks, the staff in one hand, the other hand thrust forward to the right; a swirling aura of sea spray and storm wind circles the druid, and a great crashing wave hurls a giant crab backward at the right edge of the frame. Fierce, commanding calm, eyes on the crab.',
+    scene: 'Wrath of the Sea: standing on wave-washed rocks, the staff in one hand, the other arm thrust forward to the right, the open palm toward the crab, fingers together; a swirling aura of sea spray and storm wind circles the druid, and a great crashing wave hurls a giant crab backward at the right edge of the frame. Fierce, commanding calm, eyes on the crab.',
     camera: 'Full figure, low three-quarter view.',
     setting: 'A rocky coast under a storm, lightning over the sea.',
   },
@@ -216,7 +216,7 @@ export const SCENES = {
   'psi-warrior': {
     cls: 'fighter', status: 'frozen', flip: true,
     core: 'Fighter (Psi Warrior) — practical heavy armour, no shield; a faint violet psionic glow at the temples. The only weapon is a longsword: one straight, unbroken, double-edged steel blade about as long as the arm, a plain cross-guard.',
-    scene: 'Telekinetic Thrust: the fighter faces LEFT; the longsword is carried low at the side in the hand away from the viewer: that arm hangs relaxed, the fist closed around the grip with a straight wrist, and pommel, grip, cross-guard and blade form ONE rigid straight line pointing diagonally down toward the ground in front of the feet — never bent or kinked at the hilt; the arm nearer to the viewer is raised with spread fingers, and a rippling wave of violet psionic force hurls a huge ogre off its feet backward on the LEFT side of the frame, gravel and dust lifted in the air. Intense mental focus, eyes on the ogre.',
+    scene: 'Telekinetic Thrust: the fighter faces LEFT, hips, chest and head all turned the same way; the longsword is held low at the side, one rigid straight line from pommel to tip pointing down toward the ground; the other hand is raised toward the ogre, and a rippling wave of violet psionic force hurls a huge ogre off its feet backward on the LEFT side of the frame, gravel and dust lifted in the air. Intense mental focus, eyes on the ogre.',
     camera: 'Knee-up, eye level three-quarter view.',
     setting: 'A rocky canyon at dusk, dust in the air.',
   },
@@ -286,7 +286,7 @@ export const SCENES = {
   soulknife: {
     cls: 'rogue', status: 'frozen',
     core: 'Rogue (Soulknife) — dark fitted leathers, hood pushed back so the face shows, no physical weapon; a faint violet glow at the temples.',
-    scene: 'Psychic Blades: on a rooftop, the instant after an overhand throw toward the right: body turned toward the right in a firm, balanced stance, weight on the front foot; the throwing arm (the one nearer to the viewer) has just snapped forward and is extended toward the gargoyle at shoulder height, the hand open from the release. The thrown blade, straight and made purely of shimmering violet psychic energy, flies point-first exactly along the line of that arm and away from the rogue toward a large stone gargoyle on the right. The other arm, on the far side of the body, hangs low at the hip, its hand gripping a second violet blade that is just forming, point down; shoulders, arms and hips form one coherent throwing motion with natural anatomy and five fingers per hand. Cold focus, eyes on the gargoyle.',
+    scene: 'Psychic Blades: on a rooftop, the instant after an overhand throw toward the right: body turned toward the right in a firm, balanced stance, weight on the front foot; the throwing arm (the one nearer to the viewer) has just snapped forward and is extended toward the gargoyle at shoulder height, the hand open from the release. The thrown blade, straight and made purely of shimmering violet psychic energy, flies point-first exactly along the line of that arm and away from the rogue toward a large stone gargoyle on the right. The other arm, on the far side of the body, hangs low at the hip; shoulders, arms and hips form one coherent throwing motion. Cold focus, eyes on the gargoyle.',
     camera: 'Knee-up, slightly low three-quarter view.',
     setting: 'City rooftops at night under a misty moon.',
   },
