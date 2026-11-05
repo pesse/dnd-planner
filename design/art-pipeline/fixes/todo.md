@@ -568,3 +568,4 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 560 edit · figures/human-androgynous/classes/warlock · 48.5/33.0 · so kann ein Arm sich nicht biegen! (vom User per Google korrigiert und in der App aus der Zwischenablage ersetzt; ersetzt 469)
 - [~] 561 edit · monster-scenes/gladiator · 69.5/44.0 · der linke Arm fehlt! (vom User per Google korrigiert und in der App aus der Zwischenablage ersetzt; ersetzt 447)
 - [~] 562 edit · monster-scenes/needle-blight · 18.0/31.8 · das muss sein linker Arm sein! (vom User per Google korrigiert und in der App aus der Zwischenablage ersetzt; ersetzt 450)
+- [~] 563 edit · figures/tiefling-masculine/subclasses/path-of-the-world-tree · 86.7/34.0 · Male den Troll im Hintergrund in anderer Pose neu (Codex mit genau diesem Satz, deutscher Brief; englische Vergleichsfassung in design/art/fixes/manual-worldtree/; ersetzt 490)
