@@ -44,6 +44,8 @@ async function toPng(avif, png, icon) {
 }
 
 const HAND_RULE = 'Hands: exactly five fingers (one thumb + four fingers), natural joints, the hand continuing the line of its forearm without a twisted wrist. Check handedness: for the figure\'s RIGHT hand the thumb is on the side facing the figure\'s body centre when the palm faces forward. A hand gripping a weapon or staff wraps all four fingers around the shaft with the thumb closing over them.';
+// Edits kamen glatter und schärfer als ihre Umgebung zurück (Hand und Buch beim Hervorrufer, Goblin beim Barbaren).
+const MATCH_RULE = 'Every repainted part must be indistinguishable in technique from the untouched painting around it: the same loose visible brushstrokes, dry-brush texture, soft edges, grain and level of detail, the same light and colour temperature. Never sharper, smoother, cleaner or more rendered than its surroundings; if in doubt, paint it rougher.';
 const BOW_RULE = 'Bows: one continuous stave with the hand closed around its grip; the string is one straight line from exactly one tip to the other (a V to the drawing hand when drawn).';
 // Haltungen findet das Modell erst mit einer Puppe in derselben Ansicht (Test 2026-11-04: 4/4 mit, 0/8 mit Text oder Fotos).
 const POSE_RULE = 'The pose reference is a technical diagram of a wooden mannequin: the held object in cyan, its string in magenta. Copy ONLY how the object is held and where it lies relative to the body (in front of / behind which limbs); paint it in the original\'s style and materials and ignore the diagram\'s colours, mannequin and background.';
@@ -58,6 +60,7 @@ function itemBrief(it, inputs) {
     `The user clicked ${where}; that is where the problem is.`];
   if (it.mode === 'edit') {
     lines.push('Task: EDIT the original (give it to your image tool as the input image). Keep everything else identical: composition, framing, every figure\'s pose, faces, clothing, palette, lighting, background and painting style. Change ONLY what the note asks for.');
+    lines.push(MATCH_RULE);
   } else {
     lines.push('Task: REPAINT this image from scratch as a new painting of the same subject, setting, palette and style (use the original as reference for content and style, not as an edit base). Fix what the note criticises with a clear, anatomically sound, readable pose. Keep the same drama and energy, do not make the scene tamer.');
     // Der alte Brief war widersprüchlich; das Original zeigt genau den Fehler, den er erzwungen hat.
