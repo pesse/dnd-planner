@@ -10,8 +10,11 @@
   let text = $state('');
   const earlier = $derived($imageMarks.filter((m) => m.address === draft.address && m.status === 'open'));
 
-  function save() {
-    addImageMark({ ...draft, ...point, text: text.trim() });
+  // Wortlaut, mit dem Codex die Figur tatsächlich umgestaltet; „Figur neu generieren" allein liefert dasselbe Bild.
+  const REPAINT_FIGURE = 'Male die Figur in anderer Pose neu.';
+
+  function save(prefix = '') {
+    addImageMark({ ...draft, ...point, text: [prefix, text.trim()].filter(Boolean).join('\n') });
     onclose();
   }
 
@@ -32,7 +35,12 @@
   <textarea bind:value={text} {onkeydown} rows="3" placeholder="Was stimmt an dieser Stelle nicht?" {@attach (el) => el.focus()}></textarea>
   <div class="actions">
     <button class="cancel-btn" onclick={onclose}>Abbrechen</button>
-    <button class="ok-btn" onclick={save}>Markierung speichern</button>
+    <button
+      class="cancel-btn"
+      onclick={() => save(REPAINT_FIGURE)}
+      title="Speichert die Markierung mit dem Auftrag „{REPAINT_FIGURE}“ — eigener Text kommt dazu"
+    >Figur neu malen</button>
+    <button class="ok-btn" onclick={() => save()}>Markierung speichern</button>
   </div>
 </Modal>
 
