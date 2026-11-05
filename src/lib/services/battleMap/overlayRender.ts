@@ -73,23 +73,14 @@ function hashUnit(text: string, salt: number): number {
   return (h >>> 0) / 2 ** 32;
 }
 
-/** Glattes Wertrauschen in [-1, 1]: ein Zufallswert je ganzer Zeiteinheit, dazwischen Kosinus-Übergang. */
-function valueNoise(seed: string, t: number): number {
-  const i = Math.floor(t);
-  const blend = (1 - Math.cos((t - i) * Math.PI)) / 2;
-  const a = hashUnit(seed, i) * 2 - 1;
-  const b = hashUnit(seed, i + 1) * 2 - 1;
-  return a + (b - a) * blend;
-}
-
 /**
- * Radius schwankt um höchstens ±`FLICKER_AMPLITUDE`. Rauschen und Tempo hängen an der `id`, nicht am
- * Ort — sonst flackert ein gezogenes Token mit jedem Pixel wild.
+ * Radius atmet um höchstens ±`FLICKER_AMPLITUDE`: eine langsame und eine schnellere Welle, deren
+ * Frequenzen und Phasen aus der `id` kommen. Aus dem Ort abgeleitet flackerte ein gezogenes Token wild.
  */
 export function flickerLights(lights: readonly LightSpot[], seconds: number): LightSpot[] {
   return lights.map((l) => {
-    const tempo = 0.8 + 0.6 * hashUnit(l.id, -1);
-    const wave = 0.65 * valueNoise(l.id, seconds * 2.2 * tempo) + 0.35 * valueNoise(l.id + '~', seconds * 6.1 * tempo);
+    const [f1, f2, p1, p2] = [0.25 + 0.15 * hashUnit(l.id, 1), 0.6 + 0.3 * hashUnit(l.id, 2), hashUnit(l.id, 3), hashUnit(l.id, 4)];
+    const wave = 0.7 * Math.sin(2 * Math.PI * (f1 * seconds + p1)) + 0.3 * Math.sin(2 * Math.PI * (f2 * seconds + p2));
     return { ...l, radius: l.radius * (1 + FLICKER_AMPLITUDE * wave) };
   });
 }
