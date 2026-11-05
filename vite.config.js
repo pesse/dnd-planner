@@ -41,6 +41,8 @@ function vaultArt() {
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [vaultArt(), sveltekit()],
+  // Vorgebündelt findet der AVIF-Encoder seine .wasm-Datei nicht mehr.
+  optimizeDeps: { exclude: ['@jsquash/avif'] },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

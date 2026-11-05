@@ -15,6 +15,12 @@
   } from '$lib/stores/imageMarks';
   import { IMAGE_MARK_STATUSES, type ImageMark, type ImageMarkStatus } from '$lib/schemas/imageMark';
   import { confirmAction } from '$lib/stores/confirmDialog';
+  import {
+    copyImageToClipboard,
+    exportImageMarks,
+    replaceArtFromClipboard,
+    replaceableArt,
+  } from '$lib/services/imageMarks/exchange';
   import { pushError, pushNotice } from '$lib/stores/toasts';
 
   let { onclose }: { onclose: () => void } = $props();
@@ -58,6 +64,43 @@
     }
   }
 
+  async function copyImage(url: string) {
+    try {
+      await copyImageToClipboard(url);
+      pushNotice('Bild in die Zwischenablage kopiert.');
+    } catch (e) {
+      pushError(`Bild kopieren fehlgeschlagen: ${e}`);
+    }
+  }
+
+  // Gleiche URL, neue Datei: ohne Zähler zeigt die Vorschau weiter das zwischengespeicherte alte Bild.
+  let replaced = $state<Record<string, number>>({});
+  let replacing = $state<string | null>(null);
+  const shown = (mark: ImageMark) =>
+    mark.url && replaced[mark.id] ? `${mark.url}${mark.url.includes('?') ? '&' : '?'}v=${replaced[mark.id]}` : mark.url;
+
+  async function replaceImage(mark: ImageMark) {
+    replacing = mark.id;
+    try {
+      await replaceArtFromClipboard(mark.address, mark.width, mark.height);
+      replaced = { ...replaced, [mark.id]: (replaced[mark.id] ?? 0) + 1 };
+      await recheckImageMarks();
+      pushNotice('Bild aus der Zwischenablage übernommen.');
+    } catch (e) {
+      pushError(`Bild ersetzen fehlgeschlagen: ${e}`);
+    } finally {
+      replacing = null;
+    }
+  }
+
+  async function exportAll() {
+    try {
+      if (await exportImageMarks($imageMarks)) pushNotice(`${$imageMarks.length} Markierung(en) exportiert.`);
+    } catch (e) {
+      pushError(`Export fehlgeschlagen: ${e}`);
+    }
+  }
+
   async function removeAll() {
     const ok = await confirmAction({
       title: 'Alle Markierungen entfernen',
@@ -81,6 +124,7 @@
       Importieren …
       <input type="file" accept=".json,application/json" onchange={importFile} hidden />
     </label>
+    <button onclick={exportAll} disabled={!$imageMarks.length} title="Alle Markierungen als JSON-Datei speichern">Exportieren …</button>
     <button onclick={() => copy($imageMarks)} disabled={!$imageMarks.length}>Alle kopieren</button>
     <button class="danger" onclick={removeAll} disabled={!$imageMarks.length}>Alle entfernen</button>
   </div>
@@ -93,7 +137,7 @@
     {#each $imageMarks as mark (mark.id)}
       <li class:fixed={mark.status === 'fixed'}>
         <button class="thumb" title="Groß anzeigen" onclick={() => (enlargedId = mark.id)}>
-          <MarkedImage url={mark.url} width={mark.width} height={mark.height} pins={[{ ...mark, current: true }]} maxHeight="8rem" />
+          <MarkedImage url={shown(mark)} width={mark.width} height={mark.height} pins={[{ ...mark, current: true }]} maxHeight="8rem" />
         </button>
         <div class="body">
           <div class="address" title="Adresse des Bilds">{mark.address}</div>
@@ -116,6 +160,19 @@
               {#each IMAGE_MARK_STATUSES as s (s)}<option value={s}>{STATUS_LABELS[s]}</option>{/each}
             </select>
             <span class="actions">
+              {#if mark.url}
+                {@const url = mark.url}
+                <button onclick={() => copyImage(url)} title="Bild als PNG in die Zwischenablage">Bild kopieren</button>
+              {/if}
+              {#if replaceableArt(mark.address) && mark.width && mark.height}
+                <button
+                  onclick={() => replaceImage(mark)}
+                  disabled={replacing !== null}
+                  title="Ersetzt die Bilddatei im Vault durch das Bild aus der Zwischenablage"
+                >
+                  {replacing === mark.id ? 'Ersetze…' : 'Aus Zwischenablage ersetzen'}
+                </button>
+              {/if}
               <button onclick={() => copy([mark])}>Kopieren</button>
               <button class="danger" onclick={() => removeImageMark(mark.id)}>Entfernen</button>
             </span>
@@ -128,7 +185,7 @@
 
 {#if enlarged}
   <MarkedImageLightbox
-    url={enlarged.url}
+    url={shown(enlarged)}
     width={enlarged.width}
     height={enlarged.height}
     pins={[{ ...enlarged, current: true }]}
