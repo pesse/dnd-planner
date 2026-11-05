@@ -9,6 +9,8 @@ import { isComplete, primaryAbilityKeys, recommendedScores } from './pointBuy';
 import { allowedKeys, isValidAllocation, suggestAsi } from './backgroundAsi';
 import { ALIGNMENTS, STANDARD_LANGUAGE_PICKS, STANDARD_LANGUAGES } from './personal';
 import { wizardFightingStyleOffer, wizardMasteryOffer, wizardTraitFeatOffers } from './wizardOffers';
+import { traitFeatQuota } from '../traitFeat';
+import { pickableFeats } from '../fightingStyle';
 import { wizardCastingInput } from './castingDraft';
 import { spellStepRows } from './spellRows';
 import { toolPickKey } from './characterWizard.svelte';
@@ -64,9 +66,10 @@ function fillOrigin(w: CharacterWizard, catalog: OriginCatalog, rng: Rng): void 
 async function fillTraitFeats(w: CharacterWizard, rng: Rng): Promise<void> {
   for (const offer of await wizardTraitFeatOffers(w)) {
     const current = w.traitFeats[offer.featureKey] ?? [];
-    const count = Math.min(offer.allowance, offer.options.length);
+    const count = traitFeatQuota(offer);
     if (current.length >= count) continue;
-    const ranked = preferring(offer.options.map((o) => o.sourceKey), (k) => offer.recommended.includes(k), rng);
+    const pickable = pickableFeats(offer.options, offer.owned).map((o) => o.sourceKey);
+    const ranked = preferring(pickable, (k) => offer.recommended.includes(k), rng);
     // Ein Talent kann Deklarationen mitbringen (Begabt) — der Wizard lädt danach neu.
     w.setTraitFeats(offer.featureKey, topUp(current, ranked, count));
   }

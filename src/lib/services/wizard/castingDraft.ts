@@ -75,8 +75,18 @@ export function applyFeatureLedger(c: Character, w: WizardCastingSource): void {
 }
 
 /** Kampfstile und Talente aus Speziesmerkmalen; ohne Anzeigenamen — den holt die Montage. */
-export const featLinks = (w: WizardCastingSource): CharacterFeatureEntry[] =>
-  [...w.fightingStyles, ...Object.values(w.traitFeats).flat()].map((key) => ({ sourceKey: key, name: '', choice: '', choiceDe: '', choiceId: '', gainedAt: 1, desc: '' }));
+export const featLinks = (w: WizardCastingSource): CharacterFeatureEntry[] => {
+  const link = (key: string, grantedBy?: string): CharacterFeatureEntry =>
+    ({ sourceKey: key, name: '', choice: '', choiceDe: '', choiceId: '', gainedAt: 1, desc: '', ...(grantedBy ? { grantedBy } : {}) });
+  return [
+    ...w.fightingStyles.map((key) => link(key)),
+    ...traitFeatPicks(w.traitFeats).map((p) => link(p.key, p.grantedBy)),
+  ];
+};
+
+/** Die Talente aus Speziesmerkmalen samt dem Merkmal, das sie vergab. */
+export const traitFeatPicks = (traitFeats: Record<string, string[]>): { key: string; grantedBy: string }[] =>
+  Object.entries(traitFeats).flatMap(([grantedBy, keys]) => keys.map((key) => ({ key, grantedBy })));
 
 /** Übungsschritt und Montage fragen dieselben Quellen — Talent-Links eingeschlossen (Begabt). */
 export const wizardGrantInput = (w: WizardCastingSource): GrantInput => ({

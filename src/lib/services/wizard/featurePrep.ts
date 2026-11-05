@@ -14,6 +14,7 @@ import { getFeats, featDesc, featDisplayName, type FeatEntry } from '$lib/featsL
 import { isFlowOwnedChoiceFeature } from '../levelUp';
 import { spellAccessGrantOf, type SpellAccessGrant } from '../spellcasting/access';
 import { isSpellAccessFeature } from '../declaration/casting';
+import { grantedInstanceId } from '../declaration/featInstances';
 import { sizeChoiceOf } from '../speciesSize';
 import type { AnalysisChoice } from '../analysis/types';
 import type { FeatureClassContext, GainedFeature } from '../analysis/types';
@@ -26,8 +27,8 @@ export interface FeatureBasics {
   species: { sourceKey: string; name: string };
   klass: { sourceKey: string; name: string; subclassKey?: string; subclassName?: string };
   background: { sourceKey: string; name: string };
-  /** Talent-Keys, die ein Speziesmerkmal wählen ließ (`traitFeat.ts`). */
-  traitFeats?: string[];
+  /** Talente, die ein Speziesmerkmal wählen ließ (`traitFeat.ts`), samt diesem Merkmal. */
+  traitFeats?: { key: string; grantedBy: string }[];
 }
 
 export interface FeaturePrep {
@@ -124,18 +125,24 @@ function backgroundChoiceFeature(bg: Background): Omit<DeclaredFeature, 'source'
   };
 }
 
+/** Identität und Vorgabe einer Talent-Instanz — dieselbe Regel wie `featInstances`. */
+interface FeatPlace {
+  sourceId: string;
+  specialisation: string;
+}
+
 /**
  * Aus DERSELBEN Liste wie jede andere Deklaration — der Hochelf gewährt einen Zaubertrick
- * wie ein Talent. Die Spezialisierung gilt allein dem Talent des Hintergrunds.
+ * wie ein Talent. `places` steht index-gleich zu den Talenten in `declared`: dasselbe Talent
+ * kann zweimal darin stehen (Hintergrund und Vielseitig).
  */
-function spellAccessGrants(declared: DeclaredFeature[], bg: Background | null): SpellAccessGrant[] {
+function spellAccessGrants(declared: DeclaredFeature[], places: FeatPlace[]): SpellAccessGrant[] {
+  let featIndex = 0;
   return declared
-    .filter(isSpellAccessFeature)
-    .map((f) =>
-      spellAccessGrantOf(f, {
-        specialisation: bg?.featKey && f.key === bg.featKey ? featSpecialisation(bg) : '',
-      }),
-    )
+    .map((f) => {
+      const place = f.source === 'feat' ? places[featIndex++] : undefined;
+      return isSpellAccessFeature(f) ? spellAccessGrantOf(f, place ?? {}) : null;
+    })
     .filter((g): g is SpellAccessGrant => g !== null);
 }
 
@@ -178,16 +185,25 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
   // Englisch geführt: `name`/`desc` sind kanonisch (so liest sie jeder Deutungs-Call),
   // `nameDe`/`descDe` reisen als Quelle der Übersetzungs-Calls mit.
   const gained: GainedFeature[] = [...level1Features(prog, 'class'), ...level1Features(sub, 'subclass')];
+  const places: FeatPlace[] = [];
+  const fromTrait = new Set<GainedFeature>();
   const feat = originFeat(bg, feats);
-  if (feat) gained.push(feat);
-  for (const key of basics.traitFeats ?? []) {
-    const picked = featGained(feats, key);
-    if (picked) gained.push(picked);
+  if (feat) {
+    gained.push(feat);
+    places.push({ sourceId: feat.key ?? '', specialisation: featSpecialisation(bg) });
+  }
+  for (const pick of basics.traitFeats ?? []) {
+    const picked = featGained(feats, pick.key);
+    if (!picked) continue;
+    gained.push(picked);
+    fromTrait.add(picked);
+    const twin = pick.key === bg?.featKey;
+    places.push({ sourceId: twin ? grantedInstanceId(pick.key, pick.grantedBy) : pick.key, specialisation: '' });
   }
 
   const traits = traitsUpTo(spec?.traits ?? [], 1);
   const declared = declaredSources(prog, sub, traits, gained, bg);
-  const spellAccess = spellAccessGrants(declared, bg);
+  const spellAccess = spellAccessGrants(declared, places);
   const speciesFeatures = traitFeatures(traits);
 
   const toSummary = (g: GainedFeature): SummaryFeature => ({
@@ -195,7 +211,7 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
     nameDe: g.nameDe,
     desc: g.desc,
     source: g.source === 'subclass' ? 'class' : g.source,
-    group: g.source !== 'feat' ? klass.name : g.key === bg?.featKey ? background.name : species.name,
+    group: g.source !== 'feat' ? klass.name : fromTrait.has(g) ? species.name : background.name,
     gainedAt: g.gainedAt,
     choice: g.choice,
   });

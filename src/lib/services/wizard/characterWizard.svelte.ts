@@ -25,7 +25,7 @@ import type { AsiAllocation } from './backgroundAsi';
 import { collectGrants, type CollectedGrants, type OpenChoice } from '../proficiencyGrants';
 import { SKILL_NAMES } from '$lib/schemas/vocabulary';
 import { spellInfoByKey, type SpellInfo } from '$lib/spellLibrary';
-import { wizardGrantInput } from './castingDraft';
+import { traitFeatPicks, wizardGrantInput } from './castingDraft';
 import { Keyed } from './keyed.svelte';
 
 export function toolPickKey(groupIdx: number, optionIdx: number, itemIdx: number): string {
@@ -251,7 +251,7 @@ export class CharacterWizard {
       species: this.species,
       klass: this.klass,
       background: this.background,
-      traitFeats: Object.values(this.traitFeats).flat(),
+      traitFeats: traitFeatPicks(this.traitFeats),
     });
     this.#prep = pending;
     void pending.then((prep) => {

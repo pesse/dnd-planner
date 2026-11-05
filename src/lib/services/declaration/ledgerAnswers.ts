@@ -10,6 +10,7 @@ export interface LedgerAnswerEntry {
   sourceKey?: string;
   choice: string;
   gainedAt?: number;
+  choiceId?: string;
 }
 
 /**

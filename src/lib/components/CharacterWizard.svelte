@@ -13,8 +13,7 @@
   import { STANDARD_LANGUAGE_PICKS } from '../services/wizard/personal';
   import type { MasteryOffer } from '../services/weaponMastery';
   import type { FightingStyleOffer } from '../services/fightingStyle';
-  import type { TraitFeatOffer } from '../services/traitFeat';
-  import { FEAT_CATEGORY_DE } from '../featsLibrary';
+  import { traitFeatQuota, type TraitFeatOffer } from '../services/traitFeat';
   import type { OptionPoolOffer } from '../services/declaration/optionPool';
   import { wizardFightingStyleOffer, wizardMasteryOffer, wizardOptionPools, wizardTraitFeatOffers } from '../services/wizard/wizardOffers';
   import { createFormCasting } from '../services/characterFormCasting.svelte';
@@ -28,6 +27,8 @@
   import FullscreenWizard, { CHOICE_LIST_WIDTH } from './ui/FullscreenWizard.svelte';
   import OriginStep from './wizard/OriginStep.svelte';
   import OriginDetail from './wizard/OriginDetail.svelte';
+  import TraitFeatStep from './wizard/TraitFeatStep.svelte';
+  import TraitFeatDetail from './wizard/TraitFeatDetail.svelte';
   import LanguageStep from './wizard/LanguageStep.svelte';
   import AbilitiesStep from './wizard/AbilitiesStep.svelte';
   import PersonalStep from './wizard/PersonalStep.svelte';
@@ -181,10 +182,9 @@
     return () => { cancelled = true; };
   });
   const traitFeatsDone = $derived(
-    traitFeatOffers.every(
-      (o) => (w.traitFeats[o.featureKey]?.length ?? 0) >= Math.min(o.allowance, o.options.length),
-    ),
+    traitFeatOffers.every((o) => (w.traitFeats[o.featureKey]?.length ?? 0) >= traitFeatQuota(o)),
   );
+  let focusedTraitFeat = $state('');
 
   // Auf Stufe 1 leer, solange kein Merkmal einen Pool auf dieser Stufe vergibt (Metamagie
   // beginnt auf Zaubererstufe 2) — der Schritt fällt dann weg.
@@ -281,6 +281,10 @@
   <OriginDetail kind={currentStep as OriginKind} {w} {catalog} />
 {/snippet}
 
+{#snippet traitFeatDetail()}
+  <TraitFeatDetail offers={traitFeatOffers} focused={focusedTraitFeat} />
+{/snippet}
+
 {#snippet characterPreview()}
   <CharacterPreview
     character={preview.character}
@@ -328,7 +332,7 @@
   onclose={onCancel}
   headerExtra={nameField}
   mainWidth={CHOICE_LIST_WIDTH}
-  detail={isOrigin ? originDetail : undefined}
+  detail={isOrigin ? originDetail : currentStep === 'trait-feat' ? traitFeatDetail : undefined}
   preview={characterPreview}
   {footer}
 >
@@ -378,20 +382,7 @@
     {/if}
 
   {:else if currentStep === 'trait-feat'}
-    <p class="hint">Ein Volksmerkmal gewährt dir ein <GlossaryTerm term="Talent" />. Mit ★ markierte Talente empfiehlt das Regelwerk.</p>
-    {#each traitFeatOffers as offer (offer.featureKey)}
-      {@const picked = w.traitFeats[offer.featureKey] ?? []}
-      <FeatPicker
-        {offer}
-        heading="{offer.label} — Talent der Kategorie „{FEAT_CATEGORY_DE[offer.featCategory]}“"
-        missingHint="Talente brauchen die Kategorie „{FEAT_CATEGORY_DE[offer.featCategory]}“ (vault/feats)."
-        selected={picked}
-        recommended={offer.recommended}
-        onToggle={(key) => {
-          w.setTraitFeats(offer.featureKey, picked.includes(key) ? picked.filter((k) => k !== key) : [...picked, key]);
-        }}
-      />
-    {/each}
+    <TraitFeatStep {w} offers={traitFeatOffers} bind:focused={focusedTraitFeat} />
 
   {:else if currentStep === 'option-pool'}
     <p class="hint">Wähle die Optionen deiner Merkmale — die Liste stammt aus der Klassen-Deklaration.</p>

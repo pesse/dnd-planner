@@ -136,6 +136,11 @@ const characterFeatureSchema = z.object({
    */
   choiceId: z.string().default(''),
   gainedAt: z.number().int().optional(), // trennt Mehrfachvergaben desselben Keys (Expertise: 1 und 6)
+  /**
+   * Key des Merkmals, das diesen Talent-Link vergeben hat (Vielseitig). Trennt ihn vom
+   * gleichen Talent des Hintergrunds auf derselben Stufe (`featInstances`); fehlt am Altbestand.
+   */
+  grantedBy: z.string().optional(),
   desc: z.string().default(''),
 });
 

@@ -312,8 +312,17 @@ export function spellAccessChoices(grant: SpellAccessGrant, answeredList = ''): 
   return choices;
 }
 
-const answersOf = (grant: SpellAccessGrant, ledger: readonly LedgerAnswerEntry[]): string[] =>
-  ledgerAnswers(ledger, grant.featureKey, grant.gainedAt);
+/**
+ * Erst die gestempelte Antwort DIESER Instanz: zwei Instanzen auf derselben Stufe
+ * (`grantedInstanceId`) trennt nur der Stempel. Fremd gestempelte fallen heraus, ungestempelter
+ * Altbestand bleibt.
+ */
+function answersOf(grant: SpellAccessGrant, ledger: readonly LedgerAnswerEntry[], part: SpellAccessPart): string[] {
+  const own = spellAccessPartId(grant, part);
+  const stamped = ledger.filter((e) => e.choiceId === own).map((e) => e.choice.trim()).filter(Boolean);
+  const loose = ledger.filter((e) => !e.choiceId?.startsWith('spellaccess_'));
+  return [...stamped, ...ledgerAnswers(loose, grant.featureKey, grant.gainedAt)];
+}
 
 /**
  * Nur deklarierte Werte zählen — ein Namensvergleich griffe die ASI-Wahl desselben Merkmals
@@ -325,21 +334,25 @@ export function answeredAbility(
   ledger: readonly LedgerAnswerEntry[],
 ): AbilityName | null {
   if (grant.abilities.length === 1) return grant.abilities[0];
-  return pickAnswer(answersOf(grant, ledger), grant.abilities);
+  return pickAnswer(answersOf(grant, ledger, 'ability'), grant.abilities);
 }
 
 /** Gegenstück zu `answeredAbility`; die Vorgabe der Quelle steckt schon in `grant.lists`. */
 export function answeredList(grant: SpellAccessGrant, ledger: readonly LedgerAnswerEntry[]): string {
-  return fixedList(grant) || (pickAnswer(answersOf(grant, ledger), grant.lists) ?? '');
+  return fixedList(grant) || (pickAnswer(answersOf(grant, ledger, 'list'), grant.lists) ?? '');
 }
 
 /**
- * Zwei Instanzen desselben Talents trennt nur die Vergabe-Stufe — ohne sie stünden auf Karte
- * und Bogen zwei gleichlautende Zeilen. EINE Funktion für beide, denn `withSpellValues`
+ * Zwei Instanzen desselben Talents trennt die Vergabe-Stufe oder das vergebende Merkmal —
+ * ohne den Zusatz stünden auf Karte und Bogen zwei gleichlautende Zeilen. EINE Funktion für beide, denn `withSpellValues`
  * (`pdf/characterFields.ts`) findet die Notizzeile über genau dieses Präfix wieder.
  */
-export const spellAccessLabel = (grant: SpellAccessGrant): string =>
-  grant.sourceId === grant.featureKey ? grant.featureDe : `${grant.featureDe} (Stufe ${grant.gainedAt})`;
+export function spellAccessLabel(grant: SpellAccessGrant): string {
+  if (grant.sourceId === grant.featureKey) return grant.featureDe;
+  // `grantedInstanceId`: dieselbe Stufe wie das Talent des Hintergrunds, also trennt sie nicht.
+  if (grant.sourceId !== `${grant.featureKey}@${grant.gainedAt}`) return `${grant.featureDe} (Volksmerkmal)`;
+  return `${grant.featureDe} (Stufe ${grant.gainedAt})`;
+}
 
 export interface SpellAccessValues {
   featureKey: string;
