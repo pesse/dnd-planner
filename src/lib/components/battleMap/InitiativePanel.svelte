@@ -38,6 +38,16 @@
     <button disabled={busy} title="Initiative für alle sichtbaren Monster ohne Wert würfeln (W20 + GES)" onclick={rollVisible}>🎲</button>
   {/snippet}
 
+  {#if combat.round}
+    <div class="turns">
+      <button title="Vorheriger Zug" onclick={() => editor.nextTurn(-1)}>◀</button>
+      <button class="primary" onclick={() => editor.nextTurn(1)}>Nächster Zug ▶</button>
+    </div>
+    <button class="end" onclick={() => editor.endCombat()}>Kampf beenden</button>
+  {:else}
+    <button class="primary start" disabled={!order.length} onclick={() => editor.startCombat()}>Kampf beginnen</button>
+  {/if}
+
   {#each [...order, ...waiting] as t (t.id)}
     <div class="row" class:turn={t.id === combat.turn} class:down={t.hp === 0} class:hidden={t.hidden}>
       <input
@@ -63,16 +73,6 @@
   {:else}
     <p class="hint">Noch keine Charaktere oder Monster auf der Karte.</p>
   {/each}
-
-  {#if combat.round}
-    <div class="turns">
-      <button title="Vorheriger Zug" onclick={() => editor.nextTurn(-1)}>◀</button>
-      <button class="primary" onclick={() => editor.nextTurn(1)}>Nächster Zug ▶</button>
-    </div>
-    <button class="end" onclick={() => editor.endCombat()}>Kampf beenden</button>
-  {:else}
-    <button class="primary" disabled={!order.length} onclick={() => editor.startCombat()}>Kampf beginnen</button>
-  {/if}
 </PanelSection>
 
 <style>
@@ -181,6 +181,10 @@
   }
   .end {
     font-size: 0.75rem;
+    margin-bottom: 0.3rem;
+  }
+  .start {
+    margin-bottom: 0.3rem;
   }
   .hint {
     margin: 0;
