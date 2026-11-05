@@ -27,6 +27,16 @@ vi.mock('@tauri-apps/api/core', () => ({
         files.delete(args.path);
         for (const q of under(args.path)) files.delete(q);
         return;
+      case 'dir_fingerprint':
+        return (args.paths as unknown as string[])
+          .map((d) => under(d).sort().map((f) => `${f.slice(d.length)}=${files.get(f)}`).join('|'))
+          .join('#');
+      case 'rename_file':
+        for (const q of under(args.oldPath)) {
+          files.set(args.newPath + q.slice(args.oldPath.length), files.get(q)!);
+          files.delete(q);
+        }
+        return;
       case 'get_absolute_path':
         return `/abs/${args.path}`;
       case 'merge_dir': {
@@ -52,7 +62,8 @@ vi.mock('@tauri-apps/api/core', () => ({
 
 const { listCampaignTemplates, listCharacterTemplates, instantiateCampaignTemplate, instantiateCharacterTemplate, freeName } = await import('$lib/services/templates/templates');
 
-const { readProgress, setChapterCompleted } = await import('$lib/services/templates/chapters');
+const { readProgress, setChapterCompleted, writeProgress } = await import('$lib/services/templates/chapters');
+const { pendingTemplateUpdate, dismissTemplateUpdate, rebuildFromTemplate } = await import('$lib/services/templates/templateUpdate');
 const { listCampaignCharacterTemplates, listOfferedCharacterTemplates, saveCharacterAsTemplate } = await import('$lib/services/templates/campaignCharacterTemplates');
 
 const T = './vault/templates';
@@ -129,7 +140,10 @@ describe('Kampagnen-Vorlagen', () => {
     expect(list[0].player?.id).toBe('hfc-spieler');
 
     const slug = await instantiateCampaignTemplate(list[0].player!, { characters: [] });
-    expect(under(`./vault/campaigns/${slug}`).filter((p) => !p.includes('/character-templates/'))).toEqual([`./vault/campaigns/${slug}/campaign.md`]);
+    expect(under(`./vault/campaigns/${slug}`).filter((p) => !p.includes('/character-templates/'))).toEqual([
+      `./vault/campaigns/${slug}/campaign.md`,
+      `./vault/campaigns/${slug}/progress.json`,
+    ]);
   });
 
   it('zeigt eine Spieler-Ausgabe ohne Spielleiter-Vorlage für sich', async () => {
@@ -167,7 +181,7 @@ describe('Abenteuer einer Vorlage', () => {
 
     expect(willOf().classLevel).toBeUndefined();
     expect(under('./vault/characters').some((p) => p.includes('/levels/'))).toBe(false);
-    expect(await readProgress(slug)).toEqual({ template: 'hfc', completed: [] });
+    expect(await readProgress(slug)).toMatchObject({ template: 'hfc', completed: [] });
     expect(files.has(`./vault/campaigns/${slug}/npcs/gnom.md`)).toBe(false);
   });
 
@@ -176,7 +190,7 @@ describe('Abenteuer einer Vorlage', () => {
     const slug = await instantiateCampaignTemplate(template, { characters: ['hfc-will'], startChapter: 'zwei' });
 
     expect(willOf()).toMatchObject({ classLevel: 'Magier 3' });
-    expect(await readProgress(slug)).toEqual({ template: 'hfc', completed: ['eins'] });
+    expect(await readProgress(slug)).toMatchObject({ template: 'hfc', completed: ['eins'] });
     expect(files.get(`./vault/campaigns/${slug}/npcs/gnom.md`)).toBe('# Gnom\n');
     expect(files.has(`./vault/campaigns/${slug}/npcs/koenig.md`)).toBe(false);
   });
@@ -194,15 +208,82 @@ describe('Abenteuer einer Vorlage', () => {
     expect(files.get(`./vault/campaigns/${slug}/npcs/koenig.md`)).toBe('# König\n');
 
     await setChapterCompleted(slug, progress, 'zwei', false);
-    expect(await readProgress(slug)).toEqual({ template: 'hfc', completed: ['eins'] });
+    expect(await readProgress(slug)).toMatchObject({ template: 'hfc', completed: ['eins'] });
     expect(files.has(`./vault/campaigns/${slug}/npcs/koenig.md`)).toBe(true);
   });
 
-  it('schreibt ohne Abenteuer keinen Fortschritt', async () => {
+  it('merkt sich auch ohne Abenteuer, aus welcher Vorlage die Kampagne stammt', async () => {
     files.set(`${T}/campaigns/hfc/template.json`, JSON.stringify({ name: 'Hellfire' }));
     const [template] = await listCampaignTemplates();
     const slug = await instantiateCampaignTemplate(template, { characters: [] });
-    expect(await readProgress(slug)).toBeNull();
+    expect(await readProgress(slug)).toMatchObject({ template: 'hfc', completed: [] });
+  });
+});
+
+describe('Geänderte Vorlage', () => {
+  const chapters = [{ id: 'eins', title: 'Eins', level: 1 }];
+
+  beforeEach(() => {
+    files.set(`${T}/campaigns/hfc/template.json`, JSON.stringify({ name: 'Hellfire', characters: ['hfc-will'], chapters }));
+    files.set(`${T}/chapters/hfc/eins/npcs/gnom.md`, '# Gnom\n');
+  });
+
+  async function created() {
+    const [template] = await listCampaignTemplates();
+    const slug = await instantiateCampaignTemplate(template, { characters: ['hfc-will'] });
+    await setChapterCompleted(slug, (await readProgress(slug))!, 'eins', true);
+    files.set(`./vault/campaigns/${slug}/sessions/eins.md`, '# Unsere Session\n');
+    return slug;
+  }
+
+  it('meldet sich erst, wenn das Pack die Vorlage geändert hat', async () => {
+    const slug = await created();
+    expect(await pendingTemplateUpdate(slug)).toBeNull();
+    files.set(`${T}/campaigns/hfc/maps/karte.json`, '{"neu":true}');
+    expect(await pendingTemplateUpdate(slug)).toMatchObject({ template: { id: 'hfc' } });
+  });
+
+  it('nimmt eine Kampagne ohne Fingerabdruck mit dem heutigen Stand auf', async () => {
+    const slug = await created();
+    const { templateFingerprint: _, ...legacy } = (await readProgress(slug))!;
+    await writeProgress(slug, legacy);
+    expect(await pendingTemplateUpdate(slug)).toBeNull();
+    expect((await readProgress(slug))!.templateFingerprint).toBeTruthy();
+  });
+
+  it('schweigt nach „Ignorieren" bis zur nächsten Änderung', async () => {
+    const slug = await created();
+    files.set(`${T}/campaigns/hfc/maps/karte.json`, '{"neu":true}');
+    await dismissTemplateUpdate(slug, (await pendingTemplateUpdate(slug))!);
+    expect(await pendingTemplateUpdate(slug)).toBeNull();
+    files.set(`${T}/campaigns/hfc/maps/karte.json`, '{"neuer":true}');
+    expect(await pendingTemplateUpdate(slug)).not.toBeNull();
+  });
+
+  it('überschreibt an Ort und Stelle: neue Vorlage, dieselben Charaktere und Abenteuer, Eigenes weg', async () => {
+    const slug = await created();
+    const before = files.get(`./vault/campaigns/${slug}/campaign.md`);
+    files.set(`${T}/campaigns/hfc/maps/karte.json`, '{"neu":true}');
+
+    expect(await rebuildFromTemplate(slug, (await pendingTemplateUpdate(slug))!, true)).toBe(slug);
+    expect(files.get(`./vault/campaigns/${slug}/maps/karte.json`)).toBe('{"neu":true}');
+    expect(files.get(`./vault/campaigns/${slug}/campaign.md`)).toBe(before);
+    expect(files.get(`./vault/campaigns/${slug}/npcs/gnom.md`)).toBe('# Gnom\n');
+    expect(files.has(`./vault/campaigns/${slug}/sessions/eins.md`)).toBe(false);
+    expect(await readProgress(slug)).toMatchObject({ completed: ['eins'] });
+    expect(await pendingTemplateUpdate(slug)).toBeNull();
+    expect(under('./vault/campaigns').some((p) => p.startsWith(`./vault/campaigns/${slug}-`))).toBe(false);
+  });
+
+  it('legt neu an und lässt die alte Kampagne stehen', async () => {
+    const slug = await created();
+    files.set(`${T}/campaigns/hfc/maps/karte.json`, '{"neu":true}');
+
+    const copy = await rebuildFromTemplate(slug, (await pendingTemplateUpdate(slug))!, false);
+    expect(copy).not.toBe(slug);
+    expect(files.get(`./vault/campaigns/${copy}/maps/karte.json`)).toBe('{"neu":true}');
+    expect(files.get(`./vault/campaigns/${slug}/sessions/eins.md`)).toBe('# Unsere Session\n');
+    expect(files.get(`./vault/campaigns/${copy}/campaign.md`)).toBe(files.get(`./vault/campaigns/${slug}/campaign.md`));
   });
 });
 

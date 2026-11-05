@@ -14,9 +14,10 @@ import { slugKeepUmlauts } from '../../utils/text';
 const TEMPLATES_PATH = './vault/templates';
 const CAMPAIGN_TEMPLATES = `${TEMPLATES_PATH}/campaigns`;
 const CHARACTER_TEMPLATES = `${TEMPLATES_PATH}/characters`;
+const CHAPTERS_PATH = `${TEMPLATES_PATH}/chapters`;
 /** In einer Kampagne: ihre eigenen Charaktervorlagen, unabhängig von Pack-Updates. */
 export const CHARACTER_TEMPLATES_SUBDIR = 'character-templates';
-const CAMPAIGNS_PATH = './vault/campaigns';
+export const CAMPAIGNS_PATH = './vault/campaigns';
 const MANIFEST = 'template.json';
 const LEVELS = 'levels';
 
@@ -186,22 +187,42 @@ export interface CampaignTemplateOptions {
 /** Legt die Kampagne an und liefert ihren Ordnernamen. */
 export async function instantiateCampaignTemplate(template: CampaignTemplateRef, options: CampaignTemplateOptions): Promise<string> {
   const slug = freeName(slugKeepUmlauts(options.name ?? '') || template.id, new Set(await subdirs(CAMPAIGNS_PATH)));
+  const start = Math.max(0, template.chapters.findIndex((c) => c.id === options.startChapter));
+  const level = template.chapters[start]?.level ?? 1;
+  const uids = await Promise.all(options.characters.map((id) => instantiateCharacterTemplate(`${CHARACTER_TEMPLATES}/${id}`, level)));
+  await buildCampaign(slug, template, template.chapters.slice(0, start).map((c) => c.id), uids);
+  return slug;
+}
+
+/** Alles, was eine Kampagne aus der Vorlage übernimmt. */
+function templatePaths(template: CampaignTemplateRef): string[] {
+  return [
+    `${CAMPAIGN_TEMPLATES}/${template.id}`,
+    `${CHAPTERS_PATH}/${template.id}`,
+    ...template.characters.map((id) => `${CHARACTER_TEMPLATES}/${id}`),
+  ];
+}
+
+export const templateFingerprint = (template: CampaignTemplateRef): Promise<string> =>
+  invoke<string>('dir_fingerprint', { paths: templatePaths(template) });
+
+/**
+ * Kopiert die Vorlage nach `campaigns/<slug>`, hakt `completed` ab (samt nachgelieferter Spieler-Infos)
+ * und trägt die schon angelegten Charaktere `uids` ein.
+ */
+export async function buildCampaign(slug: string, template: CampaignTemplateRef, completed: string[], uids: string[]): Promise<void> {
   const dir = `${CAMPAIGNS_PATH}/${slug}`;
   await invoke('copy_dir', { from: `${CAMPAIGN_TEMPLATES}/${template.id}`, to: dir });
   await invoke('delete_path', { path: `${dir}/${MANIFEST}` });
 
-  const start = Math.max(0, template.chapters.findIndex((c) => c.id === options.startChapter));
-  const level = template.chapters[start]?.level ?? 1;
-  if (template.chapters.length) {
-    let progress: CampaignProgress = { template: template.id, completed: [] };
-    await writeProgress(slug, progress);
-    for (const chapter of template.chapters.slice(0, start)) progress = await setChapterCompleted(slug, progress, chapter.id, true);
+  let progress: CampaignProgress = { template: template.id, completed: [], templateFingerprint: await templateFingerprint(template) };
+  await writeProgress(slug, progress);
+  for (const chapter of template.chapters.filter((c) => completed.includes(c.id))) {
+    progress = await setChapterCompleted(slug, progress, chapter.id, true);
   }
 
   await Promise.all(template.characters.map((id) => invoke('copy_dir', { from: `${CHARACTER_TEMPLATES}/${id}`, to: `${dir}/${CHARACTER_TEMPLATES_SUBDIR}/${id}` })));
-  const uids = await Promise.all(options.characters.map((id) => instantiateCharacterTemplate(`${CHARACTER_TEMPLATES}/${id}`, level)));
   const campaignMd = `${dir}/campaign.md`;
   const md = await invoke<string>('read_file_content', { path: campaignMd });
   await invoke('write_file_content', { path: campaignMd, content: replaceFrontmatterCharacters(md, uids) });
-  return slug;
 }

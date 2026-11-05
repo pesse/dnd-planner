@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 use std::sync::OnceLock;
 use serde::{Serialize, Deserialize};
+use sha2::{Digest, Sha256};
 use keyring::Entry;
 use tauri::Manager;
 
@@ -501,6 +502,47 @@ async fn copy_dir(from: String, to: String) -> Result<(), String> {
         copy_dir_recursive(&src, &dst, &mut copied, &mut skipped)
     })
     .await
+}
+
+/// Inhalts-Fingerabdruck über Ordner, unabhängig von Zeitstempeln: ein Pack, das dieselben
+/// Bytes neu einspielt, ändert ihn nicht. Ein fehlender Ordner zählt wie ein leerer.
+#[tauri::command]
+async fn dir_fingerprint(paths: Vec<String>) -> Result<String, String> {
+    blocking(move || {
+        let mut hasher = Sha256::new();
+        for p in &paths {
+            hasher.update(b"#\n");
+            let root = resolve_path(p);
+            if root.is_dir() {
+                fingerprint_dir(&root, &root, &mut hasher)?;
+            }
+        }
+        Ok(hasher.finalize().iter().map(|b| format!("{:02x}", b)).collect())
+    })
+    .await
+}
+
+fn fingerprint_dir(root: &Path, dir: &Path, hasher: &mut Sha256) -> Result<(), String> {
+    let mut entries: Vec<fs::DirEntry> = fs::read_dir(dir)
+        .map_err(|e| e.to_string())?
+        .filter_map(|e| e.ok())
+        .filter(|e| !is_hidden(&e.file_name().to_string_lossy()))
+        .collect();
+    entries.sort_by_key(|e| e.file_name());
+    for entry in entries {
+        let path = entry.path();
+        if path.is_dir() {
+            fingerprint_dir(root, &path, hasher)?;
+        } else if path.is_file() {
+            let rel = path.strip_prefix(root).map_err(|e| e.to_string())?;
+            let bytes = fs::read(&path).map_err(|e| e.to_string())?;
+            hasher.update(rel.to_string_lossy().replace('\\', "/").as_bytes());
+            hasher.update(b"\0");
+            hasher.update(Sha256::digest(&bytes));
+            hasher.update(b"\n");
+        }
+    }
+    Ok(())
 }
 
 /// Kopiert einen Ordner in einen vorhandenen hinein und lässt bestehende Dateien stehen.
@@ -1197,6 +1239,7 @@ pub fn run() {
             rename_file,
             copy_dir,
             merge_dir,
+            dir_fingerprint,
             delete_path,
             write_file_base64,
             load_spells_index,

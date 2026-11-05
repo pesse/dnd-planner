@@ -40,6 +40,7 @@
   import { onMount } from 'svelte';
   import CampaignPrintDialog from '$lib/components/campaign/CampaignPrintDialog.svelte';
   import AdventureProgress from '$lib/components/campaign/AdventureProgress.svelte';
+  import TemplateUpdateNotice from '$lib/components/campaign/TemplateUpdateNotice.svelte';
   import { buildPrintHtmlMarkdown } from '$lib/utils/printEncounter';
   import { printHtmlDocument } from '$lib/utils/printFrame';
   import { renderMarkdown } from '$lib/utils/markdown';
@@ -189,6 +190,7 @@
         <CharacterBadgeBar />
       {/if}
       {#if $activeFile?.type === 'campaign' && $activeCampaign}
+        <TemplateUpdateNotice campaignPath={$activeCampaign.path} />
         <AdventureProgress campaignPath={$activeCampaign.path} />
       {/if}
 
