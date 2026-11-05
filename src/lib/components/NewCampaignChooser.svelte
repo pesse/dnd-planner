@@ -5,6 +5,7 @@
     listCampaignTemplates, listCharacterTemplates,
     type CampaignTemplateOptions, type CampaignTemplateRef, type CharacterTemplateRef,
   } from '../services/templates/templates';
+  import { slugToName } from '../utils/text';
 
   let { oncreate, ontemplate, oncancel }: {
     oncreate: (name: string) => Promise<boolean>;
@@ -48,6 +49,7 @@
 
   function choose(t: CampaignTemplateRef) {
     chosen = t;
+    name = '';
     startChapter = t.chapters[0]?.id ?? '';
     setRole('gm');
     view = 'setup';
@@ -69,7 +71,7 @@
     const t = edition;
     if (!t) return;
     const characters = t.characters.filter((id) => picked.has(id));
-    const options = { characters, startChapter: startChapter || undefined };
+    const options = { name: name.trim() || undefined, characters, startChapter: startChapter || undefined };
     void run(t.id, () => ontemplate(t, options), 'Die Vorlage konnte nicht kopiert werden.');
   }
 
@@ -116,6 +118,10 @@
   {:else if chosen && edition}
     <button class="back" onclick={back}>← Zurück</button>
     <h3 class="title">{chosen.name}</h3>
+    <label class="start">
+      <span>Name der Kampagne</span>
+      <input bind:value={name} placeholder={slugToName(chosen.id)} />
+    </label>
     {#if chosen.player}
       <div class="roles" role="radiogroup" aria-label="Rolle">
         <button class="option" role="radio" aria-checked={role === 'gm'} onclick={() => setRole('gm')}>
@@ -240,7 +246,8 @@
     margin: 1rem 0 0.3rem;
     font-size: 0.85rem;
   }
-  .start select {
+  .start select,
+  .start input {
     flex: 1;
   }
   .cast-label {

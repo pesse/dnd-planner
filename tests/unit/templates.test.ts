@@ -89,6 +89,12 @@ describe('Kampagnen-Vorlagen', () => {
     expect(files.get('./vault/campaigns/hfc-2/campaign.md')).toBe(`---\ncharacters:\n  - ${uid}\n---\n# Hellfire\n`);
   });
 
+  it('legt die Kampagne unter dem gewählten Namen an', async () => {
+    const [template] = await listCampaignTemplates();
+    expect(await instantiateCampaignTemplate(template, { name: 'Freitagsrunde Süd', characters: [] })).toBe('freitagsrunde-süd');
+    expect(files.has('./vault/campaigns/freitagsrunde-süd/campaign.md')).toBe(true);
+  });
+
   it('legt ohne Charaktere keine an', async () => {
     const [template] = await listCampaignTemplates();
     await instantiateCampaignTemplate(template, { characters: [] });

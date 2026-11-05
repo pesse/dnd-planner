@@ -9,6 +9,7 @@ import { replaceFrontmatterCharacters } from '../../utils/frontmatter';
 import { characterAssetSrc } from '../characterSideFiles.svelte';
 import type { CampaignProgress } from '../../schemas/campaignProgress';
 import { setChapterCompleted, writeProgress } from './chapters';
+import { slugKeepUmlauts } from '../../utils/text';
 
 const TEMPLATES_PATH = './vault/templates';
 const CAMPAIGN_TEMPLATES = `${TEMPLATES_PATH}/campaigns`;
@@ -163,6 +164,8 @@ export function freeName(base: string, taken: Set<string>): string {
 }
 
 export interface CampaignTemplateOptions {
+  /** Anzeigename der neuen Kampagne; leer = Ordnername der Vorlage. */
+  name?: string;
   /** Charakter-Vorlagen, in der Reihenfolge, in der sie in der Kampagne stehen sollen. */
   characters: string[];
   /**
@@ -174,7 +177,7 @@ export interface CampaignTemplateOptions {
 
 /** Legt die Kampagne an und liefert ihren Ordnernamen. */
 export async function instantiateCampaignTemplate(template: CampaignTemplateRef, options: CampaignTemplateOptions): Promise<string> {
-  const slug = freeName(template.id, new Set(await subdirs(CAMPAIGNS_PATH)));
+  const slug = freeName(slugKeepUmlauts(options.name ?? '') || template.id, new Set(await subdirs(CAMPAIGNS_PATH)));
   const dir = `${CAMPAIGNS_PATH}/${slug}`;
   await invoke('copy_dir', { from: `${CAMPAIGN_TEMPLATES}/${template.id}`, to: dir });
   await invoke('delete_path', { path: `${dir}/${MANIFEST}` });
