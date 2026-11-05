@@ -53,6 +53,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 const { listCampaignTemplates, listCharacterTemplates, instantiateCampaignTemplate, instantiateCharacterTemplate, freeName } = await import('$lib/services/templates/templates');
 
 const { readProgress, setChapterCompleted } = await import('$lib/services/templates/chapters');
+const { listCampaignCharacterTemplates, listOfferedCharacterTemplates, saveCharacterAsTemplate } = await import('$lib/services/templates/campaignCharacterTemplates');
 
 const T = './vault/templates';
 
@@ -89,6 +90,24 @@ describe('Kampagnen-Vorlagen', () => {
     expect(files.get('./vault/campaigns/hfc-2/campaign.md')).toBe(`---\ncharacters:\n  - ${uid}\n---\n# Hellfire\n`);
   });
 
+  it('nimmt alle Figuren der Vorlage als eigene Charaktervorlagen der Kampagne mit', async () => {
+    const [template] = await listCampaignTemplates();
+    const slug = await instantiateCampaignTemplate(template, { characters: [] });
+    const own = await listCampaignCharacterTemplates(slug);
+    expect(own.map((t) => [t.name, t.campaign])).toEqual([['Will', 'Kampagne „Hfc 2“']]);
+    expect((await listOfferedCharacterTemplates()).map((t) => t.dir)).toEqual([
+      `./vault/campaigns/${slug}/character-templates/hfc-will`,
+      `${T}/characters/lose`,
+      `${T}/characters/hfc-will`,
+    ]);
+  });
+
+  it('speichert einen Charakter als Vorlage der Kampagne, ohne seine UID', async () => {
+    files.set('./vault/characters/abc123/character.json', JSON.stringify({ name: 'Mira', uid: 'abc123' }));
+    const id = await saveCharacterAsTemplate('hfc', 'abc123');
+    expect(JSON.parse(files.get(`./vault/campaigns/hfc/character-templates/${id}/character.json`)!)).toEqual({ name: 'Mira', uid: '' });
+  });
+
   it('legt die Kampagne unter dem gewählten Namen an', async () => {
     const [template] = await listCampaignTemplates();
     expect(await instantiateCampaignTemplate(template, { name: 'Freitagsrunde Süd', characters: [] })).toBe('freitagsrunde-süd');
@@ -110,7 +129,7 @@ describe('Kampagnen-Vorlagen', () => {
     expect(list[0].player?.id).toBe('hfc-spieler');
 
     const slug = await instantiateCampaignTemplate(list[0].player!, { characters: [] });
-    expect(under(`./vault/campaigns/${slug}`)).toEqual([`./vault/campaigns/${slug}/campaign.md`]);
+    expect(under(`./vault/campaigns/${slug}`).filter((p) => !p.includes('/character-templates/'))).toEqual([`./vault/campaigns/${slug}/campaign.md`]);
   });
 
   it('zeigt eine Spieler-Ausgabe ohne Spielleiter-Vorlage für sich', async () => {
@@ -201,7 +220,7 @@ describe('Charakter-Vorlagen', () => {
     const ada = (await listCharacterTemplates()).find((t) => t.id === 'lose')!;
     expect(ada.levels).toEqual([{ level: 1, classLevel: 'Magier 1' }, { level: 3, classLevel: 'Magier 3' }]);
 
-    const uid = await instantiateCharacterTemplate('lose', 3);
+    const uid = await instantiateCharacterTemplate(`${T}/characters/lose`, 3);
     expect(JSON.parse(files.get(`./vault/characters/${uid}/character.json`)!)).toMatchObject({ classLevel: 'Magier 3', uid });
     expect(under(`./vault/characters/${uid}/levels`)).toEqual([]);
   });

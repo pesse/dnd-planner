@@ -14,6 +14,8 @@ import { slugKeepUmlauts } from '../../utils/text';
 const TEMPLATES_PATH = './vault/templates';
 const CAMPAIGN_TEMPLATES = `${TEMPLATES_PATH}/campaigns`;
 const CHARACTER_TEMPLATES = `${TEMPLATES_PATH}/characters`;
+/** In einer Kampagne: ihre eigenen Charaktervorlagen, unabhängig von Pack-Updates. */
+export const CHARACTER_TEMPLATES_SUBDIR = 'character-templates';
 const CAMPAIGNS_PATH = './vault/campaigns';
 const MANIFEST = 'template.json';
 const LEVELS = 'levels';
@@ -29,7 +31,7 @@ interface EntryInfo {
   is_dir: boolean;
 }
 
-async function subdirs(path: string): Promise<string[]> {
+export async function subdirs(path: string): Promise<string[]> {
   try {
     const entries = await invoke<EntryInfo[]>('list_entries', { path });
     return entries.filter((e) => e.is_dir).map((e) => e.name);
@@ -77,6 +79,8 @@ export interface TemplateLevel {
 
 export interface CharacterTemplateRef {
   id: string;
+  /** Ordner der Vorlage — im Pack oder in einer Kampagne. */
+  dir: string;
   name: string;
   classLevel: string;
   /** Aufsteigend, beginnt immer mit Stufe 1 aus `character.json`. */
@@ -84,7 +88,7 @@ export interface CharacterTemplateRef {
   species: string;
   /** Leer ohne Porträt. */
   portraitSrc: string;
-  /** Titel der Kampagnen-Vorlage, die den Charakter mitbringt; leer für lose Vorlagen. */
+  /** Titel der Kampagnen-Vorlage oder Name der Kampagne, die den Charakter mitbringt; leer für lose Vorlagen. */
   campaign: string;
 }
 
@@ -92,29 +96,33 @@ export interface CharacterTemplateRef {
 export async function listCharacterTemplates(): Promise<CharacterTemplateRef[]> {
   const campaignOf = new Map<string, string>();
   for (const t of await listCampaignTemplates()) for (const id of t.characters) campaignOf.set(id, t.name);
-  const refs = await Promise.all(
-    (await subdirs(CHARACTER_TEMPLATES)).map(async (id): Promise<CharacterTemplateRef | null> => {
-      const dir = `${CHARACTER_TEMPLATES}/${id}`;
-      try {
-        const c = JSON.parse(await invoke<string>('read_file_content', { path: `${dir}/character.json` }));
-        const classLevel = String(c.classLevel ?? '');
-        return {
-          id,
-          name: String(c.name ?? id),
-          classLevel,
-          levels: [{ level: 1, classLevel }, ...(await higherLevels(dir))],
-          species: String(c.species?.name ?? c.race ?? ''),
-          portraitSrc: c.portraitFile ? await characterAssetSrc(dir, c.portraitFile) : '',
-          campaign: campaignOf.get(id) ?? '',
-        };
-      } catch {
-        return null;
-      }
-    }),
-  );
-  return refs
+  const ids = await subdirs(CHARACTER_TEMPLATES);
+  return sortedTemplates(await Promise.all(ids.map((id) => readCharacterTemplate(`${CHARACTER_TEMPLATES}/${id}`, id, campaignOf.get(id) ?? ''))));
+}
+
+export const sortedTemplates = (refs: (CharacterTemplateRef | null)[]): CharacterTemplateRef[] =>
+  refs
     .filter((r): r is CharacterTemplateRef => r !== null)
     .sort((a, b) => a.campaign.localeCompare(b.campaign, 'de') || a.name.localeCompare(b.name, 'de'));
+
+/** `null`, wenn `character.json` fehlt oder kaputt ist. */
+export async function readCharacterTemplate(dir: string, id: string, campaign: string): Promise<CharacterTemplateRef | null> {
+  try {
+    const c = JSON.parse(await invoke<string>('read_file_content', { path: `${dir}/character.json` }));
+    const classLevel = String(c.classLevel ?? '');
+    return {
+      id,
+      dir,
+      name: String(c.name ?? id),
+      classLevel,
+      levels: [{ level: 1, classLevel }, ...(await higherLevels(dir))],
+      species: String(c.species?.name ?? c.race ?? ''),
+      portraitSrc: c.portraitFile ? await characterAssetSrc(dir, c.portraitFile) : '',
+      campaign,
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function higherLevels(dir: string): Promise<TemplateLevel[]> {
@@ -143,10 +151,10 @@ async function higherLevels(dir: string): Promise<TemplateLevel[]> {
  * Kopiert eine Charakter-Vorlage in einen neuen UID-Ordner und liefert die UID. Eine Stufe über 1
  * nimmt `levels/<stufe>.json`, sofern die Vorlage sie führt — sonst bleibt es bei Stufe 1.
  */
-export async function instantiateCharacterTemplate(id: string, level = 1): Promise<string> {
+export async function instantiateCharacterTemplate(templateDir: string, level = 1): Promise<string> {
   const uid = await freshCharacterUid();
   const dir = `${CHARACTERS_PATH}/${uid}`;
-  await invoke('copy_dir', { from: `${CHARACTER_TEMPLATES}/${id}`, to: dir });
+  await invoke('copy_dir', { from: templateDir, to: dir });
   const path = `${dir}/character.json`;
   const read = (p: string) => invoke<string>('read_file_content', { path: p });
   const raw = level > 1 ? await read(`${dir}/${LEVELS}/${level}.json`).catch(() => read(path)) : await read(path);
@@ -190,7 +198,8 @@ export async function instantiateCampaignTemplate(template: CampaignTemplateRef,
     for (const chapter of template.chapters.slice(0, start)) progress = await setChapterCompleted(slug, progress, chapter.id, true);
   }
 
-  const uids = await Promise.all(options.characters.map((id) => instantiateCharacterTemplate(id, level)));
+  await Promise.all(template.characters.map((id) => invoke('copy_dir', { from: `${CHARACTER_TEMPLATES}/${id}`, to: `${dir}/${CHARACTER_TEMPLATES_SUBDIR}/${id}` })));
+  const uids = await Promise.all(options.characters.map((id) => instantiateCharacterTemplate(`${CHARACTER_TEMPLATES}/${id}`, level)));
   const campaignMd = `${dir}/campaign.md`;
   const md = await invoke<string>('read_file_content', { path: campaignMd });
   await invoke('write_file_content', { path: campaignMd, content: replaceFrontmatterCharacters(md, uids) });

@@ -96,7 +96,7 @@
     onwizard={() => { state.showChooser = false; state.wizardRandom = false; state.showWizard = true; }}
     onrandom={() => { state.showChooser = false; state.wizardRandom = true; state.showWizard = true; }}
     onimport={() => { state.showChooser = false; state.showImport = true; }}
-    ontemplate={(id, level) => state.createFromTemplate(id, level)}
+    ontemplate={(dir, level) => state.createFromTemplate(dir, level)}
     oncancel={() => (state.showChooser = false)}
   />
 {/if}

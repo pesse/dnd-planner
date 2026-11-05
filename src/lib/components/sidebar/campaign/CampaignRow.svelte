@@ -1,6 +1,7 @@
 <script lang="ts">
   import { activeCampaign } from '../../../stores/campaign';
   import SectionBlock from './SectionBlock.svelte';
+  import CharacterTemplatesBlock from './CharacterTemplatesBlock.svelte';
   import { SECTIONS, type CampaignTreeState } from './campaignTreeState.svelte';
   import type { Campaign } from '../../../types';
   import '../tree.css';
@@ -21,6 +22,7 @@
     {#each SECTIONS as section}
       <SectionBlock {tree} {campaign} {section} />
     {/each}
+    <CharacterTemplatesBlock {campaign} />
   {/if}
 </div>
 

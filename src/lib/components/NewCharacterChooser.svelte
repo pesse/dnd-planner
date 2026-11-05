@@ -1,13 +1,14 @@
 <script lang="ts">
   /** Der Einstieg zu „Neuer Charakter": selbst erstellen, aus einer Vorlage oder aus D&D Beyond. */
   import Modal from './ui/Modal.svelte';
-  import { listCharacterTemplates, type CharacterTemplateRef } from '../services/templates/templates';
+  import type { CharacterTemplateRef } from '../services/templates/templates';
+  import { listOfferedCharacterTemplates } from '../services/templates/campaignCharacterTemplates';
 
   let { onwizard, onrandom, onimport, ontemplate, oncancel }: {
     onwizard: () => void;
     onrandom: () => void;
     onimport: () => void;
-    ontemplate: (id: string, level: number) => Promise<void>;
+    ontemplate: (templateDir: string, level: number) => Promise<void>;
     oncancel: () => void;
   } = $props();
 
@@ -18,7 +19,7 @@
   let error = $state('');
 
   $effect(() => {
-    void listCharacterTemplates().then((t) => (templates = t)).catch(() => (templates = []));
+    void listOfferedCharacterTemplates().then((t) => (templates = t)).catch(() => (templates = []));
   });
 
   const groups = $derived.by(() => {
@@ -31,10 +32,10 @@
   const atLevel = (t: CharacterTemplateRef) => t.levels.find((l) => l.level === level);
 
   async function pick(t: CharacterTemplateRef) {
-    busy = t.id;
+    busy = t.dir;
     error = '';
     try {
-      await ontemplate(t.id, level);
+      await ontemplate(t.dir, level);
     } catch (e) {
       error = `Vorlage konnte nicht angelegt werden: ${e instanceof Error ? e.message : e}`;
     } finally {
@@ -58,7 +59,7 @@
         <span class="title">Aus Vorlage erstellen</span>
         <span class="sub">
           {#if templates === null}Vorlagen werden gesucht…
-          {:else if templates.length}Vorgefertigte Charaktere, etwa aus einem Abenteuer
+          {:else if templates.length}Vorgefertigte Charaktere aus einem Abenteuer oder deinen Kampagnen
           {:else}Keine Vorlagen — sie kommen mit Inhaltspaketen wie „Hellfire Club"{/if}
         </span>
       </button>
@@ -80,7 +81,7 @@
     {#each groups as [campaign, list] (campaign)}
       <h3>{campaign || 'Weitere Vorlagen'}</h3>
       <div class="grid">
-        {#each list as t (t.id)}
+        {#each list as t (t.dir)}
           {@const at = atLevel(t)}
           <button class="template" disabled={!!busy || !at} title={at ? '' : `Diese Vorlage gibt es nicht auf Stufe ${level}`} onclick={() => pick(t)}>
             {#if t.portraitSrc}
@@ -88,7 +89,7 @@
             {:else}
               <span class="placeholder">{t.name.slice(0, 1)}</span>
             {/if}
-            <span class="name">{busy === t.id ? 'Wird angelegt…' : t.name}</span>
+            <span class="name">{busy === t.dir ? 'Wird angelegt…' : t.name}</span>
             <span class="meta">{[t.species, at?.classLevel ?? t.classLevel].filter(Boolean).join(' · ')}</span>
           </button>
         {/each}
