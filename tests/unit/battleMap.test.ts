@@ -11,7 +11,7 @@ import {
   zoomAt,
 } from '../../src/lib/services/battleMap/geometry';
 import { clampToView, toPlayerState } from '../../src/lib/services/battleMap/playerState';
-import { tokenLights } from '../../src/lib/services/battleMap/overlayRender';
+import { flickerLights, tokenLights } from '../../src/lib/services/battleMap/overlayRender';
 import { markerDraft, numberedNames, occupiedCells, placeDrafts } from '../../src/lib/services/battleMap/tokenSources';
 
 const NO_IMAGES = { levels: {}, tokens: {}, frame: { w: 0, h: 0 } };
@@ -126,5 +126,20 @@ describe('Token-Licht', () => {
     expect(tokenLights([{ x: 2, y: 1, size: 2, light: { radius: 8, color: '#fff' } }, { x: 0, y: 0, size: 1, light: null }], g)).toEqual([
       { x: 160, y: 105, radius: 8, color: '#fff' },
     ]);
+  });
+
+  it('flackert nur leicht und nicht im Gleichtakt', () => {
+    const lights = [
+      { x: 100, y: 100, radius: 10, color: '#fff' },
+      { x: 430, y: 270, radius: 10, color: '#fff' },
+    ];
+    const radii = Array.from({ length: 200 }, (_, i) => flickerLights(lights, i * 0.05).map((l) => l.radius));
+    for (const [a, b] of radii) {
+      expect(a).toBeGreaterThanOrEqual(9.6);
+      expect(a).toBeLessThanOrEqual(10.4);
+      expect(b).toBeGreaterThanOrEqual(9.6);
+    }
+    expect(radii.some(([a, b]) => Math.abs(a - b) > 0.1)).toBe(true);
+    expect(new Set(radii.map(([a]) => a.toFixed(3))).size).toBeGreaterThan(50);
   });
 });

@@ -3,7 +3,7 @@
   import type { Snippet } from 'svelte';
   import type { FogOp, Grid, Lighting, Token } from '../../schemas/battleMap';
   import type { Camera } from '../../services/battleMap/geometry';
-  import { drawFog, drawLighting, tokenLights } from '../../services/battleMap/overlayRender';
+  import { drawFog, drawLighting, flickerLights, tokenLights, type LightSpot } from '../../services/battleMap/overlayRender';
   import { initialsOf, shortName } from '../../services/battleMap/tokenSources';
   import { isBloodied } from '../../services/battleMap/tokenDetails';
   import { badgeIconUrl } from '../../conditionIcon';
@@ -78,9 +78,18 @@
   });
 
   $effect(() => {
-    if (!lightCanvas || !imgW) return;
+    const canvas = lightCanvas;
+    if (!canvas || !imgW) return;
     const lights = [...lighting.lights, ...tokenLights(tokens, grid)];
-    drawLighting(lightCanvas, { darkness: lighting.darkness, lights }, grid, imgW, imgH);
+    const draw = (spots: LightSpot[]) => drawLighting(canvas, { darkness: lighting.darkness, lights: spots }, grid, imgW, imgH);
+    draw(lights);
+    const animate = mode === 'player' && lights.length > 0 && lighting.darkness > 0 && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!animate) return;
+    let frame = requestAnimationFrame(function tick(now) {
+      draw(flickerLights(lights, now / 1000));
+      frame = requestAnimationFrame(tick);
+    });
+    return () => cancelAnimationFrame(frame);
   });
 
   const gridPath = $derived(`M ${grid.size} 0 L 0 0 0 ${grid.size}`);

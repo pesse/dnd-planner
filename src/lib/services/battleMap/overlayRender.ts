@@ -61,6 +61,17 @@ export function tokenLights(tokens: readonly (Pick<Token, 'x' | 'y' | 'size'> & 
   );
 }
 
+const FLICKER_AMPLITUDE = 0.04;
+
+/** Radius schwankt um ±`FLICKER_AMPLITUDE`; die Phase hängt am Ort, damit nicht alle Lichter im Takt atmen. */
+export function flickerLights(lights: readonly LightSpot[], seconds: number): LightSpot[] {
+  return lights.map((l) => {
+    const phase = (l.x * 12.9898 + l.y * 78.233) % (2 * Math.PI);
+    const wave = 0.6 * Math.sin(seconds * 1.7 + phase) + 0.4 * Math.sin(seconds * 4.3 + 2 * phase);
+    return { ...l, radius: l.radius * (1 + FLICKER_AMPLITUDE * wave) };
+  });
+}
+
 /** Innere Hälfte hell, äußere dämmrig — bei Kerze, Fackel, Laterne und *Licht* (SRD) sind beide gleich breit. */
 const LIGHT_FALLOFF: readonly [at: number, alpha: number][] = [
   [0, 1],
