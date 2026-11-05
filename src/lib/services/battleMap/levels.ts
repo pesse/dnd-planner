@@ -58,6 +58,38 @@ export function placedImages(map: BattleMap, level: string, urls: Record<string,
 
 export const tokensOn = <T extends Pick<Token, 'level'>>(tokens: readonly T[], level: string): T[] => tokens.filter((t) => t.level === level);
 
+/** Die Charaktere, die die Spieler auf der Ebene sehen — die Gruppe, die eine Treppe gemeinsam nimmt. */
+export const partyOn = (map: BattleMap, level: string): Token[] => tokensOn(map.tokens, level).filter((t) => t.kind === 'character' && !t.hidden);
+
+const cellsOf = (x: number, y: number, size: number): string[] => {
+  const n = Math.max(1, Math.ceil(size));
+  const cells: string[] = [];
+  for (let dx = 0; dx < n; dx++) for (let dy = 0; dy < n; dy++) cells.push(`${Math.floor(x) + dx},${Math.floor(y) + dy}`);
+  return cells;
+};
+
+/** Ringweise um das Feld herum, damit ein Token nur so weit ausweicht wie nötig. */
+function nearestFree(taken: Set<string>, t: Pick<Token, 'x' | 'y' | 'size'>): Pick<Token, 'x' | 'y'> {
+  const free = (x: number, y: number) => cellsOf(x, y, t.size).every((c) => !taken.has(c));
+  if (free(t.x, t.y)) return { x: t.x, y: t.y };
+  const ox = Math.floor(t.x);
+  const oy = Math.floor(t.y);
+  for (let r = 1; r < 100; r++)
+    for (let dy = -r; dy <= r; dy++)
+      for (let dx = -r; dx <= r; dx++) if (Math.max(Math.abs(dx), Math.abs(dy)) === r && ox + dx >= 0 && oy + dy >= 0 && free(ox + dx, oy + dy)) return { x: ox + dx, y: oy + dy };
+  return { x: t.x, y: t.y };
+}
+
+/** Die Tokens behalten ihr Feld; steht dort auf der Zielebene schon etwas, weichen sie aufs nächste freie aus. */
+export function moveToLevel(map: BattleMap, ids: readonly string[], level: string): void {
+  const moving = map.tokens.filter((t) => ids.includes(t.id) && t.level !== level);
+  const taken = new Set(tokensOn(map.tokens, level).flatMap((t) => cellsOf(t.x, t.y, t.size)));
+  for (const t of moving) {
+    Object.assign(t, nearestFree(taken, t), { level });
+    for (const c of cellsOf(t.x, t.y, t.size)) taken.add(c);
+  }
+}
+
 function defaultName(elevation: number): string {
   if (elevation === 1) return 'Obergeschoss';
   if (elevation === -1) return 'Keller';

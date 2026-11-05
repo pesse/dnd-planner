@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { battleMapSchema } from '../../src/lib/schemas/battleMap';
-import { addLevel, layerOf, levelBelow, levelStack, mapImageSlots, removeLevel, resolveLevel, withLevelImage } from '../../src/lib/services/battleMap/levels';
+import { addLevel, layerOf, levelBelow, levelStack, mapImageSlots, moveToLevel, partyOn, removeLevel, resolveLevel, withLevelImage } from '../../src/lib/services/battleMap/levels';
 import { toPlayerState } from '../../src/lib/services/battleMap/playerState';
 import { asMapTemplate } from '../../src/lib/services/battleMap/mapTemplates';
 
@@ -51,6 +51,23 @@ describe('Kartenebenen', () => {
     expect(map.tokens.map((t) => t.id)).toEqual(['a', 'b']);
     expect(map.parkedTokens).toEqual([]);
     expect(map.playerLevel).toBe('');
+  });
+
+  it('lässt Tokens beim Ebenenwechsel ihr Feld behalten, außer es ist dort belegt', () => {
+    const map = tower();
+    map.tokens.push({ ...map.tokens[0], id: 'c', name: 'Cid', x: 2, y: 2 });
+    moveToLevel(map, ['a', 'c'], 'og');
+    const at = (id: string) => map.tokens.find((t) => t.id === id)!;
+    expect(at('a')).toMatchObject({ level: 'og', x: 1, y: 1 });
+    expect(at('c').level).toBe('og');
+    expect([at('c').x, at('c').y]).not.toEqual([2, 2]);
+    expect(Math.max(Math.abs(at('c').x - 2), Math.abs(at('c').y - 2))).toBe(1);
+  });
+
+  it('zählt nur sichtbare Charaktere zur Gruppe einer Ebene', () => {
+    const map = tower();
+    map.tokens.push({ ...map.tokens[0], id: 'h', hidden: true }, { ...map.tokens[2], id: 'm', level: '' });
+    expect(partyOn(map, '').map((t) => t.id)).toEqual(['a']);
   });
 
   it('zeigt den Spielern nur ihre Ebene, mit der darunter als Durchblick', () => {

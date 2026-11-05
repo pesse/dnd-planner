@@ -34,7 +34,7 @@
 
   type Drag =
     | { kind: 'pan'; start: Point; cam: Camera; deselect?: boolean }
-    | { kind: 'token'; id: string; grab: Point; moved: boolean; start: Point; stack: string[]; reselect: boolean }
+    | { kind: 'token'; id: string; grab: Point; moved: boolean; start: Point; origin: Point; stack: string[]; reselect: boolean; level: string | null }
     | { kind: 'light'; id: string }
     | { kind: 'rect'; a: Point; b: Point }
     | { kind: 'brush'; op: Extract<FogOp, { shape: 'brush' }> }
@@ -107,7 +107,7 @@
         const cell = pxToCell(map.grid, p);
         editor.selectedId = tokenId;
         editor.checkpoint();
-        drag = { kind: 'token', id: tokenId, grab: { x: cell.x - t.x, y: cell.y - t.y }, moved: false, start: local(e), stack, reselect };
+        drag = { kind: 'token', id: tokenId, grab: { x: cell.x - t.x, y: cell.y - t.y }, moved: false, start: local(e), origin: { x: t.x, y: t.y }, stack, reselect, level: null };
         return;
       }
       if (tool === 'light') {
@@ -163,8 +163,10 @@
     } else if (drag.kind === 'token') {
       const s = local(e);
       if (!drag.moved && Math.hypot(s.x - drag.start.x, s.y - drag.start.y) <= 4) return;
-      const cell = pxToCell(map.grid, p);
       drag.moved = true;
+      drag.level = levelAt(e);
+      if (drag.level !== null) return;
+      const cell = pxToCell(map.grid, p);
       editor.updateToken(drag.id, { x: cell.x - drag.grab.x, y: cell.y - drag.grab.y });
     } else if (drag.kind === 'light') {
       const l = layer.lighting.lights.find((x) => x.id === (drag as { id: string }).id);
@@ -191,7 +193,10 @@
     if (d.kind === 'pan' && d.deselect) editor.selectedId = null;
     else if (d.kind === 'token') {
       const t = map.tokens.find((x) => x.id === d.id);
-      if (t && d.moved) editor.updateToken(t.id, { x: snapCell(t.x, t.size), y: snapCell(t.y, t.size) });
+      if (t && d.level !== null) {
+        editor.updateToken(t.id, d.origin);
+        editor.moveTokensToLevel([t.id], d.level);
+      } else if (t && d.moved) editor.updateToken(t.id, { x: snapCell(t.x, t.size), y: snapCell(t.y, t.size) });
       // Ein erneuter Klick auf einen Stapel wählt das nächste Token darunter.
       if (!d.moved && d.reselect && d.stack.length > 1) editor.selectedId = d.stack[(d.stack.indexOf(d.id) + 1) % d.stack.length];
     } else if (d.kind === 'frame') {
@@ -206,6 +211,12 @@
         editor.addFogOp({ shape: 'rect', mode: editor.tool === 'reveal-rect' ? 'reveal' : 'cover', ...r });
       }
     }
+  }
+
+  /** Die Ebenen-Leiste als Ablage: Ein Token, das auf einer Zeile losgelassen wird, wechselt dorthin. */
+  function levelAt(e: PointerEvent): string | null {
+    const row = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('[data-level-id]');
+    return row?.dataset.levelId ?? null;
   }
 
   function draggedFrame(d: Extract<Drag, { kind: 'frame' }>, p: Point): ViewRect {
@@ -313,7 +324,7 @@
     </div>
   {/if}
   {#if map.levels.length}
-    <LevelBar {editor} />
+    <LevelBar {editor} dropLevel={drag?.kind === 'token' ? drag.level : null} />
   {/if}
 </div>
 

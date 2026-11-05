@@ -12,7 +12,7 @@ import { DetailHistory } from './detailHistory.svelte';
 import { cockpit } from './cockpitTab.svelte';
 import { gridFromCell, type Point } from './geometry';
 import { advanceTurn, startCombat } from './initiative';
-import { addLevel, BASE_LEVEL, layerOf, levelStack, placedImages, removeLevel, resolveLevel, tokensOn, withLevelImage, type LevelLayer, type PlacedImage } from './levels';
+import { addLevel, BASE_LEVEL, layerOf, levelStack, moveToLevel, partyOn, placedImages, removeLevel, resolveLevel, tokensOn, withLevelImage, type LevelLayer, type PlacedImage } from './levels';
 import { loadBattleMap, pickMapImage, serializeBattleMap } from './mapFiles';
 import { MapImages } from './mapImages.svelte';
 import { PlayerLink } from './playerLink';
@@ -349,6 +349,22 @@ export class MapEditor {
 
   showLevelToPlayers(id: string): void {
     this.#edit((map) => (map.playerLevel = resolveLevel(map, id)));
+  }
+
+  /** Die SL-Ansicht folgt, wenn das gewählte Token mitgeht — es soll sichtbar bleiben. */
+  moveTokensToLevel(ids: string[], level: string): void {
+    this.#edit((map) => moveToLevel(map, ids, resolveLevel(map, level)));
+    if (this.selectedId && ids.includes(this.selectedId)) this.level = resolveLevel(this.map!, level);
+  }
+
+  /** Die Gruppe nimmt die Treppe: alle sichtbaren Charaktere der Spieler-Ebene ziehen mit, die Spieler sehen dann die neue. */
+  bringPartyTo(id: string): void {
+    this.#edit((map) => {
+      const level = resolveLevel(map, id);
+      moveToLevel(map, partyOn(map, resolveLevel(map, map.playerLevel)).map((t) => t.id), level);
+      map.playerLevel = level;
+      this.level = level;
+    });
   }
 
   calibrateGrid(rect: ViewRect): void {
