@@ -92,10 +92,10 @@ describe('Kartenebenen', () => {
     expect(withLevelImage(map, '', 'neu.jpg').image).toBe('neu.jpg');
   });
 
-  it('deckt als Vorlage auch den Nebel aller Ebenen wieder zu', () => {
+  it('deckt als Vorlage auch den Nebel aller Ebenen wieder zu und behält die Startebene', () => {
     const map = { ...tower(), playerLevel: 'og' };
     const template = asMapTemplate(map);
     expect(template.levels[0].fog.ops).toEqual([]);
-    expect(template.playerLevel).toBe('');
+    expect(template.playerLevel).toBe('og');
   });
 });

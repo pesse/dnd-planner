@@ -118,7 +118,7 @@ export const battleMapSchema = z.object({
   image: z.string().default('').describe('Dateiname des Kartenbilds neben der Kartendatei. Sein Format ist der Rahmen aller Ebenen.'),
   baseLevelName: z.string().default('').describe('Anzeigename der Grundebene, sobald es weitere Ebenen gibt.'),
   levels: z.array(mapLevelSchema).default([]).describe('Weitere Stockwerke, auch als Teilkarten; Raster und Spieleransicht teilen sie mit der Grundebene.'),
-  playerLevel: z.string().default('').describe('Ebene, die das Spielerfenster zeigt; leer = Grundebene.'),
+  playerLevel: z.string().default('').describe('Ebene, die das Spielerfenster zeigt, in einer Vorlage die Startebene; leer = Grundebene.'),
   acts: z.array(z.string()).default([]).describe('Akt-Ordner der Karte, mindestens einer; angeboten werden deren Encounter und die der ganzen Kampagne. Eine Vorlage hat keine.'),
   hiddenEncounters: z.array(z.string()).default([]).describe('Encounter-Schlüssel, die diese Karte nicht anbietet.'),
   grid: gridSchema.default(gridSchema.parse({})),

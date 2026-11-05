@@ -31,7 +31,6 @@ export const asMapTemplate = (map: BattleMap): BattleMap => ({
     ),
   fog: { ...map.fog, ops: [] },
   levels: map.levels.map((l) => ({ ...l, fog: { ...l.fog, ops: [] } })),
-  playerLevel: '',
   combat: { round: 0, turn: '' },
 });
 

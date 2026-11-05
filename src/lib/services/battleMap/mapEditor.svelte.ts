@@ -107,6 +107,7 @@ export class MapEditor {
       const map = await loadBattleMap(path);
       if (this.path !== path) return;
       this.map = map;
+      this.level = resolveLevel(map, map.playerLevel);
       this.saver.markSaved();
       await this.images.refreshAll(path, map);
       this.#players.sendNow();
