@@ -8,6 +8,7 @@
     clearImageMarks,
     imageMarks,
     imageMarksText,
+    importImageMarks,
     recheckImageMarks,
     removeImageMark,
     updateImageMark,
@@ -44,6 +45,19 @@
     }
   }
 
+  async function importFile(e: Event) {
+    const input = e.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    try {
+      const added = await importImageMarks(JSON.parse(await file.text()));
+      pushNotice(`${added} Markierung(en) importiert.`);
+    } catch (err) {
+      pushError(`Import fehlgeschlagen: ${err}`);
+    }
+  }
+
   async function removeAll() {
     const ok = await confirmAction({
       title: 'Alle Markierungen entfernen',
@@ -63,6 +77,10 @@
     <button onclick={recheck} disabled={checking} title="Prüft, ob sich markierte Bilder geändert haben">
       {checking ? 'Prüfe…' : 'Auf Änderungen prüfen'}
     </button>
+    <label class="import" title="Markierungen aus einer JSON-Datei anhängen">
+      Importieren …
+      <input type="file" accept=".json,application/json" onchange={importFile} hidden />
+    </label>
     <button onclick={() => copy($imageMarks)} disabled={!$imageMarks.length}>Alle kopieren</button>
     <button class="danger" onclick={removeAll} disabled={!$imageMarks.length}>Alle entfernen</button>
   </div>
@@ -127,7 +145,7 @@
     flex-wrap: wrap;
   }
   .count { margin-right: auto; font-size: 0.8rem; color: var(--ink-muted); }
-  button, select {
+  button, select, label.import {
     font: inherit;
     font-size: 0.78rem;
     padding: 0.25rem 0.6rem;

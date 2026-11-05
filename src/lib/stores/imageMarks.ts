@@ -3,6 +3,7 @@ import { get, writable } from 'svelte/store';
 import { z } from 'zod';
 import { imageMarkSchema, type ImageMark, type ImageMarkStatus } from '../schemas/imageMark';
 import { imageFingerprint } from '../services/imageMarks/fingerprint';
+import { artUrl } from '../artUrl';
 import { pushNotice } from './toasts';
 
 const STORAGE_KEY = 'image-marks';
@@ -35,6 +36,34 @@ export type ImageMarkDraft = Omit<ImageMark, 'id' | 'createdAt' | 'status' | 'te
 export function addImageMark(mark: ImageMarkDraft & { text: string }): void {
   const full: ImageMark = { ...mark, id: crypto.randomUUID(), status: 'open', createdAt: new Date().toISOString() };
   imageMarks.update((list) => [...list, full]);
+}
+
+const importedMarkSchema = imageMarkSchema.pick({ address: true, where: true, x: true, y: true, width: true, height: true, text: true });
+
+/**
+ * Hängt Markierungen aus einer JSON-Liste an (etwa eine Sammlung aus der Bild-Pipeline). URL und
+ * Fingerabdruck kommen vom Bild, wie es jetzt im Vault liegt — so erkennt `recheckImageMarks` den
+ * späteren Austausch. Was mit gleicher Adresse und gleichem Text schon da ist, wird übersprungen.
+ */
+export async function importImageMarks(raw: unknown): Promise<number> {
+  const incoming = z.array(importedMarkSchema).parse(raw);
+  const known = new Set(get(imageMarks).map((m) => `${m.address}\n${m.text}`));
+  const fresh: ImageMark[] = [];
+  for (const mark of incoming) {
+    if (known.has(`${mark.address}\n${mark.text}`)) continue;
+    const art = /^vault\/art\/(.+)\.avif$/.exec(mark.address)?.[1];
+    const url = art ? artUrl(art) : null;
+    fresh.push({
+      ...mark,
+      id: crypto.randomUUID(),
+      status: 'open',
+      createdAt: new Date().toISOString(),
+      url,
+      fingerprint: url ? await imageFingerprint(url) : null,
+    });
+  }
+  imageMarks.update((list) => [...list, ...fresh]);
+  return fresh.length;
 }
 
 export function updateImageMark(id: string, patch: Partial<Pick<ImageMark, 'text' | 'status' | 'x' | 'y'>>): void {
