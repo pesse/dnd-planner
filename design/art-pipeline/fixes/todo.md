@@ -583,3 +583,4 @@ Modus: `edit` = am Original korrigieren, `neu` = ganzes Bild neu malen. Ein `+re
 - [~] 575 neu · figures/tiefling-masculine/backgrounds/guide · 50.0/50.0 · Mal die Figuren neu in anderer Pose. Niemand berührt die Hand eines anderen. (Codex mit genau diesem Auftrag; ersetzt 553)
 - [~] 576 neu · figures/dwarf-feminine/backgrounds/guide · 50.0/50.0 · Mal die Figuren neu in anderer Pose. Niemand berührt die Hand eines anderen. (Codex mit genau diesem Auftrag; ersetzt 554)
 - [~] 577 neu · figures/dwarf-masculine/backgrounds/sage · 50.0/50.0 · Mal die Figur neu in anderer Pose. (Codex mit genau diesem Auftrag; ersetzt 556)
+- [~] 578 edit · figures/dwarf-feminine/subclasses/illusionist · 66.8/37.6 · erstelle die Hand neu (5 Finger) - Daumen auf der falschen Seite (vom User per Google korrigiert und in der App aus der Zwischenablage ersetzt; ersetzt 473)
