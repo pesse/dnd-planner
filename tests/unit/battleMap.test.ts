@@ -123,23 +123,29 @@ describe('Token-Entwürfe', () => {
 describe('Token-Licht', () => {
   it('strahlt aus der Tokenmitte, Raster-Versatz eingerechnet', () => {
     const g = { ...grid, size: 50, offsetX: 10, offsetY: 5 };
-    expect(tokenLights([{ x: 2, y: 1, size: 2, light: { radius: 8, color: '#fff' } }, { x: 0, y: 0, size: 1, light: null }], g)).toEqual([
-      { x: 160, y: 105, radius: 8, color: '#fff' },
+    expect(tokenLights([{ id: 'a', x: 2, y: 1, size: 2, light: { radius: 8, color: '#fff' } }, { id: 'b', x: 0, y: 0, size: 1, light: null }], g)).toEqual([
+      { id: 'a', x: 160, y: 105, radius: 8, color: '#fff' },
     ]);
   });
 
-  it('flackert nur leicht und nicht im Gleichtakt', () => {
+  it('flackert nur leicht, ungleich und unabhängig vom Ort', () => {
     const lights = [
-      { x: 100, y: 100, radius: 10, color: '#fff' },
-      { x: 430, y: 270, radius: 10, color: '#fff' },
+      { id: 'fackel', x: 100, y: 100, radius: 10, color: '#fff' },
+      { id: 'kerze', x: 100, y: 100, radius: 10, color: '#fff' },
     ];
-    const radii = Array.from({ length: 200 }, (_, i) => flickerLights(lights, i * 0.05).map((l) => l.radius));
-    for (const [a, b] of radii) {
-      expect(a).toBeGreaterThanOrEqual(9.6);
-      expect(a).toBeLessThanOrEqual(10.4);
-      expect(b).toBeGreaterThanOrEqual(9.6);
+    const radii = Array.from({ length: 400 }, (_, i) => flickerLights(lights, i * 0.05).map((l) => l.radius));
+    for (const r of radii.flat()) {
+      expect(r).toBeGreaterThanOrEqual(9.6);
+      expect(r).toBeLessThanOrEqual(10.4);
     }
-    expect(radii.some(([a, b]) => Math.abs(a - b) > 0.1)).toBe(true);
-    expect(new Set(radii.map(([a]) => a.toFixed(3))).size).toBeGreaterThan(50);
+    const mean = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / xs.length;
+    const [as, bs] = [radii.map(([a]) => a), radii.map(([, b]) => b)];
+    const [ma, mb] = [mean(as), mean(bs)];
+    const cov = mean(as.map((a, i) => (a - ma) * (bs[i] - mb)));
+    const sd = (xs: number[], m: number) => Math.sqrt(mean(xs.map((x) => (x - m) ** 2)));
+    expect(Math.abs(cov / (sd(as, ma) * sd(bs, mb)))).toBeLessThan(0.5);
+
+    const moved = flickerLights([{ ...lights[0], x: 137, y: 412 }], 3.3)[0].radius;
+    expect(moved).toBe(flickerLights([lights[0]], 3.3)[0].radius);
   });
 });

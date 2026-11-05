@@ -77,16 +77,24 @@
     drawFog(fogCanvas, fog.ops, imgW, imgH, '#0c0a10');
   });
 
+  const lights = $derived([...lighting.lights, ...tokenLights(tokens, grid)]);
+  const flickers = $derived(
+    mode === 'player' && lights.length > 0 && lighting.darkness > 0 && !matchMedia('(prefers-reduced-motion: reduce)').matches,
+  );
+  const drawLights = (canvas: HTMLCanvasElement, spots: LightSpot[]) =>
+    drawLighting(canvas, { darkness: lighting.darkness, lights: spots }, grid, imgW, imgH);
+
+  $effect(() => {
+    if (!lightCanvas || !imgW || flickers) return;
+    drawLights(lightCanvas, lights);
+  });
+
+  // Die Schleife liest pro Bild den aktuellen Stand — hinge sie an `lights`, startete jeder Zug-Schritt sie neu.
   $effect(() => {
     const canvas = lightCanvas;
-    if (!canvas || !imgW) return;
-    const lights = [...lighting.lights, ...tokenLights(tokens, grid)];
-    const draw = (spots: LightSpot[]) => drawLighting(canvas, { darkness: lighting.darkness, lights: spots }, grid, imgW, imgH);
-    draw(lights);
-    const animate = mode === 'player' && lights.length > 0 && lighting.darkness > 0 && !matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (!animate) return;
+    if (!canvas || !flickers) return;
     let frame = requestAnimationFrame(function tick(now) {
-      draw(flickerLights(lights, now / 1000));
+      if (imgW) drawLights(canvas, flickerLights(lights, now / 1000));
       frame = requestAnimationFrame(tick);
     });
     return () => cancelAnimationFrame(frame);

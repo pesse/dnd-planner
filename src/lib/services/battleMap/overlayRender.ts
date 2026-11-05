@@ -4,7 +4,7 @@
  */
 import type { FogOp, Grid, Light, Token, TokenLight } from '../../schemas/battleMap';
 
-export type LightSpot = Pick<Light, 'x' | 'y' | 'radius' | 'color'>;
+export type LightSpot = Pick<Light, 'id' | 'x' | 'y' | 'radius' | 'color'>;
 
 const MAX_CANVAS_EDGE = 2048;
 
@@ -53,21 +53,43 @@ export function drawFog(canvas: HTMLCanvasElement, ops: FogOp[], imgW: number, i
 }
 
 /** Ein leuchtendes Token strahlt aus seiner Mitte, in Bildpixeln wie die festen Lichter. */
-export function tokenLights(tokens: readonly (Pick<Token, 'x' | 'y' | 'size'> & { light?: TokenLight | null })[], grid: Grid): LightSpot[] {
+export function tokenLights(
+  tokens: readonly (Pick<Token, 'id' | 'x' | 'y' | 'size'> & { light?: TokenLight | null })[],
+  grid: Grid,
+): LightSpot[] {
   return tokens.flatMap((t) =>
     t.light
-      ? [{ x: grid.offsetX + (t.x + t.size / 2) * grid.size, y: grid.offsetY + (t.y + t.size / 2) * grid.size, ...t.light }]
+      ? [{ id: t.id, x: grid.offsetX + (t.x + t.size / 2) * grid.size, y: grid.offsetY + (t.y + t.size / 2) * grid.size, ...t.light }]
       : [],
   );
 }
 
 const FLICKER_AMPLITUDE = 0.04;
 
-/** Radius schwankt um ±`FLICKER_AMPLITUDE`; die Phase hängt am Ort, damit nicht alle Lichter im Takt atmen. */
+/** FNV-1a, auf [0, 1) gestaucht. */
+function hashUnit(text: string, salt: number): number {
+  let h = 0x811c9dc5 ^ salt;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
+  return (h >>> 0) / 2 ** 32;
+}
+
+/** Glattes Wertrauschen in [-1, 1]: ein Zufallswert je ganzer Zeiteinheit, dazwischen Kosinus-Übergang. */
+function valueNoise(seed: string, t: number): number {
+  const i = Math.floor(t);
+  const blend = (1 - Math.cos((t - i) * Math.PI)) / 2;
+  const a = hashUnit(seed, i) * 2 - 1;
+  const b = hashUnit(seed, i + 1) * 2 - 1;
+  return a + (b - a) * blend;
+}
+
+/**
+ * Radius schwankt um höchstens ±`FLICKER_AMPLITUDE`. Rauschen und Tempo hängen an der `id`, nicht am
+ * Ort — sonst flackert ein gezogenes Token mit jedem Pixel wild.
+ */
 export function flickerLights(lights: readonly LightSpot[], seconds: number): LightSpot[] {
   return lights.map((l) => {
-    const phase = (l.x * 12.9898 + l.y * 78.233) % (2 * Math.PI);
-    const wave = 0.6 * Math.sin(seconds * 1.7 + phase) + 0.4 * Math.sin(seconds * 4.3 + 2 * phase);
+    const tempo = 0.8 + 0.6 * hashUnit(l.id, -1);
+    const wave = 0.65 * valueNoise(l.id, seconds * 2.2 * tempo) + 0.35 * valueNoise(l.id + '~', seconds * 6.1 * tempo);
     return { ...l, radius: l.radius * (1 + FLICKER_AMPLITUDE * wave) };
   });
 }
