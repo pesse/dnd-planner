@@ -10,7 +10,7 @@
   import EyeIcon from '../ui/EyeIcon.svelte';
   import { textTip } from '../textTip.svelte';
   import type { HpPop } from '../../services/battleMap/hpPops.svelte';
-  import type { PlacedImage } from '../../services/battleMap/playerState';
+  import type { PlacedImage } from '../../services/battleMap/levels';
 
   export interface StageToken {
     id: string;

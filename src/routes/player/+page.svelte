@@ -148,10 +148,10 @@
   {onpointerup}
   onpointercancel={onpointerup}
   bind:clientWidth={vw} bind:clientHeight={vh} ondblclick={toggleFullscreen} role="presentation">
-  {#if shown?.imageUrl}
+  {#if shown?.image.url}
     <MapStage
       mode="player"
-      image={{ url: shown.imageUrl, ...shown.imageAt }}
+      image={shown.image}
       underlay={shown.underlay}
       frame={shown.frame}
       grid={shown.grid}

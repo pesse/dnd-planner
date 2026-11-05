@@ -5,18 +5,18 @@
 import { popHp } from './hpPops.svelte';
 import { TOKEN_EFFECT_KEYS, type BattleMap, type FogOp, type Light, type Token, type TokenLight, type TokenEffect, type ViewRect } from '../../schemas/battleMap';
 import { CONDITION_KEYS, type Condition } from '../../schemas/vocabulary';
+import type { Badge } from '../../conditionIcon';
 import { AutosaveFile } from '../../utils/autosaveFile.svelte';
 import { newUid } from '../../utils/uid';
-import { onPlayerMessage, sendToPlayer, type ToGm } from './channel';
 import { DetailHistory } from './detailHistory.svelte';
 import { cockpit } from './cockpitTab.svelte';
-import { gridFromCell, snapCell, type Point } from './geometry';
+import { gridFromCell, type Point } from './geometry';
 import { advanceTurn, startCombat } from './initiative';
-import { addLevel, BASE_LEVEL, layerOf, levelBelow, levelStack, removeLevel, resolveLevel, tokensOn, withLevelImage, type LevelLayer } from './levels';
-import { loadBattleMap, mapImageUrl, measureImage, pickMapImage, serializeBattleMap } from './mapFiles';
-import { toPlayerState } from './playerState';
-import { loadPlayerTips } from './playerTips';
-import { occupiedCells, placeDrafts, resolveTokenImage, type TokenDraft } from './tokenSources';
+import { addLevel, BASE_LEVEL, layerOf, levelStack, placedImages, removeLevel, resolveLevel, tokensOn, withLevelImage, type LevelLayer, type PlacedImage } from './levels';
+import { loadBattleMap, pickMapImage, serializeBattleMap } from './mapFiles';
+import { MapImages } from './mapImages.svelte';
+import { PlayerLink } from './playerLink';
+import { occupiedCells, placeDrafts, type TokenDraft } from './tokenSources';
 
 const isTokenEffect = (b: string): b is TokenEffect => (TOKEN_EFFECT_KEYS as readonly string[]).includes(b);
 const isCondition = (b: string): b is Condition => (CONDITION_KEYS as readonly string[]).includes(b);
@@ -31,11 +31,7 @@ export class MapEditor {
   map = $state<BattleMap | null>(null);
   /** Die Ebene, die die SL gerade sieht; die Spieler sehen `map.playerLevel`. */
   level = $state(BASE_LEVEL);
-  /** Bild-URL je Ebene. */
-  levelImages = $state<Record<string, string>>({});
-  /** Format des Grundebenen-Bilds — der Rahmen aller Ebenen. */
-  imageSize = $state({ w: 0, h: 0 });
-  tokenImages = $state<Record<string, string>>({});
+  readonly images = new MapImages();
   readonly details = new DetailHistory();
   tool = $state<MapTool>('select');
   brushRadius = $state(40);
@@ -44,25 +40,18 @@ export class MapEditor {
   readonly saver = new AutosaveFile(800);
   #undo: string[] = [];
   #redo: string[] = [];
-  #frame = 0;
-  #unlisten: (() => void) | null = null;
-  #playerDrag: string | null = null;
-  #tips: Record<string, string> = {};
-
-  constructor() {
-    void loadPlayerTips().then((tips) => {
-      this.#tips = tips;
-      sendToPlayer({ type: 'tips', tips });
-    });
-    this.#unlisten = onPlayerMessage((msg) => {
-      if (msg.type === 'hello') {
-        sendToPlayer({ type: 'tips', tips: this.#tips });
-        this.#broadcastNow();
-      }
-      else if (msg.type === 'move') this.#playerMove(msg);
-      else if (msg.type === 'badge') this.#playerBadge(msg);
-    });
-  }
+  readonly #players = new PlayerLink({
+    map: () => (this.map ? ($state.snapshot(this.map) as BattleMap) : null),
+    images: () => this.images.snapshot(),
+    moveToken: (id, at, first) => {
+      if (first) this.checkpoint();
+      this.updateToken(id, at);
+    },
+    toggleBadge: (id: string, badge: Badge) => {
+      if (isTokenEffect(badge)) this.toggleEffect(id, badge);
+      else if (isCondition(badge)) this.toggleCondition(id, badge);
+    },
+  });
 
   #focusId = $state<string | null>(null);
 
@@ -74,7 +63,7 @@ export class MapEditor {
 
   /** In der Vorbereitung bleibt ein offener Encounter stehen, solange seine eigenen Tokens gewählt werden — die SL stellt sie gerade auf. */
   set selectedId(id: string | null) {
-    const level = this.map?.tokens.find((t) => t.id === id)?.level;
+    const level = this.#token(id)?.level;
     if (level !== undefined) this.level = level;
     const d = this.details.current;
     if (cockpit.tab === 'prep' && d.kind === 'encounter' && (!id || this.#ownToken(id, d.key))) {
@@ -85,26 +74,24 @@ export class MapEditor {
   }
 
   #ownToken(id: string | null, encounter: string): boolean {
-    return !!id && !!this.map?.tokens.some((t) => t.id === id && t.encounter === encounter);
+    return this.#token(id)?.encounter === encounter;
+  }
+
+  #token(id: string | null): Token | undefined {
+    return id ? this.map?.tokens.find((t) => t.id === id) : undefined;
   }
 
   get layer(): LevelLayer {
     return layerOf(this.map!, this.level);
   }
 
-  get imageUrl(): string {
-    return this.levelImages[this.level] ?? '';
-  }
-
-  /** Scheint durch transparente Stellen der aktuellen Ebene. */
-  get underlay(): { url: string; layer: LevelLayer } | null {
-    const below = this.map ? levelBelow(this.map, this.level) : null;
-    if (below === null || !this.levelImages[below]) return null;
-    return { url: this.levelImages[below], layer: layerOf(this.map!, below) };
+  /** Bild der aktuellen Ebene und darunter die Ebene, die durch seine transparenten Stellen scheint. */
+  get placed(): { image: PlacedImage; underlay: PlacedImage | null } {
+    return placedImages(this.map!, this.level, this.images.levels);
   }
 
   get selected(): Token | null {
-    return this.map?.tokens.find((t) => t.id === this.selectedId) ?? null;
+    return this.#token(this.selectedId) ?? null;
   }
 
   async load(path: string): Promise<void> {
@@ -115,14 +102,14 @@ export class MapEditor {
     this.#redo = [];
     this.details.reset();
     this.level = BASE_LEVEL;
-    this.levelImages = {};
+    this.images.reset();
     try {
       const map = await loadBattleMap(path);
       if (this.path !== path) return;
       this.map = map;
       this.saver.markSaved();
-      await this.#refreshImages();
-      this.#broadcastNow();
+      await this.images.refreshAll(path, map);
+      this.#players.sendNow();
     } catch (e) {
       this.map = null;
       this.error = `Karte konnte nicht geladen werden: ${e}`;
@@ -130,8 +117,7 @@ export class MapEditor {
   }
 
   async destroy(): Promise<void> {
-    this.#unlisten?.();
-    cancelAnimationFrame(this.#frame);
+    this.#players.destroy();
     await this.saver.flush();
   }
 
@@ -143,7 +129,7 @@ export class MapEditor {
       if (!file) return;
       this.checkpoint();
       this.map = withLevelImage(this.map, level, file);
-      await this.#refreshLevelImage(level);
+      await this.images.refreshLevel(this.path, this.map, level);
       this.changed();
     } catch (e) {
       this.error = `Bild konnte nicht übernommen werden: ${e}`;
@@ -171,8 +157,8 @@ export class MapEditor {
     to.push(serializeBattleMap($state.snapshot(this.map) as BattleMap));
     this.map = JSON.parse(prev) as BattleMap;
     this.level = resolveLevel(this.map, this.level);
-    for (const id of this.details.tokenIds()) if (!this.map.tokens.some((t) => t.id === id)) this.details.forget(id);
-    void this.#refreshImages();
+    for (const id of this.details.tokenIds()) if (!this.#token(id)) this.details.forget(id);
+    void this.images.refreshAll(this.path, this.map);
     this.changed();
   }
 
@@ -180,154 +166,108 @@ export class MapEditor {
   changed(): void {
     if (!this.map) return;
     this.saver.schedule(this.path, serializeBattleMap($state.snapshot(this.map) as BattleMap));
-    cancelAnimationFrame(this.#frame);
-    this.#frame = requestAnimationFrame(() => this.#broadcastNow());
+    this.#players.schedule();
   }
 
-  // Dieselben Regeln wie beim Senden: nur sichtbare Charaktere — das Fenster könnte veraltet sein.
-  #playerMove(msg: Extract<ToGm, { type: 'move' }>): void {
-    const t = this.map?.tokens.find((x) => x.id === msg.id);
-    if (!t || t.kind !== 'character' || t.hidden || t.level !== this.map?.playerLevel) return;
-    if (this.#playerDrag !== t.id) this.checkpoint();
-    this.#playerDrag = msg.done ? null : t.id;
-    const x = msg.done ? snapCell(msg.x, t.size) : msg.x;
-    const y = msg.done ? snapCell(msg.y, t.size) : msg.y;
-    this.updateToken(t.id, { x, y });
-  }
-
-  #playerBadge(msg: Extract<ToGm, { type: 'badge' }>): void {
-    const t = this.map?.tokens.find((x) => x.id === msg.id);
-    if (!t || t.kind !== 'character' || t.hidden || t.level !== this.map?.playerLevel) return;
-    if (isTokenEffect(msg.badge)) this.toggleEffect(t.id, msg.badge);
-    else if (isCondition(msg.badge)) this.toggleCondition(t.id, msg.badge);
-  }
-
-  #broadcastNow(): void {
+  /** Rückgängig-fähige Änderung an der ganzen Karte. */
+  #edit(fn: (map: BattleMap) => void): void {
     if (!this.map) return;
-    const map = $state.snapshot(this.map) as BattleMap;
-    const images = { levels: $state.snapshot(this.levelImages), tokens: $state.snapshot(this.tokenImages), frame: $state.snapshot(this.imageSize) };
-    sendToPlayer({ type: 'state', state: toPlayerState(map, images) });
+    this.checkpoint();
+    fn(this.map);
+    this.changed();
   }
 
-  async #refreshImages(): Promise<void> {
-    if (!this.map) return;
-    const levels = [BASE_LEVEL, ...this.map.levels.map((l) => l.id)];
-    await Promise.all([...levels.map((l) => this.#refreshLevelImage(l)), ...this.map.tokens.map((t) => this.#resolveToken(t))]);
+  #editToken(id: string, fn: (t: Token) => void, undoable = true): Token | undefined {
+    const t = this.#token(id);
+    if (!t) return;
+    if (undoable) this.checkpoint();
+    fn(t);
+    this.changed();
+    return t;
   }
 
-  async #refreshLevelImage(level: string): Promise<void> {
-    if (!this.map) return;
-    const url = await mapImageUrl(this.path, layerOf(this.map, level).image);
-    this.levelImages[level] = url;
-    if (level === BASE_LEVEL) this.imageSize = await measureImage(url);
-  }
-
-  async #resolveToken(t: Token): Promise<void> {
-    if (this.tokenImages[t.id] !== undefined) return;
-    this.tokenImages[t.id] = await resolveTokenImage(t);
+  #refreshTokenImages(tokens: Token[]): void {
+    void Promise.all(tokens.map((t) => this.images.resolveToken(t))).then(() => this.changed());
   }
 
   addTokens(drafts: TokenDraft[], originCell: Point): void {
     if (!this.map || !drafts.length) return;
-    this.checkpoint();
     const tokens = placeDrafts(drafts, originCell, occupiedCells(tokensOn(this.map.tokens, this.level)), this.level);
-    this.map.tokens.push(...tokens);
+    this.#edit((map) => map.tokens.push(...tokens));
     if (tokens.length === 1) this.selectedId = tokens[0].id;
-    this.changed();
-    void Promise.all(tokens.map((t) => this.#resolveToken(t))).then(() => this.changed());
+    this.#refreshTokenImages(tokens);
   }
 
+  /** Ohne eigenen Rückgängig-Punkt: Ziehen und Tippen setzen ihn selbst, einmal pro Geste. */
   updateToken(id: string, patch: Partial<Token>): void {
-    const t = this.map?.tokens.find((x) => x.id === id);
-    if (!t) return;
-    Object.assign(t, patch);
-    this.changed();
-    if (t.kind === 'trap' && patch.trapState) {
-      delete this.tokenImages[t.id];
-      void this.#resolveToken(t).then(() => this.changed());
-    }
+    const t = this.#editToken(id, (x) => Object.assign(x, patch), false);
+    if (t?.kind !== 'trap' || !patch.trapState) return;
+    this.images.forgetToken(t.id);
+    this.#refreshTokenImages([t]);
   }
 
   /** Schaden oder Heilung: rückgängig-fähig und mit aufsteigender Zahl am Token. */
   setHp(id: string, next: Pick<Token, 'hp' | 'hpMax'>): void {
-    const t = this.map?.tokens.find((x) => x.id === id);
+    const t = this.#token(id);
     if (!t || next.hp == null) return;
     const before = t.hp ?? next.hpMax ?? next.hp;
-    this.checkpoint();
-    Object.assign(t, next);
+    this.#editToken(id, (x) => Object.assign(x, next));
     this.showHp(id, next.hp - before);
-    this.changed();
   }
 
   /** Nur die aufsteigende Zahl, in beiden Fenstern — für Charaktere, deren TP die Spieler führen. */
   showHp(id: string, delta: number): void {
-    const t = this.map?.tokens.find((x) => x.id === id);
-    if (!t || !delta) return;
+    const t = this.#token(id);
+    if (!t || !this.map || !delta) return;
     popHp(id, delta);
-    if (!t.hidden) sendToPlayer({ type: 'hp', id, delta });
+    this.#players.showHp(this.map, t, delta);
   }
 
   removeToken(id: string): void {
-    if (!this.map) return;
-    this.checkpoint();
-    this.map.tokens = this.map.tokens.filter((t) => t.id !== id);
+    this.#edit((map) => (map.tokens = map.tokens.filter((t) => t.id !== id)));
     this.details.forget(id);
-    this.changed();
   }
 
   setAllHidden(kind: Token['kind'], hidden: boolean): void {
-    if (!this.map) return;
-    this.checkpoint();
-    for (const t of this.map.tokens) if (t.kind === kind) t.hidden = hidden;
-    this.changed();
+    this.#edit((map) => {
+      for (const t of map.tokens) if (t.kind === kind) t.hidden = hidden;
+    });
+  }
+
+  toggleHidden(id: string): void {
+    this.#editToken(id, (t) => (t.hidden = !t.hidden));
   }
 
   toggleCondition(id: string, condition: Condition): void {
-    const t = this.map?.tokens.find((x) => x.id === id);
-    if (!t) return;
-    this.checkpoint();
-    t.conditions = toggled(t.conditions, condition);
-    this.changed();
+    this.#editToken(id, (t) => (t.conditions = toggled(t.conditions, condition)));
   }
 
   toggleEffect(id: string, effect: TokenEffect): void {
-    const t = this.map?.tokens.find((x) => x.id === id);
-    if (!t) return;
-    this.checkpoint();
-    t.effects = toggled(t.effects, effect);
-    this.changed();
+    this.#editToken(id, (t) => (t.effects = toggled(t.effects, effect)));
   }
 
   setTokenLight(id: string, light: TokenLight | null): void {
-    const t = this.map?.tokens.find((x) => x.id === id);
-    if (!t || !this.map) return;
-    t.light = light;
-    const { lighting } = layerOf(this.map, t.level);
-    if (light && lighting.darkness === 0) lighting.darkness = 0.75;
-    this.changed();
+    this.#editToken(id, (t) => {
+      t.light = light;
+      const { lighting } = layerOf(this.map!, t.level);
+      if (light && lighting.darkness === 0) lighting.darkness = 0.75;
+    }, false);
   }
 
   setInitiatives(values: Record<string, number | null>): void {
-    if (!this.map) return;
-    this.checkpoint();
-    for (const t of this.map.tokens) if (t.id in values) t.initiative = values[t.id];
-    this.changed();
+    this.#edit((map) => {
+      for (const t of map.tokens) if (t.id in values) t.initiative = values[t.id];
+    });
   }
 
   startCombat(): void {
-    if (!this.map) return;
-    this.checkpoint();
-    this.map.combat = startCombat(this.map.tokens);
+    this.#edit((map) => (map.combat = startCombat(map.tokens)));
     this.#showTurn();
-    this.changed();
   }
 
   nextTurn(step: 1 | -1): void {
-    if (!this.map) return;
-    this.checkpoint();
-    this.map.combat = advanceTurn(this.map.tokens, this.map.combat, step);
+    this.#edit((map) => (map.combat = advanceTurn(map.tokens, map.combat, step)));
     this.#showTurn();
-    this.changed();
   }
 
   #showTurn(): void {
@@ -336,41 +276,31 @@ export class MapEditor {
 
   /** Mit dem Kampf enden auch die Initiativen — der nächste Kampf würfelt neu. */
   endCombat(): void {
-    if (!this.map) return;
-    this.checkpoint();
-    this.map.combat = { round: 0, turn: '' };
-    for (const t of this.map.tokens) t.initiative = null;
-    this.changed();
-  }
-
-  toggleHidden(id: string): void {
-    const t = this.map?.tokens.find((o) => o.id === id);
-    if (!t) return;
-    this.checkpoint();
-    this.updateToken(id, { hidden: !t.hidden });
+    this.#edit((map) => {
+      map.combat = { round: 0, turn: '' };
+      for (const t of map.tokens) t.initiative = null;
+    });
   }
 
   setEncounterHidden(encounter: string, hidden: boolean): void {
-    if (!this.map) return;
-    this.checkpoint();
-    for (const t of this.map.tokens) if (t.encounter === encounter) t.hidden = hidden;
-    this.changed();
+    this.#edit((map) => {
+      for (const t of map.tokens) if (t.encounter === encounter) t.hidden = hidden;
+    });
   }
 
   /** Ein ausgeblendeter Encounter nimmt seine Tokens mit von der Karte; Einblenden stellt sie zurück. */
   setEncounterOffered(encounter: string, offered: boolean): void {
-    const map = this.map;
-    if (!map) return;
-    this.checkpoint();
-    const [from, to] = offered ? [map.parkedTokens, map.tokens] : [map.tokens, map.parkedTokens];
-    const moving = from.filter((t) => t.encounter === encounter);
-    if (offered) map.parkedTokens = from.filter((t) => t.encounter !== encounter);
-    else map.tokens = from.filter((t) => t.encounter !== encounter);
-    to.push(...moving);
-    for (const t of moving) if (!offered) this.details.forget(t.id);
-    map.hiddenEncounters = offered ? map.hiddenEncounters.filter((k) => k !== encounter) : [...map.hiddenEncounters, encounter];
-    this.changed();
-    if (offered) void Promise.all(moving.map((t) => this.#resolveToken(t))).then(() => this.changed());
+    let moving: Token[] = [];
+    this.#edit((map) => {
+      const [from, to] = offered ? [map.parkedTokens, map.tokens] : [map.tokens, map.parkedTokens];
+      moving = from.filter((t) => t.encounter === encounter);
+      if (offered) map.parkedTokens = from.filter((t) => t.encounter !== encounter);
+      else map.tokens = from.filter((t) => t.encounter !== encounter);
+      to.push(...moving);
+      map.hiddenEncounters = offered ? map.hiddenEncounters.filter((k) => k !== encounter) : [...map.hiddenEncounters, encounter];
+    });
+    if (offered) this.#refreshTokenImages(moving);
+    else for (const t of moving) this.details.forget(t.id);
   }
 
   addFogOp(op: FogOp): void {
@@ -381,44 +311,32 @@ export class MapEditor {
 
   /** Alte Operationen fallen weg — ein „alles" überdeckt sie ohnehin. */
   setFogAll(revealed: boolean): void {
-    if (!this.map) return;
-    this.checkpoint();
-    const { w, h } = this.imageSize;
-    this.layer.fog.ops = revealed ? [{ shape: 'rect', mode: 'reveal', x: 0, y: 0, w: Math.max(w, 1), h: Math.max(h, 1) }] : [];
-    this.changed();
+    const { w, h } = this.images.frame;
+    this.#edit(() => (this.layer.fog.ops = revealed ? [{ shape: 'rect', mode: 'reveal', x: 0, y: 0, w: Math.max(w, 1), h: Math.max(h, 1) }] : []));
   }
 
-  addLight(at: Point): Light | null {
-    if (!this.map) return null;
-    this.checkpoint();
-    const light: Light = { id: newUid(), x: at.x, y: at.y, radius: 4, color: '#ffb347' };
-    const { lighting } = this.layer;
-    lighting.lights.push(light);
-    if (lighting.darkness === 0) lighting.darkness = 0.75;
-    this.changed();
-    return light;
+  addLight(at: Point): void {
+    this.#edit(() => {
+      const { lighting } = this.layer;
+      lighting.lights.push({ id: newUid(), x: at.x, y: at.y, radius: 4, color: '#ffb347' } satisfies Light);
+      if (lighting.darkness === 0) lighting.darkness = 0.75;
+    });
   }
 
   removeLight(id: string): void {
-    if (!this.map) return;
-    this.checkpoint();
-    this.layer.lighting.lights = this.layer.lighting.lights.filter((l) => l.id !== id);
-    this.changed();
+    this.#edit(() => (this.layer.lighting.lights = this.layer.lighting.lights.filter((l) => l.id !== id)));
   }
 
   addLevel(direction: 1 | -1): void {
-    if (!this.map) return;
-    this.checkpoint();
-    this.level = addLevel(this.map, direction, newUid()).id;
-    this.changed();
+    this.#edit((map) => (this.level = addLevel(map, direction, newUid()).id));
   }
 
   removeLevel(id: string): void {
-    if (!this.map || id === BASE_LEVEL) return;
-    this.checkpoint();
-    for (const t of removeLevel(this.map, id)) this.details.forget(t);
-    this.level = resolveLevel(this.map, this.level);
-    this.changed();
+    if (id === BASE_LEVEL) return;
+    this.#edit((map) => {
+      for (const t of removeLevel(map, id)) this.details.forget(t);
+      this.level = resolveLevel(map, this.level);
+    });
   }
 
   /** Bild auf/ab: eine Ebene höher bzw. tiefer, am Ende bleibt sie stehen. */
@@ -430,17 +348,12 @@ export class MapEditor {
   }
 
   showLevelToPlayers(id: string): void {
-    if (!this.map) return;
-    this.checkpoint();
-    this.map.playerLevel = resolveLevel(this.map, id);
-    this.changed();
+    this.#edit((map) => (map.playerLevel = resolveLevel(map, id)));
   }
 
   calibrateGrid(rect: ViewRect): void {
-    if (!this.map || rect.w < 4 || rect.h < 4) return;
-    this.checkpoint();
-    Object.assign(this.map.grid, gridFromCell(rect));
-    this.changed();
+    if (rect.w < 4 || rect.h < 4) return;
+    this.#edit((map) => Object.assign(map.grid, gridFromCell(rect)));
   }
 
   setPlayerView(rect: ViewRect | null): void {

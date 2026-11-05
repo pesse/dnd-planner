@@ -2,7 +2,7 @@
 import type { BattleMap, FogOp, Grid, Lighting, Token, ViewRect } from '../../schemas/battleMap';
 import { pxToCell, type Point } from './geometry';
 import { isBloodied } from './tokenDetails';
-import { layerOf, levelBelow, levelName, resolveLevel } from './levels';
+import { layerOf, levelName, placedImages, resolveLevel, type PlacedImage } from './levels';
 
 /**
  * `movable`: Spieler dürfen nur Charaktere ziehen. Notizen und Encounter bleiben bei der SL.
@@ -15,17 +15,8 @@ export type PlayerToken = Omit<Token, 'hidden' | 'ref' | 'kind' | 'art' | 'note'
   bloodied: boolean;
 };
 
-/** Ein Ebenenbild in Pixeln der Grundebene. */
-export interface PlacedImage {
-  url: string;
-  x: number;
-  y: number;
-}
-
 export interface PlayerState {
-  imageUrl: string;
-  /** Lage von `imageUrl`; Teilkarten liegen nicht bei 0/0. */
-  imageAt: Point;
+  image: PlacedImage;
   /** Die Ebene darunter, durch transparente Stellen sichtbar. */
   underlay: PlacedImage | null;
   /** Format der Grundebene — Rahmen für Nebel, Licht und Ausschnitt. */
@@ -47,16 +38,16 @@ export interface PlayerImages {
   frame: { w: number; h: number };
 }
 
+/** Die eine Regel, was die Spieler von einem Token mitbekommen — Anzeige, TP-Zahl, Ziehen und Zustände. */
+export const seenByPlayers = (map: BattleMap, t: Pick<Token, 'hidden' | 'level'>): boolean =>
+  !t.hidden && t.level === resolveLevel(map, map.playerLevel);
+
 export function toPlayerState(map: BattleMap, images: PlayerImages): PlayerState {
   const level = resolveLevel(map, map.playerLevel);
   const layer = layerOf(map, level);
-  const below = levelBelow(map, level);
-  const belowLayer = below === null ? null : layerOf(map, below);
-  const onLevel = map.tokens.filter((t) => t.level === level && !t.hidden);
+  const onLevel = map.tokens.filter((t) => seenByPlayers(map, t));
   return {
-    imageUrl: images.levels[level] ?? '',
-    imageAt: { x: layer.offsetX, y: layer.offsetY },
-    underlay: belowLayer && images.levels[below!] ? { url: images.levels[below!], x: belowLayer.offsetX, y: belowLayer.offsetY } : null,
+    ...placedImages(map, level, images.levels),
     frame: images.frame,
     levelName: map.levels.length ? levelName(map, level) : '',
     grid: map.grid,

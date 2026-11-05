@@ -58,7 +58,7 @@ describe('Kartenebenen', () => {
     map.playerLevel = 'og';
     const state = toPlayerState(map, { levels: { '': 'hof.jpg', og: 'og.webp' }, tokens: {}, frame: { w: 1536, h: 1024 } });
     expect(state.tokens.map((t) => t.id)).toEqual(['b']);
-    expect(state).toMatchObject({ imageUrl: 'og.webp', imageAt: { x: 512, y: 0 }, underlay: { url: 'hof.jpg', x: 0, y: 0 }, levelName: 'Obergeschoss' });
+    expect(state).toMatchObject({ image: { url: 'og.webp', x: 512, y: 0 }, underlay: { url: 'hof.jpg', x: 0, y: 0 }, levelName: 'Obergeschoss' });
     expect(state.fog.ops).toHaveLength(1);
   });
 

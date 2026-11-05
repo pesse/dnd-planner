@@ -51,10 +51,11 @@
 
   const map = $derived(editor.map!);
   const layer = $derived(editor.layer);
-  const tokens = $derived(tokensOn(map.tokens, editor.level).map((t) => ({ ...t, imageUrl: editor.tokenImages[t.id] ?? '', down: t.kind === 'trap' && t.trapState === 'disarmed' })));
+  const placed = $derived(editor.placed);
+  const tokens = $derived(tokensOn(map.tokens, editor.level).map((t) => ({ ...t, imageUrl: editor.images.tokens[t.id] ?? '', down: t.kind === 'trap' && t.trapState === 'disarmed' })));
 
   export function fit() {
-    const { w, h } = editor.imageSize;
+    const { w, h } = editor.images.frame;
     if (!w || !vw) return;
     camera = fitRect({ x: 0, y: 0, w, h }, vw, vh);
   }
@@ -62,8 +63,8 @@
   export const visible = () => visibleRect(camera, vw, vh);
 
   $effect(() => {
-    const key = `${editor.path}|${editor.imageSize.w}`;
-    if (editor.imageSize.w && vw && fitted !== key) {
+    const key = `${editor.path}|${editor.images.frame.w}`;
+    if (editor.images.frame.w && vw && fitted !== key) {
       fitted = key;
       fit();
     }
@@ -260,9 +261,9 @@
 >
   <MapStage
     mode="gm"
-    image={{ url: editor.imageUrl, x: layer.offsetX, y: layer.offsetY }}
-    underlay={editor.underlay && { url: editor.underlay.url, x: editor.underlay.layer.offsetX, y: editor.underlay.layer.offsetY }}
-    frame={editor.imageSize}
+    image={placed.image}
+    underlay={placed.underlay}
+    frame={editor.images.frame}
     grid={map.grid}
     {tokens}
     fog={layer.fog}
@@ -305,7 +306,7 @@
     {/snippet}
   </MapStage>
 
-  {#if !editor.imageUrl}
+  {#if !placed.image.url}
     <div class="empty">
       <p>{editor.level ? 'Diese Ebene' : 'Diese Karte'} hat noch kein Bild.</p>
       <button onclick={() => editor.chooseImage()}>Kartenbild wählen…</button>

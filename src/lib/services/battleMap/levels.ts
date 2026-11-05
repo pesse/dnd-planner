@@ -6,6 +6,13 @@ export const BASE_LEVEL = '';
 
 export type LevelLayer = Pick<MapLevel, 'image' | 'offsetX' | 'offsetY' | 'fog' | 'lighting'>;
 
+/** Ein Ebenenbild in Pixeln der Grundebene. */
+export interface PlacedImage {
+  url: string;
+  x: number;
+  y: number;
+}
+
 export interface LevelEntry {
   id: string;
   name: string;
@@ -37,6 +44,16 @@ export function levelBelow(map: BattleMap, id: string): string | null {
   const stack = levelStack(map);
   const i = stack.findIndex((l) => l.id === resolveLevel(map, id));
   return stack[i + 1]?.id ?? null;
+}
+
+/** Bild der Ebene samt der Ebene darunter, die durch seine transparenten Stellen scheint. */
+export function placedImages(map: BattleMap, level: string, urls: Record<string, string>): { image: PlacedImage; underlay: PlacedImage | null } {
+  const place = (id: string): PlacedImage => {
+    const { offsetX, offsetY } = layerOf(map, id);
+    return { url: urls[id] ?? '', x: offsetX, y: offsetY };
+  };
+  const below = levelBelow(map, level);
+  return { image: place(resolveLevel(map, level)), underlay: below !== null && urls[below] ? place(below) : null };
 }
 
 export const tokensOn = <T extends Pick<Token, 'level'>>(tokens: readonly T[], level: string): T[] => tokens.filter((t) => t.level === level);
