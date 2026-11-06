@@ -5,7 +5,6 @@
 
   const busy = $derived($updateState.status === 'downloading' || $updateState.status === 'installing');
   const pct = $derived(Math.round(($updateState.progress ?? 0) * 100));
-  // Release-Notes aus latest.json als Markdown rendern (Quelle: eigenes, über HTTPS bezogenes Release).
   const notesHtml = $derived(
     $updateState.notes ? (marked.parse($updateState.notes, { async: false }) as string) : ''
   );

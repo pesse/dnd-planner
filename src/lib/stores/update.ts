@@ -1,6 +1,7 @@
 import { writable } from 'svelte/store';
 import { isTauri } from '../services/httpFetch';
 import { pushError } from './toasts';
+import { fetchReleaseNotesSince } from '../services/releaseNotes';
 
 export type UpdateStatus = 'idle' | 'available' | 'downloading' | 'installing' | 'error';
 
@@ -28,7 +29,8 @@ export async function findUpdate(): Promise<boolean> {
   const update = await check();
   if (!update) return false;
   pending = update;
-  updateState.set({ status: 'available', version: update.version, notes: update.body });
+  const notes = (await fetchReleaseNotesSince(update.currentVersion, update.version)) ?? update.body;
+  updateState.set({ status: 'available', version: update.version, notes });
   return true;
 }
 

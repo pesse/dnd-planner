@@ -26,7 +26,8 @@
         { "url": "https://api.openai.com/**" },
         { "url": "https://code.qualityminds.ai/**" },
         { "url": "https://character-service.dndbeyond.com/**" },
-        { "url": "https://www.dndbeyond.com/api/config/json" }
+        { "url": "https://www.dndbeyond.com/api/config/json" },
+        { "url": "https://api.github.com/repos/pesse/dnd-planner/releases" }
       ]
     },
     "http:allow-fetch-send",
