@@ -1,11 +1,8 @@
 name: Build
 
-# Frontend-Build auf demselben Runner und mit denselben Actions wie release.yml — ein
-# Build-Bruch fällt so beim Push auf statt erst am veröffentlichten Release.
+# Frontend-Build auf demselben Runner und mit denselben Actions wie release.yml, von Hand
+# gestartet (`gh workflow run build.yml`) — prüft vor einem Release, ob der Build durchgeht.
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 permissions:
