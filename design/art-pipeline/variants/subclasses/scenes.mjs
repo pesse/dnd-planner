@@ -159,14 +159,14 @@ export const SCENES = {
   },
   'college-of-glamour': {
     cls: 'bard', status: 'frozen',
-    core: 'Bard (College of Glamour) — splendid shimmering stage garments in jewel tones, a lute slung on the back, mostly hidden behind the body — only its neck shows above one shoulder (never a fiddle or violin); otherworldly fey charm.',
+    core: 'Bard (College of Glamour) — splendid shimmering stage garments in jewel tones, a lute slung on the back, mostly hidden behind the body — only its straight neck shows above one shoulder, behind the hair (never a fiddle or violin); otherworldly fey charm.',
     scene: 'Mantle of Majesty: standing on a stage of moss and flowers, one hand raised gracefully; an aura of shimmering silver-violet fey light and floating petals radiates from the bard. On the right, a small audience of four or five ordinary townsfolk gazes up, enraptured, some reaching out. Serene, captivating expression, eyes on the audience.',
     camera: 'Knee-up, slightly low three-quarter view.',
     setting: 'An enchanted Feywild glade at dusk, giant glowing flowers and fireflies.',
   },
   'college-of-valor': {
     cls: 'bard', status: 'frozen',
-    core: 'Bard (College of Valor) — a light chain shirt over colourful clothes, a bright sash, a lute slung on the back, mostly hidden behind the body — only its neck shows above one shoulder (never a fiddle or violin), a straight rapier.',
+    core: 'Bard (College of Valor) — a light chain shirt over colourful clothes, a bright sash, a lute slung on the back, mostly hidden behind the body — only its straight neck shows above one shoulder, behind the hair (never a fiddle or violin), a straight rapier.',
     scene: 'Leading the charge with song: standing on a low broken wall, the rapier raised high in ONE hand (blade dead straight, pointing up), singing out loud; golden ribbons of light and musical motes stream from the bard to a group of four armoured soldiers on the right, who surge forward inspired. Fierce battle cry with the mouth wide open, furrowed brow, a war-hardened bearing even for a small folk — not cute, not a cheerful smile; eyes on the soldiers.',
     camera: 'Full figure, low three-quarter view.',
     setting: 'A battlefield at sunrise, smoke and banners without symbols.',
