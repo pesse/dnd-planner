@@ -81,6 +81,8 @@
   const entryOf = (row: CatalogRow) => ({ name: row.entryName, path: row.path, type: spec.type, dirPath: row.dirPath });
   const open = (row: CatalogRow) => void navigateTo(entryOf(row));
 
+  let layout = $derived(spec.textOnly ? 'table' : filt.layout);
+
   const LAYOUTS: { id: CatalogLayout; label: string }[] = [{ id: 'table', label: 'Tabelle' }, { id: 'gallery', label: 'Galerie' }];
 </script>
 
@@ -96,18 +98,20 @@
     {group}
     {groupRows}
     count={loading ? 'Laden…' : `${shown.length} von ${rows.length}`}
-    sortColumns={filt.layout === 'gallery' ? { ids: columnIds, active: activeSort } : undefined}
+    sortColumns={layout === 'gallery' ? { ids: columnIds, active: activeSort } : undefined}
     onsetgroup={setGroup}
   >
     {#snippet lead()}
-      <span class="views"><SegmentedToggle options={LAYOUTS} value={filt.layout} onselect={(l) => (filt.layout = l)} /></span>
+      {#if !spec.textOnly}
+        <span class="views"><SegmentedToggle options={LAYOUTS} value={filt.layout} onselect={(l) => (filt.layout = l)} /></span>
+      {/if}
       {#if viewOptions.length}
         <span class="views"><SegmentedToggle options={viewOptions} value={kind} onselect={switchView} /></span>
       {/if}
     {/snippet}
   </CatalogFilterBar>
 
-  {#if filt.layout === 'gallery'}
+  {#if layout === 'gallery'}
     <CatalogGallery {spec} rows={shown} showGroup={!group} {groupLabel} {loading} {entryOf} onopen={open} {note} />
   {:else}
     <CatalogTable

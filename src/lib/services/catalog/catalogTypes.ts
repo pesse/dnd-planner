@@ -3,7 +3,7 @@ import type { FileEntry } from '../../types';
 import { includingSources, sourceLabel } from '../sourceRegistry';
 
 export const CATALOG_KINDS = [
-  'monster', 'item', 'feat', 'spell-school', 'spell-level', 'character', 'class', 'species', 'background', 'trap',
+  'monster', 'item', 'feat', 'spell-school', 'spell-level', 'character', 'class', 'species', 'background', 'trap', 'rule',
 ] as const;
 export type CatalogKind = (typeof CATALOG_KINDS)[number];
 
@@ -81,6 +81,8 @@ export interface CatalogSpec {
   groupLabel: string;
   /** `icon` ist ein Hochformat-Bild statt eines freigestellten Symbols. */
   portraits?: boolean;
+  /** Ohne Bilder: keine Symbolspalte, keine Galerie. */
+  textOnly?: boolean;
   columns: Record<string, CatalogColumn>;
   /** `''` ist das Set ohne Filter und zugleich der Fallback jeder Gruppe ohne eigenes. */
   columnSets: { '': string[] } & Record<string, string[]>;

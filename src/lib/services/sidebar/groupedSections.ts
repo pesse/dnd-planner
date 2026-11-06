@@ -287,7 +287,7 @@ export const GROUPED_SECTIONS: GroupedSection[] = [
 /** Steht in der Seitenleiste hinter den flachen Bibliotheken, wie die Fallen danach. */
 export const RULES_SECTION: GroupedSection = {
   kind: 'rule', type: 'rule', label: 'Regeln', addTitle: 'Neue Regel',
-  emptyLabel: 'Keine Regeln', searchable: true,
+  emptyLabel: 'Keine Regeln', searchable: true, catalog: 'rule',
   loadGroups: loadRuleGroups,
   invalidate: invalidateRulesCache,
 };

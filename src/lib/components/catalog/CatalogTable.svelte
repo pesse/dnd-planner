@@ -49,7 +49,7 @@
   <table>
     <thead>
       <tr>
-        <th class="icon-col"></th>
+        {#if !spec.textOnly}<th class="icon-col"></th>{/if}
         {@render sortHead('Name', 'name')}
         {#each columnIds as id}{@render sortHead(spec.columns[id].label, id, spec.columns[id])}{/each}
       </tr>
@@ -57,6 +57,7 @@
     <tbody>
       {#each rows as row (row.path)}
         <tr class:active={inPage && $activeFile?.path === row.path} class:chosen={!!count?.(row)} onclick={() => onopen(row)}>
+          {#if !spec.textOnly}
           <td class="icon-col">
             {#if row.icon && !failed[row.icon] && onhover}
               <span
@@ -85,6 +86,7 @@
               </button>
             {/if}
           </td>
+          {/if}
           <td class="name">
             {row.name}
             {#if note?.(row)}<span class="note" title="Stammt aus {note(row)}, kommt im gewählten Buch vor">{note(row)}</span>{/if}
@@ -111,7 +113,7 @@
         </tr>
       {:else}
         {#if !loading}
-          <tr><td class="empty" colspan={columnIds.length + 2}>Keine Treffer</td></tr>
+          <tr><td class="empty" colspan={columnIds.length + (spec.textOnly ? 1 : 2)}>Keine Treffer</td></tr>
         {/if}
       {/each}
     </tbody>
