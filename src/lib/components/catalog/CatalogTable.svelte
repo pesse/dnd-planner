@@ -4,6 +4,8 @@
   import type { CatalogColumn, CatalogRow, CatalogSpec } from '../../services/catalog/catalogTypes';
   import type { FileEntry } from '../../types';
   import GallerySpotlight from './GallerySpotlight.svelte';
+  import TextTooltip from '../TextTooltip.svelte';
+  import { createHoverTip } from '../../utils/hoverTip.svelte';
   import { CatalogSpotlight, catalogImages } from './catalogSpotlight.svelte';
 
   let { spec, rows, columnIds, showGroup, groupLabel, activeSort, sortAsc, loading, entryOf, onsort, onopen, inPage = true, openLabel, count, ondecrement, onhover, note }: {
@@ -31,6 +33,7 @@
   } = $props();
 
   let failed = $state<Record<string, true>>({});
+  const tip = createHoverTip<string>();
   const spot = new CatalogSpotlight(() => rows, (row) => onopen(row), false);
   const scrollMemory = (node: HTMLElement) => (inPage ? historyScroll(node) : undefined);
 </script>
@@ -56,7 +59,11 @@
     </thead>
     <tbody>
       {#each rows as row (row.path)}
-        <tr class:active={inPage && $activeFile?.path === row.path} class:chosen={!!count?.(row)} onclick={() => onopen(row)}>
+        <tr class:active={inPage && $activeFile?.path === row.path} class:chosen={!!count?.(row)} onclick={() => onopen(row)}
+          onmouseenter={(e) => tip.show(e, row.tip ?? null)}
+          onmousemove={(e) => tip.move(e)}
+          onmouseleave={() => tip.hide()}
+        >
           {#if !spec.textOnly}
           <td class="icon-col">
             {#if row.icon && !failed[row.icon] && onhover}
@@ -119,6 +126,8 @@
     </tbody>
   </table>
 </div>
+
+<TextTooltip text={tip.data} x={tip.x} y={tip.y} />
 
 {#if spot.index >= 0}
   {@const row = rows[spot.index]}

@@ -45,6 +45,8 @@ export interface CatalogRow {
   iconColor: string;
   /** Stimmungsbilder oder Porträt; die Galerie zieht sie `icon` vor, das erste füllt die Kachel. */
   art?: string[];
+  /** Markdown, das beim Überfahren der Zeile schwebt. */
+  tip?: string;
   /** Alle Spalten des Katalogs, auch die das aktuelle Set nicht zeigt. */
   cells: Record<string, CatalogCell>;
   /**
