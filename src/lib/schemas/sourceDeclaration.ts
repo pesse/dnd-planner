@@ -11,6 +11,13 @@ export const sourceDeclarationSchema = z.object({
     .array(z.number().int().positive())
     .default([])
     .describe('Buch-IDs bei D&D Beyond: fehlende Inhalte dieser Bücher legt der Import unter dieser Herkunft an.'),
+  includes: z
+    .object({
+      monsters: z.array(z.string()).default([]).describe('Keys der Monster, z. B. "srd-2024_goblin-warrior".'),
+      items: z.array(z.string()).default([]).describe('Keys der Gegenstände, z. B. "srd-2024_potion-of-healing".'),
+    })
+    .default({ monsters: [], items: [] })
+    .describe('Einträge anderer Herkunft, die das Buch abdruckt oder verwendet: Der Quellfilter des Buchs zeigt sie mit.'),
 });
 
 export type SourceDeclaration = z.infer<typeof sourceDeclarationSchema>;

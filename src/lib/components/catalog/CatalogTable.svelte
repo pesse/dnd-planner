@@ -6,7 +6,7 @@
   import GallerySpotlight from './GallerySpotlight.svelte';
   import { CatalogSpotlight, catalogImages } from './catalogSpotlight.svelte';
 
-  let { spec, rows, columnIds, showGroup, groupLabel, activeSort, sortAsc, loading, entryOf, onsort, onopen, inPage = true, openLabel, count, ondecrement, onhover }: {
+  let { spec, rows, columnIds, showGroup, groupLabel, activeSort, sortAsc, loading, entryOf, onsort, onopen, inPage = true, openLabel, count, ondecrement, onhover, note }: {
     spec: CatalogSpec;
     rows: CatalogRow[];
     columnIds: string[];
@@ -26,6 +26,8 @@
     ondecrement?: (row: CatalogRow) => void;
     /** Ersetzt die Bildvorschau am Icon durch einen Schwebe-Tooltip; `null` beim Verlassen. */
     onhover?: (e: MouseEvent, row: CatalogRow | null) => void;
+    /** Kleiner Hinweis hinter dem Namen, z. B. die eigene Herkunft eines Verweises. */
+    note?: (row: CatalogRow) => string | undefined;
   } = $props();
 
   let failed = $state<Record<string, true>>({});
@@ -85,6 +87,7 @@
           </td>
           <td class="name">
             {row.name}
+            {#if note?.(row)}<span class="note" title="Stammt aus {note(row)}, kommt im gewählten Buch vor">{note(row)}</span>{/if}
             {#if count?.(row)}
               <span class="picked">×{count(row)}{#if ondecrement}<button type="button" title="Eins weniger" onclick={(e) => { e.stopPropagation(); ondecrement(row); }}>−</button>{/if}</span>
             {/if}
@@ -185,6 +188,15 @@
   td.wrap { white-space: normal; min-width: 10rem; }
   .center { text-align: center; }
   td.center { font-weight: 700; }
+
+  .note {
+    margin-left: 0.4rem;
+    padding: 0 0.3rem;
+    border: 1px solid var(--surface);
+    border-radius: 0.25rem;
+    color: var(--ink-muted);
+    font-size: 0.7rem;
+  }
 
   .badge {
     display: inline-block;

@@ -1,6 +1,6 @@
 /** Tabellen-Übersicht einer Bibliothek: Zeilen, Spalten und der Gruppenfilter aus der Seitenleiste. */
 import type { FileEntry } from '../../types';
-import { sourceLabel } from '../sourceRegistry';
+import { includingSources, sourceLabel } from '../sourceRegistry';
 
 export const CATALOG_KINDS = [
   'monster', 'item', 'feat', 'spell-school', 'spell-level', 'character', 'class', 'species', 'background', 'trap',
@@ -59,6 +59,8 @@ export interface CatalogFacetValue {
   label: string;
   /** Fehlt sie, ordnet das Label. */
   order?: number;
+  /** Die Zeile trifft den Wert nur über einen Verweis; das ist ihre eigene Herkunft. */
+  via?: string;
 }
 
 export interface CatalogFacet {
@@ -113,6 +115,21 @@ export const SOURCE_FACET: CatalogFacet = { label: 'Quelle', multi: true };
 export const sourceFacet = (source: string | undefined): CatalogFacetValue =>
   ({ id: source ?? '', label: sourceLabel(source) || 'Ohne Angabe' });
 
+/** Die eigene Herkunft und die Bücher, die den Eintrag `key` ebenfalls verwenden. */
+export function sourceFacets(source: string | undefined, key: string | undefined): CatalogFacetValue[] {
+  const own = sourceFacet(source);
+  return [own, ...includingSources(key).filter((s) => s !== own.id).map((s) => ({ ...sourceFacet(s), via: own.label }))];
+}
+
+/** Die eigene Herkunft, wenn die Zeile einen gewählten Wert nur über einen Verweis trifft. */
+export function crossRefNote(row: CatalogRow, facets: Record<string, string[]>): string | undefined {
+  for (const [facet, chosen] of Object.entries(facets)) {
+    const hits = facetValues(row, facet).filter((v) => chosen.includes(v.id));
+    if (hits.length && hits.every((v) => v.via)) return hits[0].via;
+  }
+  return undefined;
+}
+
 export function facetValues(row: CatalogRow, facet: string): CatalogFacetValue[] {
   const value = row.facets[facet];
   return Array.isArray(value) ? value : value ? [value] : [];
@@ -122,7 +139,7 @@ export function facetValues(row: CatalogRow, facet: string): CatalogFacetValue[]
 export function facetOptions(rows: CatalogRow[], facet: string): CatalogFacetValue[] {
   const byId = new Map<string, CatalogFacetValue>();
   for (const row of rows) {
-    for (const value of facetValues(row, facet)) byId.set(value.id, value);
+    for (const { id, label, order } of facetValues(row, facet)) byId.set(id, { id, label, order });
   }
   return [...byId.values()].sort((a, b) =>
     (a.order ?? 0) - (b.order ?? 0) || a.label.localeCompare(b.label, 'de'));

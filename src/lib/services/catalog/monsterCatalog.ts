@@ -7,7 +7,8 @@ import { MONSTER_SIZE_KEYS } from '../../schemas/vocabulary';
 import { crLabel } from '../monsterFormat';
 import { readScopeMonsters } from '../contextLoad';
 import type { Monster } from '../../types';
-import { byLabel, sourceFacet, SOURCE_FACET, type CatalogRow, type CatalogSpec } from './catalogTypes';
+import { getSourceDeclarations } from '../sourceRegistry';
+import { byLabel, sourceFacets, SOURCE_FACET, type CatalogRow, type CatalogSpec } from './catalogTypes';
 
 function monsterRow(slug: string, path: string, m: Monster, art: Set<string>): CatalogRow {
   return {
@@ -26,13 +27,13 @@ function monsterRow(slug: string, path: string, m: Monster, art: Set<string>): C
       ac: { text: String(m.armor_class), sort: m.armor_class },
       hp: { text: String(m.hit_points), sort: m.hit_points },
     },
-    facets: { source: sourceFacet(m.source) },
+    facets: { source: sourceFacets(m.source, m.key) },
   };
 }
 
 /** Die eigenen Monster eines Akts oder der Kampagne als Katalogzeilen. */
 export async function scopeMonsterRows(scopeDir: string): Promise<CatalogRow[]> {
-  const [own, art] = await Promise.all([readScopeMonsters(scopeDir), availableArt()]);
+  const [own, art] = await Promise.all([readScopeMonsters(scopeDir), availableArt(), getSourceDeclarations()]);
   return own.map(({ slug, path, monster }) => monsterRow(slug, path, monster, art));
 }
 
@@ -53,7 +54,7 @@ export const monsterCatalog: CatalogSpec = {
   facets: { source: SOURCE_FACET },
   invalidate: invalidateMonsterLibrary,
   async load() {
-    const [hits, art] = await Promise.all([getMonsterLibrary(), availableArt()]);
+    const [hits, art] = await Promise.all([getMonsterLibrary(), availableArt(), getSourceDeclarations()]);
     const rows = hits.map(({ slug, path, monster }) => monsterRow(slug, path, monster, art));
     const types = [...new Set(rows.map((r) => r.group))];
     return { rows, groups: types.map((id) => ({ id, label: monsterTypeLabel(id) })).sort(byLabel) };

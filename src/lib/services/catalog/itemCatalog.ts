@@ -5,7 +5,8 @@ import {
 } from '../../itemLabels';
 import { formatCost, weaponDamageLine } from '../../itemFormat';
 import { itemInfoArtUrl } from '../../libraryArt';
-import { byLabel, sourceFacet, SOURCE_FACET, type CatalogCell, type CatalogFacetValue, type CatalogSpec } from './catalogTypes';
+import { getSourceDeclarations } from '../sourceRegistry';
+import { byLabel, sourceFacets, SOURCE_FACET, type CatalogCell, type CatalogFacetValue, type CatalogSpec } from './catalogTypes';
 
 /** Legacy-Ordner (z.B. „wondrous-items") mit auflösen. */
 export const itemDirLabel = (dir: string): string => CATEGORY_LABELS[DIR_TO_CATEGORY[dir] ?? dir] ?? dir;
@@ -115,7 +116,7 @@ export const itemCatalog: CatalogSpec = {
   facets: { magic: { label: 'Magie' }, rarity: { label: 'Seltenheit' }, source: SOURCE_FACET },
   invalidate: () => invalidateItemCache(),
   async load() {
-    const byDir = await getAllItemsByDir();
+    const [byDir] = await Promise.all([getAllItemsByDir(), getSourceDeclarations()]);
     const rows = Object.entries(byDir).flatMap(([dir, items]) =>
       items.map((item) => ({
         path: item.path,
@@ -129,7 +130,7 @@ export const itemCatalog: CatalogSpec = {
         facets: {
           magic: item.magic ? MAGIC_FACET : MUNDANE_FACET,
           rarity: rarityFacet(item),
-          source: sourceFacet(item.source),
+          source: sourceFacets(item.source, item.key),
         },
       })),
     );

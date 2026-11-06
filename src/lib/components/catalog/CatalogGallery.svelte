@@ -6,7 +6,7 @@
   import GallerySpotlight from './GallerySpotlight.svelte';
   import { CatalogSpotlight, catalogImages } from './catalogSpotlight.svelte';
 
-  let { spec, rows, showGroup, groupLabel, loading, entryOf, onopen }: {
+  let { spec, rows, showGroup, groupLabel, loading, entryOf, onopen, note }: {
     spec: CatalogSpec;
     rows: CatalogRow[];
     showGroup: boolean;
@@ -14,6 +14,7 @@
     loading: boolean;
     entryOf: (row: CatalogRow) => FileEntry;
     onopen: (row: CatalogRow) => void;
+    note?: (row: CatalogRow) => string | undefined;
   } = $props();
 
   let failed = $state<Record<string, true>>({});
@@ -49,6 +50,7 @@
         </span>
         <span class="caption">
           <span class="name">{row.name}</span>
+          {#if note?.(row)}<span class="note" title="Stammt aus {note(row)}, kommt im gewählten Buch vor">{note(row)}</span>{/if}
           {#if showGroup}<span class="group">{groupLabel(row.group)}</span>{/if}
         </span>
       </button>
@@ -154,6 +156,15 @@
     overflow-wrap: anywhere;
   }
   .tile:hover .name { color: var(--red); }
+  .note {
+    align-self: center;
+    margin-top: 0.15rem;
+    padding: 0 0.3rem;
+    border: 1px solid var(--surface);
+    border-radius: 0.25rem;
+    font-size: 0.65rem;
+    color: var(--ink-muted);
+  }
   .group {
     font-size: 0.7rem;
     color: var(--ink-faint);

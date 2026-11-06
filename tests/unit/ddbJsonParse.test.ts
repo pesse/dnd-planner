@@ -96,7 +96,7 @@ describe('Herkunft importierter Buchinhalte', () => {
   });
 
   it('legt das Buch eines installierten Packs unter dessen Herkunft an, auch ohne Katalog', () => {
-    const declared = { source: 'inkwell-codex', label: 'Inkwell', title: 'The Inkwell Codex', ddbSourceIds: [BOOK_SOURCE_ID] };
+    const declared = { source: 'inkwell-codex', label: 'Inkwell', title: 'The Inkwell Codex', ddbSourceIds: [BOOK_SOURCE_ID], includes: { monsters: [], items: [] } };
     const catalog = withDeclarations(new Map(), [declared]);
     expect(bookLabel(catalog, BOOK_SOURCE_ID)).toBe('The Inkwell Codex');
     expect(suggestedSource(catalog, BOOK_SOURCE_ID)).toBe('inkwell-codex');

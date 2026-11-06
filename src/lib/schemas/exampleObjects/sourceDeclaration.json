@@ -4,5 +4,13 @@
   "title": "string",
   "ddbSourceIds": [
     1
-  ]
+  ],
+  "includes": {
+    "monsters": [
+      "string"
+    ],
+    "items": [
+      "string"
+    ]
+  }
 }

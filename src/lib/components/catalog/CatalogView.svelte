@@ -5,7 +5,7 @@
   import { CatalogFilterState } from './catalogFilterState.svelte';
   import { CATALOGS } from '../../services/catalog/catalogs';
   import {
-    catalogEntry, columnsFor, facetOptions,
+    catalogEntry, columnsFor, crossRefNote, facetOptions,
     type CatalogGroup, type CatalogKind, type CatalogLayout, type CatalogRow,
   } from '../../services/catalog/catalogTypes';
   import { queryRows } from '../../services/catalog/queryRows';
@@ -56,6 +56,7 @@
   let groupRows = $derived(group ? rows.filter((r) => r.group === group) : rows);
 
   let shown = $derived(queryRows(groupRows, filt, activeSort));
+  const note = (row: CatalogRow) => crossRefNote(row, filt.facets);
 
   function setGroup(id: string) {
     const g = groups.find((x) => x.id === id);
@@ -107,7 +108,7 @@
   </CatalogFilterBar>
 
   {#if filt.layout === 'gallery'}
-    <CatalogGallery {spec} rows={shown} showGroup={!group} {groupLabel} {loading} {entryOf} onopen={open} />
+    <CatalogGallery {spec} rows={shown} showGroup={!group} {groupLabel} {loading} {entryOf} onopen={open} {note} />
   {:else}
     <CatalogTable
       {spec}
@@ -121,6 +122,7 @@
       {entryOf}
       onsort={(col) => filt.sortBy(col, activeSort)}
       onopen={open}
+      {note}
     />
   {/if}
 </div>

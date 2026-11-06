@@ -12,6 +12,7 @@ export const SOURCES_PATH = './vault/sources';
 // Beschriftungen werden synchron gebraucht (Karten, Filter); bis zum ersten Laden zeigt eine
 // deklarierte Herkunft ihr Kürzel.
 let labels = new Map<string, string>();
+let includedBy = new Map<string, string[]>();
 
 const declarations = memoOnce(async (): Promise<SourceDeclaration[]> => {
   const all: (SourceDeclaration | null)[] = await scanJsonFolder<SourceDeclaration | null>(
@@ -21,6 +22,12 @@ const declarations = memoOnce(async (): Promise<SourceDeclaration[]> => {
   ).catch(() => []);
   const valid = all.filter((d): d is SourceDeclaration => d !== null);
   labels = new Map(valid.map((d) => [d.source, d.label]));
+  includedBy = new Map();
+  for (const d of valid) {
+    for (const key of [...d.includes.monsters, ...d.includes.items]) {
+      includedBy.set(key, [...(includedBy.get(key) ?? []), d.source]);
+    }
+  }
   return valid;
 });
 
@@ -29,6 +36,11 @@ export const getSourceDeclarations = declarations.get;
 export function invalidateSourceDeclarations(): void {
   declarations.invalidate();
   void declarations.get();
+}
+
+/** Die Herkünfte, deren Buch den Eintrag `key` aus einer anderen Herkunft verwendet. */
+export function includingSources(key: string | undefined): string[] {
+  return (key && includedBy.get(key)) || [];
 }
 
 export function sourceLabel(source: string | undefined): string {
