@@ -13,7 +13,8 @@ import { cockpit } from './cockpitTab.svelte';
 import { gridFromCell, type Point } from './geometry';
 import { advanceTurn, startCombat } from './initiative';
 import { addLevel, BASE_LEVEL, layerOf, levelStack, moveToLevel, partyOn, placedImages, removeLevel, resolveLevel, tokensOn, withLevelImage, type LevelLayer, type PlacedImage } from './levels';
-import { loadBattleMap, pickMapImage, serializeBattleMap } from './mapFiles';
+import { loadBattleMap, pickMapImage, serializeBattleMap, writeMapImage } from './mapFiles';
+import type { GeneratedImage } from '../imageGen/types';
 import { MapImages } from './mapImages.svelte';
 import { PlayerLink } from './playerLink';
 import { KIND_COLOR, lightDraft, occupiedCells, placeDrafts, type TokenDraft } from './tokenSources';
@@ -127,14 +128,25 @@ export class MapEditor {
     try {
       const level = this.level;
       const file = await pickMapImage(this.path, level);
-      if (!file) return;
-      this.checkpoint();
-      this.map = withLevelImage(this.map, level, file);
-      await this.images.refreshLevel(this.path, this.map, level);
-      this.changed();
+      if (file) await this.#useImage(level, file);
     } catch (e) {
       this.error = `Bild konnte nicht übernommen werden: ${e}`;
     }
+  }
+
+  /** Wirft, damit der Generator-Dialog den Fehler selbst zeigt. */
+  async useGeneratedImage(image: GeneratedImage): Promise<void> {
+    if (!this.map) return;
+    const level = this.level;
+    await this.#useImage(level, await writeMapImage(this.path, level, image.b64, image.ext));
+  }
+
+  async #useImage(level: string, file: string): Promise<void> {
+    if (!this.map) return;
+    this.checkpoint();
+    this.map = withLevelImage(this.map, level, file);
+    await this.images.refreshLevel(this.path, this.map, level);
+    this.changed();
   }
 
   checkpoint(): void {

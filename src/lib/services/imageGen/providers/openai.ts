@@ -7,6 +7,12 @@ interface ImagesResponse {
   error?: { message?: string };
 }
 
+/** gpt-image kennt nur diese drei Größen; das Seitenverhältnis entscheidet. */
+function sizeFor(width = 1024, height = 1024): string {
+  if (width > height) return '1536x1024';
+  return width < height ? '1024x1536' : '1024x1024';
+}
+
 export const openai: ImageProvider = {
   id: 'openai',
   label: 'OpenAI',
@@ -14,12 +20,12 @@ export const openai: ImageProvider = {
   secret: { keychain: 'openai', placeholder: 'API-Key (sk-…)' },
   maxPromptChars: 32000,
   understandsGerman: true,
-  request: (settings, prompt) => ({
+  request: (settings, prompt, options = {}) => ({
     url: 'https://api.openai.com/v1/images/generations',
-    body: { model: settings.model, prompt, size: '1024x1024', output_format: 'jpeg', n: 1 },
+    body: { model: settings.model, prompt, size: sizeFor(options.width, options.height), output_format: 'jpeg', n: 1 },
   }),
   async generate(settings, key, prompt, options = {}) {
-    const { url, body } = openai.request(settings, prompt);
+    const { url, body } = openai.request(settings, prompt, options);
     const res = await httpFetch(url, {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },

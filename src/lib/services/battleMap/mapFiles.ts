@@ -46,16 +46,20 @@ export function measureImage(url: string): Promise<{ w: number; h: number }> {
 }
 
 /**
- * Fragt nach einer Bilddatei und legt sie neben die Karte (Name nach `levelImageBase`).
+ * Fragt nach einer Bilddatei und legt sie neben die Karte.
  * @returns der Dateiname für das `image` der Ebene, oder null bei Abbruch.
  */
 export async function pickMapImage(mapPath: string, level = BASE_LEVEL): Promise<string | null> {
   const selected = await openFileDialog({ multiple: false, filters: [{ name: 'Bilder', extensions: MAP_IMAGE_EXTENSIONS }] });
   const src = Array.isArray(selected) ? selected[0] : selected;
   if (!src) return null;
-  const ext = (src.split('.').pop() ?? 'png').toLowerCase();
-  const file = `${levelImageBase(baseNameOf(mapPath), level)}.${ext}`;
   const data = await invoke<string>('read_file_base64', { path: src });
+  return writeMapImage(mapPath, level, data, (src.split('.').pop() ?? 'png').toLowerCase());
+}
+
+/** Legt Base64-Bilddaten neben die Karte (Name nach `levelImageBase`) und gibt den Dateinamen zurück. */
+export async function writeMapImage(mapPath: string, level: string, data: string, ext: string): Promise<string> {
+  const file = `${levelImageBase(baseNameOf(mapPath), level)}.${ext}`;
   await invoke('write_file_base64', { path: `${dirOf(mapPath)}/${file}`, data });
   return file;
 }

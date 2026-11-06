@@ -11,12 +11,12 @@ export const local: ImageProvider = {
     { key: 'baseUrl', label: 'URL', placeholder: 'http://127.0.0.1:7860', default: 'http://127.0.0.1:7860' },
     { key: 'steps', label: 'Schritte', placeholder: '25', default: '25' },
   ],
-  request: (settings, prompt) => ({
+  request: (settings, prompt, options = {}) => ({
     url: `${settings.baseUrl.replace(/\/+$/, '')}/sdapi/v1/txt2img`,
-    body: { prompt, steps: Number(settings.steps) || 25, width: 1024, height: 1024 },
+    body: { prompt, steps: Number(settings.steps) || 25, width: options.width ?? 1024, height: options.height ?? 1024 },
   }),
   async generate(settings, _secret, prompt, options = {}) {
-    const { url, body } = local.request(settings, prompt);
+    const { url, body } = local.request(settings, prompt, options);
     const res = await httpFetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

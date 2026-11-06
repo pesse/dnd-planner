@@ -3,6 +3,7 @@
   import type { MapEditor } from '../../services/battleMap/mapEditor.svelte';
   import PanelSection from './PanelSection.svelte';
   import MapLevelsSection from './MapLevelsSection.svelte';
+  import MapImageGenerator from './MapImageGenerator.svelte';
   import { levelName } from '../../services/battleMap/levels';
 
   let { editor }: { editor: MapEditor } = $props();
@@ -16,7 +17,10 @@
 </script>
 
 <PanelSection title={map.levels.length ? `Karte · ${levelName(map, editor.level)}` : 'Karte'}>
-  <button onclick={() => editor.chooseImage()}>{layer.image ? 'Bild ersetzen…' : 'Kartenbild wählen…'}</button>
+  <span class="pair">
+    <button onclick={() => editor.chooseImage()}>{layer.image ? 'Bild ersetzen…' : 'Kartenbild wählen…'}</button>
+    <MapImageGenerator {editor} />
+  </span>
   <label>
     <span>Nebel aktiv</span>
     <input type="checkbox" checked={layer.fog.enabled} onchange={(e) => { editor.checkpoint(); layer.fog.enabled = e.currentTarget.checked; editor.changed(); }} />
@@ -88,7 +92,7 @@
     display: flex;
     gap: 0.25rem;
   }
-  button {
+  button, .pair :global(> button) {
     background: var(--bg-raised);
     border: 1px solid var(--border);
     border-radius: 4px;
