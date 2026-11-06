@@ -43,6 +43,9 @@ export default defineConfig(async () => ({
   plugins: [vaultArt(), sveltekit()],
   // Vorgebündelt findet der AVIF-Encoder seine .wasm-Datei nicht mehr.
   optimizeDeps: { exclude: ['@jsquash/avif'] },
+  // Der Multithread-Encoder von @jsquash/avif startet einen Worker mit dynamischen Imports;
+  // das Default-Format `iife` lässt den Produktions-Build daran scheitern.
+  worker: { format: /** @type {const} */ ('es') },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
