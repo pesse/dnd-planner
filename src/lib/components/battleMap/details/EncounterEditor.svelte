@@ -4,7 +4,7 @@
   import { ENCOUNTER_DIFFICULTIES, type Encounter } from '../../../schemas/encounter';
   import type { Monster } from '../../../types';
   import type { MapEditor } from '../../../services/battleMap/mapEditor.svelte';
-  import { encounterXp, scopeDirOf, serializeEncounter, withMonsterCount, withRestored } from '../../../services/battleMap/encounterEdit';
+  import { encounterXp, scopeDirOf, serializeEncounter, totalCount, withEntryCount, withMonsterCount, withRestored } from '../../../services/battleMap/encounterEdit';
   import { useEncounterPicker, type EncounterPickTarget } from '../../../services/battleMap/encounterPicker.svelte';
   import { encounterDrafts } from '../../../services/battleMap/tokenSources';
   import { pxToCell, type Point } from '../../../services/battleMap/geometry';
@@ -47,7 +47,7 @@
   });
 
   const nameOf = (slug: string) => monsters?.get(slug)?.name ?? slug;
-  const countOf = (slug: string) => encounter.monsters.find((m) => m.slug === slug)?.count ?? 0;
+  const countOf = (slug: string) => totalCount(encounter.monsters, slug);
   const tokensOf = (slug: string) => editor.map?.tokens.filter((t) => t.encounter === key && t.ref === slug) ?? [];
   const xp = $derived(monsters ? encounterXp(encounter.monsters, (slug) => monsters!.get(slug)?.xp) : null);
 
@@ -90,11 +90,17 @@
 
   function setCount(slug: string, delta: number) {
     const index = encounter.monsters.findIndex((m) => m.slug === slug);
-    const before = encounter.monsters[index];
+    if (index >= 0) return setEntryCount(index, delta);
     encounter = withMonsterCount(encounter, slug, delta);
-    if (before && !encounter.monsters.some((m) => m.slug === slug)) removed = { entry: before, index, name: nameOf(slug) };
-    else if (removed?.entry.slug === slug) removed = null;
+    if (removed?.entry.slug === slug) removed = null;
     syncTokens(slug);
+  }
+
+  function setEntryCount(index: number, delta: number) {
+    const before = encounter.monsters[index];
+    encounter = withEntryCount(encounter, index, delta);
+    if (before.count + delta <= 0) removed = { entry: before, index, name: nameOf(before.slug) };
+    syncTokens(before.slug);
   }
 
   function undoRemove() {
@@ -149,19 +155,19 @@
       <span>Monster{#if xp}<span class="xp">{xp.toLocaleString('de-DE')} EP</span>{/if}</span>
       <button class="add" class:active={picker.open} onclick={() => picker.toggle()}>+ Monster…</button>
     </h3>
-    {#each encounter.monsters as m (m.slug)}
+    {#each encounter.monsters as m, i (i)}
       {@const lib = monsters?.get(m.slug)}
       {@const placed = tokensOf(m.slug)}
       <div class="monster" class:focused={placed.some((t) => t.id === editor.selectedId)}>
         <div class="line">
           <button class="name" title={placed.length ? 'Auf der Karte wählen — jeder Klick das nächste' : 'Steht nicht auf der Karte'} disabled={!placed.length} onclick={() => focusNext(m.slug)}>
             {lib?.name ?? m.slug}{#if lib}<span class="cr">HG {crLabel(lib.challenge_rating)}</span>{/if}
-            {#if placed.length !== m.count}<span class="off">{placed.length}/{m.count} auf der Karte</span>{/if}
+            {#if placed.length !== countOf(m.slug)}<span class="off">{placed.length}/{countOf(m.slug)} auf der Karte</span>{/if}
           </button>
-          <button title="Eins weniger" onclick={() => setCount(m.slug, -1)}>−</button>
+          <button title="Eins weniger" onclick={() => setEntryCount(i, -1)}>−</button>
           <span class="count">{m.count}</span>
-          <button title="Eins mehr" onclick={() => setCount(m.slug, 1)}>+</button>
-          <button class="remove" title="Aus dem Encounter entfernen" onclick={() => setCount(m.slug, -m.count)}>✕</button>
+          <button title="Eins mehr" onclick={() => setEntryCount(i, 1)}>+</button>
+          <button class="remove" title="Aus dem Encounter entfernen" onclick={() => setEntryCount(i, -m.count)}>✕</button>
         </div>
         <InlineNote bind:value={m.notes} placeholder="Notiz, z. B. Taktik oder Versteck" label="Notiz zu {lib?.name ?? m.slug}" />
       </div>

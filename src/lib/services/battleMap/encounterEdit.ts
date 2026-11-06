@@ -25,17 +25,26 @@ export async function duplicateEncounter(campaignDir: string, key: string): Prom
 
 export const serializeEncounter = (encounter: Encounter): string => JSON.stringify(encounter, null, 2);
 
-/** Ändert die Anzahl eines Monsters; bei 0 fliegt es raus, ein neues kommt ans Ende. */
+/** Ändert die Anzahl im ersten Eintrag des Monsters; bei 0 fliegt er raus, ein neues kommt ans Ende. */
 export function withMonsterCount(encounter: Encounter, slug: string, delta: number): Encounter {
-  const current = encounter.monsters.find((m) => m.slug === slug);
-  const count = (current?.count ?? 0) + delta;
-  const monsters = current
-    ? encounter.monsters.flatMap((m) => (m.slug !== slug ? [m] : count > 0 ? [{ ...m, count }] : []))
-    : count > 0
-      ? [...encounter.monsters, { slug, count, notes: '' }]
-      : encounter.monsters;
+  const index = encounter.monsters.findIndex((m) => m.slug === slug);
+  if (index >= 0) return withEntryCount(encounter, index, delta);
+  return delta > 0 ? { ...encounter, monsters: [...encounter.monsters, { slug, count: delta, notes: '' }] } : encounter;
+}
+
+/** Ein Monster darf mehrere Einträge haben (z. B. eine Verstärkungswelle) — geändert wird genau dieser. */
+export function withEntryCount(encounter: Encounter, index: number, delta: number): Encounter {
+  const monsters = encounter.monsters.flatMap((m, i) => {
+    if (i !== index) return [m];
+    const count = m.count + delta;
+    return count > 0 ? [{ ...m, count }] : [];
+  });
   return { ...encounter, monsters };
 }
+
+/** Anzahl eines Monsters über alle seine Einträge. */
+export const totalCount = (monsters: Encounter['monsters'], slug: string): number =>
+  monsters.reduce((sum, m) => sum + (m.slug === slug ? m.count : 0), 0);
 
 /** Akt- oder Kampagnenordner, dessen `monsters/` die Bibliothek für diesen Encounter überschreibt. */
 export const scopeDirOf = (encounterPath: string): string => encounterPath.replace(/\/encounters\/[^/]+\.json$/, '');
@@ -47,7 +56,7 @@ export function encounterXp(monsters: Encounter['monsters'], xpOf: (slug: string
 
 /** Setzt einen entfernten Eintrag wieder an seine alte Stelle. */
 export function withRestored(encounter: Encounter, entry: Encounter['monsters'][number], index: number): Encounter {
-  const monsters = encounter.monsters.filter((m) => m.slug !== entry.slug);
+  const monsters = [...encounter.monsters];
   monsters.splice(Math.min(index, monsters.length), 0, entry);
   return { ...encounter, monsters };
 }

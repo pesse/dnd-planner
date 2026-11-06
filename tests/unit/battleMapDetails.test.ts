@@ -7,7 +7,7 @@ import { toPlayerState } from '../../src/lib/services/battleMap/playerState';
 import { asMapTemplate, isMapTemplatePath } from '../../src/lib/services/battleMap/mapTemplates';
 import { ruleIconUrl } from '../../src/lib/conditionIcon';
 import { advanceTurn, initiativeOrder, startCombat } from '../../src/lib/services/battleMap/initiative';
-import { encounterXp, scopeDirOf, withMonsterCount, withRestored } from '../../src/lib/services/battleMap/encounterEdit';
+import { encounterXp, scopeDirOf, totalCount, withEntryCount, withMonsterCount, withRestored } from '../../src/lib/services/battleMap/encounterEdit';
 import { missingMonsters } from '../../src/lib/services/battleMap/tokenSources';
 import { formatMonsterList } from '../../src/lib/services/contextLoad';
 import { encounterSchema } from '../../src/lib/schemas/encounter';
@@ -252,6 +252,32 @@ describe('withMonsterCount', () => {
   it('entfernt bei 0 und ignoriert Abzug bei Fehlendem', () => {
     expect(withMonsterCount(base, 'goblin', -2).monsters).toEqual([]);
     expect(withMonsterCount(base, 'wolf', -1).monsters).toEqual(base.monsters);
+  });
+});
+
+describe('Monster mit mehreren Einträgen (Verstärkung)', () => {
+  const waves = encounterSchema.parse({
+    name: 'Aasvögel',
+    monsters: [
+      { slug: 'blood-hawk', count: 4, notes: 'Hauptgruppe' },
+      { slug: 'blood-hawk', count: 4, notes: 'Verstärkung' },
+    ],
+  });
+
+  it('ändert genau den gewählten Eintrag', () => {
+    expect(withEntryCount(waves, 1, -1).monsters.map((m) => m.count)).toEqual([4, 3]);
+    expect(withEntryCount(waves, 1, -4).monsters.map((m) => m.notes)).toEqual(['Hauptgruppe']);
+  });
+
+  it('setzt eine entfernte Welle zurück, ohne die andere zu verlieren', () => {
+    expect(withRestored(withEntryCount(waves, 0, -4), waves.monsters[0], 0).monsters).toEqual(waves.monsters);
+  });
+
+  it('zählt Tokens über alle Einträge eines Monsters', () => {
+    expect(totalCount(waves.monsters, 'blood-hawk')).toBe(8);
+    expect(missingMonsters(waves, [{ ref: 'blood-hawk' }, { ref: 'blood-hawk' }])).toEqual([
+      { slug: 'blood-hawk', already: 2, missing: 6 },
+    ]);
   });
 });
 

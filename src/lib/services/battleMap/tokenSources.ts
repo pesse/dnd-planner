@@ -153,7 +153,9 @@ export function missingMonsters(
   encounter: EncounterMonsters,
   placed: ReadonlyArray<Pick<Token, 'ref'>>,
 ): { slug: string; already: number; missing: number }[] {
-  return encounter.monsters.map(({ slug, count }) => {
+  const totals = new Map<string, number>();
+  for (const { slug, count } of encounter.monsters) totals.set(slug, (totals.get(slug) ?? 0) + count);
+  return [...totals].map(([slug, count]) => {
     const already = placed.filter((t) => t.ref === slug).length;
     return { slug, already, missing: Math.max(0, count - already) };
   });
