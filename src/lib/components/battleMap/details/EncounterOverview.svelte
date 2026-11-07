@@ -1,5 +1,5 @@
 <script lang="ts">
-  /** Die Encounter, die diese Karte anbietet — in der Vorbereitung mit Ausblenden, Duplizieren und Anlegen. */
+  /** Die Encounter, die diese Karte anbietet — im Spiel nur die platzierten, in der Vorbereitung mit Ausblenden, Duplizieren und Anlegen. */
   import { encounterSummaries, refreshEncounterSummaries } from '../../../stores/context';
   import type { MapEditor } from '../../../services/battleMap/mapEditor.svelte';
   import { mapEncounters, splitHiddenEncounters } from '../../../services/battleMap/tokenDetails';
@@ -20,7 +20,7 @@
     mapEncounters($encounterSummaries, map, isTemplate).sort((a, b) => Number(placed.has(b.key)) - Number(placed.has(a.key))),
   );
   const split = $derived(splitHiddenEncounters(offered, map));
-
+  const listed = $derived(prep ? split.shown : split.shown.filter((e) => placed.has(e.key)));
 
   async function duplicate(key: string) {
     try {
@@ -34,10 +34,10 @@
 </script>
 
 {#snippet card(e: (typeof offered)[number], hidden: boolean)}
-  <div class="encounter" class:hidden>
+  <div class="encounter" class:hidden class:unplaced={!placed.has(e.key)}>
     <button class="open" onclick={() => editor.details.show({ kind: 'encounter', key: e.key })}>
       <span class="name">{e.name}</span>
-      <span class="sub">{placed.has(e.key) ? 'auf der Karte · ' : ''}{e.monsterList}</span>
+      <span class="sub">{placed.has(e.key) ? 'auf der Karte · ' : 'nicht platziert · '}{e.monsterList}</span>
     </button>
     {#if prep}
       <div class="tools">
@@ -55,11 +55,11 @@
 
 <section>
   <h3>Encounter</h3>
-  {#each split.shown as e (e.key)}
+  {#each listed as e (e.key)}
     {@render card(e, false)}
   {:else}
     <p class="hint">
-      {split.hidden.length ? 'Alle Encounter sind für diese Karte ausgeblendet.' : isTemplate ? 'Diese Kampagne hat noch keine Encounter.' : 'Die Akte dieser Karte und die Kampagne haben keine Encounter.'}
+      {!prep && split.shown.length ? 'Kein Encounter steht auf der Karte.' : split.hidden.length ? 'Alle Encounter sind für diese Karte ausgeblendet.' : isTemplate ? 'Diese Kampagne hat noch keine Encounter.' : 'Die Akte dieser Karte und die Kampagne haben keine Encounter.'}
     </p>
   {/each}
   {#if prep && split.hidden.length}
@@ -96,6 +96,10 @@
   }
   .encounter:hover {
     border-color: var(--red);
+  }
+  .encounter.unplaced {
+    border-style: dashed;
+    background: none;
   }
   .encounter.hidden {
     opacity: 0.6;
