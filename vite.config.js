@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import { sveltekit } from "@sveltejs/kit/vite";
 import { createReadStream, readdirSync, statSync } from "node:fs";
 import { resolve, sep } from "node:path";
+import { vaultBridge } from "./tests/support/vaultBridge";
 
 const host = process.env.TAURI_DEV_HOST;
 
@@ -40,7 +41,7 @@ function vaultArt() {
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [vaultArt(), sveltekit()],
+  plugins: [vaultArt(), ...(process.env.VAULT_BRIDGE ? [vaultBridge()] : []), sveltekit()],
   // Vorgebündelt findet der AVIF-Encoder seine .wasm-Datei nicht mehr.
   optimizeDeps: { exclude: ['@jsquash/avif'] },
   // Der Multithread-Encoder von @jsquash/avif startet einen Worker mit dynamischen Imports;

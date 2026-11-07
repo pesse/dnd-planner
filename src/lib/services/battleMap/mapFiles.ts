@@ -2,7 +2,6 @@
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
 import { battleMapSchema, type BattleMap } from '../../schemas/battleMap';
-import { isTauri } from '../httpFetch';
 import { liftLegacyLights } from './legacyLights';
 import { BASE_LEVEL, levelImageBase } from './levels';
 
@@ -22,7 +21,6 @@ export const serializeBattleMap = (map: BattleMap): string => JSON.stringify(map
 
 /** `?v=` erzwingt frische Bytes, wenn ein Bild unter demselben Namen ersetzt wurde. */
 export async function vaultFileUrl(path: string): Promise<string> {
-  if (!isTauri()) return '';
   try {
     const abs = await invoke<string>('get_absolute_path', { path });
     return `${convertFileSrc(abs)}?v=${Date.now()}`;

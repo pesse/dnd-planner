@@ -1,131 +1,20 @@
 /**
- * Node-Ersatz für `@tauri-apps/api/core`: bedient die lesenden Vault-Commands per `node:fs`
- * gegen den Repo-Vault, damit Fixtures über den ECHTEN Ladepfad geladen werden können.
- * Eingehängt per Vitest-Alias (vitest.config.ts).
+ * Node-Ersatz für `@tauri-apps/api/core`: bedient die lesenden Vault-Commands gegen den
+ * Repo-Vault, damit Fixtures über den ECHTEN Ladepfad geladen werden können.
  *
  * Bewusst KEIN `window.__TAURI_INTERNALS__` (wie `mockIPC` es setzen würde) — sonst wäre
  * `isTauri()` true und `httpFetch` schickte die LLM-Calls über den Tauri-HTTP-Pfad statt
  * über das globale `fetch`. Nur `invoke` wird ausgetauscht.
  */
-import { readdirSync, readFileSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
-
-/** App-Pfade sind repo-relativ ('./vault/...'); CWD im Eval = Projekt-Root. */
-function vaultPath(p: string): string {
-  return resolve(process.cwd(), p);
-}
-
-/** Leichtes Pendant zu Rusts `SpellInfo` (nur die Index-Felder). */
-interface SpellIndexEntry {
-  name: string;
-  name_en: string;
-  key: string;
-  source: string;
-  level: number;
-  classes: string[];
-  school: string;
-  ritual: boolean;
-  concentration: boolean;
-  casting_time: string;
-  range: string;
-  components: string;
-  materials: string;
-  path: string;
-  attack?: unknown;
-  attackEffects?: unknown;
-}
-
-function componentsOf(raw: unknown): { components: string; materials: string } {
-  const c = (raw ?? {}) as Record<string, unknown>;
-  const letters = (['verbal', 'somatic', 'material'] as const).filter((k) => c[k] === true).map((k) => k[0].toUpperCase());
-  return { components: letters.join(''), materials: typeof c.materials_needed === 'string' ? c.materials_needed : '' };
-}
-
-/** Rekursives Pendant zu Rusts `collect_spells`: liest alle Zauber-JSONs unter `dir`. */
-function collectSpells(dir: string, out: SpellIndexEntry[]): void {
-  let entries;
-  try {
-    entries = readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  for (const e of entries) {
-    const full = join(dir, e.name);
-    if (e.isDirectory()) {
-      collectSpells(full, out);
-    } else if (e.name.endsWith('.json')) {
-      try {
-        const v = JSON.parse(readFileSync(full, 'utf8')) as Record<string, unknown>;
-        const name = typeof v.name === 'string' ? v.name : '';
-        if (!name) continue;
-        out.push({
-          name,
-          name_en: typeof v.name_en === 'string' ? v.name_en : '',
-          key: typeof v.key === 'string' ? v.key : '',
-          source: typeof v.source === 'string' ? v.source : String((v.document as { key?: unknown })?.key ?? ''),
-          level: typeof v.level === 'number' ? v.level : Number.parseInt(String(v.level), 10) || 0,
-          classes: Array.isArray(v.classes) ? v.classes.filter((c): c is string => typeof c === 'string') : [],
-          school: typeof v.school === 'string' ? v.school : '',
-          ritual: v.ritual === true,
-          concentration: v.concentration === true,
-          casting_time: typeof v.casting_time === 'string' ? v.casting_time : '',
-          range: typeof v.range === 'string' ? v.range : '',
-          ...componentsOf(v.components),
-          path: './' + relative(process.cwd(), full).replace(/\\/g, '/'),
-          ...(v.attack != null ? { attack: v.attack } : {}),
-          ...(v.attackEffects != null ? { attackEffects: v.attackEffects } : {}),
-        });
-      } catch {
-        /* defekte Datei überspringen */
-      }
-    }
-  }
-}
+import { READ_COMMANDS } from './vaultCommands';
 
 export async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
-  const a = args ?? {};
-  switch (cmd) {
-    case 'list_json_files':
-      return readdirSync(vaultPath(String(a.path)))
-        .filter((f) => f.endsWith('.json')) as unknown as T;
-    case 'list_json_entries':
-      return readdirSync(vaultPath(String(a.path)), { withFileTypes: true })
-        .filter((e) => e.isDirectory() || e.name.endsWith('.json'))
-        .map((e) => ({ name: e.name, is_dir: e.isDirectory() })) as unknown as T;
-    case 'list_entries':
-      return readdirSync(vaultPath(String(a.path)), { withFileTypes: true })
-        .filter((e) => !e.name.startsWith('.') && (e.isDirectory() || e.name.endsWith('.md')))
-        .map((e) => ({ name: e.name, is_dir: e.isDirectory() }))
-        .sort((x, y) => (x.name < y.name ? -1 : x.name > y.name ? 1 : 0)) as unknown as T;
-    case 'read_file_content':
-      return readFileSync(vaultPath(String(a.path)), 'utf8') as unknown as T;
-    case 'read_json_folder': {
-      const dir = vaultPath(String(a.path));
-      let names: string[];
-      try {
-        names = readdirSync(dir).filter((f) => !f.startsWith('.') && f.endsWith('.json')).sort();
-      } catch {
-        return [] as unknown as T;
-      }
-      return names.map((name) => {
-        let content: string | null = null;
-        try {
-          content = readFileSync(join(dir, name), 'utf8');
-        } catch { /* nicht lesbar → content bleibt null */ }
-        return { name, content };
-      }) as unknown as T;
-    }
-    case 'load_spells_index': {
-      // Für das Zauber-Grounding im featureEffects-Dreipass (getSpellLibrary → resolveSpell).
-      const spells: SpellIndexEntry[] = [];
-      collectSpells(vaultPath(String(a.path)), spells);
-      spells.sort((x, y) => x.name.localeCompare(y.name));
-      return spells as unknown as T;
-    }
-    default:
-      throw new Error(
-        `[eval] Tauri-Command "${cmd}" ist im Eval-Shim nicht implementiert ` +
-          `(tests/support/tauriInvokeShim.ts). Nur lesende Vault-Commands werden unterstützt.`,
-      );
+  const run = (READ_COMMANDS as Record<string, ((a: Record<string, unknown>) => unknown) | undefined>)[cmd];
+  if (!run) {
+    throw new Error(
+      `[eval] Tauri-Command "${cmd}" ist im Eval-Shim nicht implementiert ` +
+        `(tests/support/tauriInvokeShim.ts). Nur lesende Vault-Commands werden unterstützt.`,
+    );
   }
+  return run(args ?? {}) as T;
 }

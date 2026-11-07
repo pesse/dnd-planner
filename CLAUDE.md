@@ -12,6 +12,7 @@ the source.
 | Typecheck + lint | `npm run check` | WSL |
 | Unit + integration tests (LLM-free, no API key) | `npm run test` | WSL |
 | Browser-only dev server (UI work without Tauri commands) | `npm run dev` → `:1420` | WSL |
+| Browser dev server **with the repo vault** (Tauri file commands over HTTP, `tests/support/vaultBridge.ts`) — click through and screenshot with Playwright | `npm run dev:vault` → `:1420` | WSL |
 | Charakterbögen aus dem Vault als HTML rendern und servieren (`:8899`) | `npm run sheets` | WSL |
 | Full app | `.\dev-windows.ps1` | Windows PowerShell |
 | Watch the running app | `tail -f /mnt/c/dev/privat/dnd-planner/tauri-dev.log` | WSL |
