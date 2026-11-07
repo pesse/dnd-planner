@@ -1,3 +1,9 @@
+<script lang="ts" module>
+  import { createCollapsibleSections } from '../../utils/collapsibleSections.svelte';
+
+  const sections = createCollapsibleSections('monsterLore.collapsed', true);
+</script>
+
 <script lang="ts">
   import Markdown from '../Markdown.svelte';
   import { getMonsterLore, loreText, type MonsterLoreHit } from '../../monsterLoreLibrary';
@@ -34,7 +40,7 @@
 {/snippet}
 
 {#if hit && collapsible}
-  <details class="lore">
+  <details class="lore" open={sections.isOpen('lore')} ontoggle={(e) => sections.setCollapsed('lore', !e.currentTarget.open)}>
     <summary><header>{@render heading(hit.family)}</header></summary>
     {@render body(hit)}
   </details>

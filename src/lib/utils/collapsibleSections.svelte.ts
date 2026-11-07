@@ -7,7 +7,7 @@ export interface CollapsibleSections {
   setCollapsed(id: string, value: boolean): void;
 }
 
-export function createCollapsibleSections(storageKey: string): CollapsibleSections {
+export function createCollapsibleSections(storageKey: string, collapsedByDefault = false): CollapsibleSections {
   let collapsed = $state<Record<string, boolean>>(read());
 
   function read(): Record<string, boolean> {
@@ -20,9 +20,9 @@ export function createCollapsibleSections(storageKey: string): CollapsibleSectio
   }
 
   return {
-    isOpen: (id) => !collapsed[id],
+    isOpen: (id) => !(collapsed[id] ?? collapsedByDefault),
     setCollapsed(id, value) {
-      if (collapsed[id] === value) return; // `ontoggle` feuert auch beim Setzen von außen
+      if ((collapsed[id] ?? collapsedByDefault) === value) return; // `ontoggle` feuert auch beim Setzen von außen
       collapsed = { ...collapsed, [id]: value };
       localStorage.setItem(storageKey, JSON.stringify(collapsed));
     },
