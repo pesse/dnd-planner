@@ -10,6 +10,8 @@
   import type { MapEditor } from '../../../services/battleMap/mapEditor.svelte';
   import { encounterPath, loadEncounter, loadTokenMonster } from '../../../services/battleMap/tokenDetails';
   import MonsterStatBlock from '../../MonsterStatBlock.svelte';
+  import MonsterLoreBlock from '../../monster/MonsterLoreBlock.svelte';
+  import { monsterArtSlug } from '../../../libraryArt';
   import CharacterTokenInfo from './CharacterTokenInfo.svelte';
   import HpTracker from './HpTracker.svelte';
   import ConditionPicker from './ConditionPicker.svelte';
@@ -130,7 +132,7 @@
 
 {#if t.kind === 'monster'}
   {#if monster}
-    <div class="sheet"><MonsterStatBlock {monster} notes={monsterNotes} /></div>
+    <div class="sheet"><MonsterStatBlock {monster} notes={monsterNotes} /><MonsterLoreBlock slug={monsterArtSlug(monster)} collapsible /></div>
   {:else if monsterMissing}
     <p class="muted">Keine Werte zu „{t.ref}" gefunden.</p>
   {/if}

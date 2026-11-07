@@ -2,9 +2,10 @@
   import Markdown from '../Markdown.svelte';
   import { getMonsterLore, loreText, type MonsterLoreHit } from '../../monsterLoreLibrary';
 
-  let { path }: { path: string } = $props();
+  /** `slug` ist der Dateiname der Bibliotheksdatei `path` ohne Endung — eins von beiden genügt. */
+  let { path, slug: slugProp, collapsible = false }: { path?: string; slug?: string; collapsible?: boolean } = $props();
 
-  const slug = $derived(path.slice(path.lastIndexOf('/') + 1).replace(/\.json$/, ''));
+  const slug = $derived(slugProp ?? (path ?? '').slice((path ?? '').lastIndexOf('/') + 1).replace(/\.json$/, ''));
 
   let hit = $state<MonsterLoreHit | null>(null);
   $effect(() => {
@@ -16,21 +17,31 @@
   });
 </script>
 
-{#if hit}
-  {@const { family, entry } = hit}
+{#snippet heading(family: MonsterLoreHit['family'])}
+  <h3>{loreText(family.name, family.nameDe)}</h3>
+  {#if family.tagline}<span class="tagline">{loreText(family.tagline, family.taglineDe)}</span>{/if}
+{/snippet}
+
+{#snippet body({ family, entry }: MonsterLoreHit)}
+  {#if family.habitat || family.treasure}
+    <p class="meta">
+      {#if family.habitat}<span><b>Lebensraum:</b> {loreText(family.habitat, family.habitatDe)}</span>{/if}
+      {#if family.treasure}<span><b>Schatz:</b> {loreText(family.treasure, family.treasureDe)}</span>{/if}
+    </p>
+  {/if}
+  {#if entry.intro}<div class="own"><Markdown source={loreText(entry.intro, entry.introDe)} /></div>{/if}
+  <Markdown source={loreText(family.intro, family.introDe)} />
+{/snippet}
+
+{#if hit && collapsible}
+  <details class="lore">
+    <summary><header>{@render heading(hit.family)}</header></summary>
+    {@render body(hit)}
+  </details>
+{:else if hit}
   <section class="lore">
-    <header>
-      <h3>{loreText(family.name, family.nameDe)}</h3>
-      {#if family.tagline}<span class="tagline">{loreText(family.tagline, family.taglineDe)}</span>{/if}
-    </header>
-    {#if family.habitat || family.treasure}
-      <p class="meta">
-        {#if family.habitat}<span><b>Lebensraum:</b> {loreText(family.habitat, family.habitatDe)}</span>{/if}
-        {#if family.treasure}<span><b>Schatz:</b> {loreText(family.treasure, family.treasureDe)}</span>{/if}
-      </p>
-    {/if}
-    {#if entry.intro}<div class="own"><Markdown source={loreText(entry.intro, entry.introDe)} /></div>{/if}
-    <Markdown source={loreText(family.intro, family.introDe)} />
+    <header>{@render heading(hit.family)}</header>
+    {@render body(hit)}
   </section>
 {/if}
 
@@ -44,6 +55,11 @@
     color: var(--ink-soft);
     font-size: 0.88rem;
   }
+  summary { cursor: pointer; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary header::before { content: '▸'; font-size: 0.75rem; color: var(--ink-muted); }
+  details[open] summary header::before { content: '▾'; }
+  details[open] summary { margin-bottom: 0.5rem; }
   header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.7rem; }
   h3 { margin: 0; font-family: var(--font-display); color: var(--red); font-size: 1.05rem; }
   .tagline { font-style: italic; color: var(--ink-muted); }
