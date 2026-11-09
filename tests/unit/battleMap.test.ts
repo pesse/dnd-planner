@@ -13,7 +13,7 @@ import {
 import { clampToView, toPlayerState } from '../../src/lib/services/battleMap/playerState';
 import { flickerLights, tokenLights } from '../../src/lib/services/battleMap/overlayRender';
 import { liftLegacyLights } from '../../src/lib/services/battleMap/legacyLights';
-import { markerDraft, numberedNames, occupiedCells, placeDrafts } from '../../src/lib/services/battleMap/tokenSources';
+import { initialsOf, markerDraft, numberedNames, occupiedCells, placeDrafts } from '../../src/lib/services/battleMap/tokenSources';
 
 const NO_IMAGES = { levels: {}, tokens: {}, frame: { w: 0, h: 0 } };
 
@@ -178,5 +178,15 @@ describe('Alte Karten mit festen Lichtern', () => {
   it('lässt neue Karten unverändert', () => {
     const raw = { name: 'x', lighting: { darkness: 0 }, tokens: [] };
     expect(liftLegacyLights(structuredClone(raw))).toEqual(raw);
+  });
+});
+
+describe('initialsOf', () => {
+  it('lässt Raumnummern ganz und kürzt Namen auf Anfangsbuchstaben', () => {
+    expect(initialsOf('D3')).toBe('D3');
+    expect(initialsOf('O7a')).toBe('O7a');
+    expect(initialsOf('Goblinkrieger 2')).toBe('G2');
+    expect(initialsOf('Demogorgon-Brut')).toBe('D');
+    expect(initialsOf('Rilly June')).toBe('RJ');
   });
 });

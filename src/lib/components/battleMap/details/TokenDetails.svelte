@@ -4,6 +4,8 @@
   import { pinnableTip } from '../tips/pinnableTip';
   import { withRule } from '../../ruleTips.svelte';
   import RichTextEditor from '../../RichTextEditor.svelte';
+  import Markdown from '../../Markdown.svelte';
+  import { cockpit } from '../../../services/battleMap/cockpitTab.svelte';
   import { isFighter, type Token } from '../../../schemas/battleMap';
   import type { Encounter } from '../../../schemas/encounter';
   import type { Monster } from '../../../types';
@@ -115,11 +117,15 @@
   {/if}
   {#if editor.map}<TokenLightControl {editor} token={t} grid={editor.map.grid} fixed={t.kind === 'light'} />{/if}
   {#if monster}<MonsterPresent {monster} name={t.name} />{/if}
-  <div class="note" class:tall={t.kind === 'marker'} onfocusin={() => editor.checkpoint()}>
-    {#key t.id}
-      <RichTextEditor value={t.note} placeholder="Notiz (nur für dich) …" collapsedToolbar onChange={(note) => editor.updateToken(t.id, { note })} />
-    {/key}
-  </div>
+  {#if cockpit.tab === 'prep'}
+    <div class="note" class:tall={t.kind === 'marker'} onfocusin={() => editor.checkpoint()}>
+      {#key t.id}
+        <RichTextEditor value={t.note} placeholder="Notiz (nur für dich) …" collapsedToolbar onChange={(note) => editor.updateToken(t.id, { note })} />
+      {/key}
+    </div>
+  {:else if t.note.trim()}
+    <div class="note-read"><Markdown source={t.note} /></div>
+  {/if}
 </div>
 
 {#if t.kind === 'trap'}
@@ -187,6 +193,17 @@
   }
   .note.tall {
     height: 13rem;
+  }
+  .note-read {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+  }
+  .note-read :global(.md > :first-child) {
+    margin-top: 0;
+  }
+  .note-read :global(.md > :last-child) {
+    margin-bottom: 0;
   }
   .note :global(.toolbar) {
     padding: 0.1rem 0.3rem;

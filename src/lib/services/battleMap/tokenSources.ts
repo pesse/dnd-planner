@@ -202,12 +202,15 @@ export async function resolveTokenImage(token: Token): Promise<string> {
   return token.art ? artUrl(token.art) : '';
 }
 
+/** Raumnummern wie „D3" oder „O7a" bleiben ganz — ihr Anfangsbuchstabe allein benennt keinen Raum. */
+const ROOM_CODE = /^\p{L}{0,2}\d+\p{L}?$/u;
+
 export const initialsOf = (name: string): string =>
   name
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
-    .map((w) => (/^\d+$/.test(w) ? w : w[0].toUpperCase()))
+    .map((w) => (ROOM_CODE.test(w) ? w : w[0].toUpperCase()))
     .join('');
 
 /**

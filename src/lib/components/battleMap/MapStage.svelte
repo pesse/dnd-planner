@@ -160,7 +160,8 @@
       {#if t.imageUrl && !brokenImages[t.id]}
         <img src={t.imageUrl} alt="" draggable="false" onerror={() => (brokenImages[t.id] = true)} />
       {:else}
-        <span class="initials" style="font-size: {px * 0.36}px">{initialsOf(t.name)}</span>
+        {@const initials = initialsOf(t.name)}
+        <span class="initials" style="font-size: {px * (initials.length > 2 ? 0.28 : 0.36)}px">{initials}</span>
       {/if}
       {#if t.hidden}<span class="hidden-badge" style="font-size: calc(var(--tb) * 5)"><EyeIcon closed /></span>{/if}
       {#if mode === 'gm' && t.hpMax && t.hp != null && t.hp < t.hpMax}
