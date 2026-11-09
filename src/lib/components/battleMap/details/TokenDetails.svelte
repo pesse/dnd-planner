@@ -195,15 +195,18 @@
     height: 13rem;
   }
   .note-read {
+    margin-top: 0.3rem;
+    padding: 0.55rem 0.75rem;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--gold);
+    border-radius: 4px;
     font-size: 0.85rem;
-    line-height: 1.5;
-    color: var(--ink-soft);
+    line-height: 1.45;
+    color: var(--ink);
   }
-  .note-read :global(.md > :first-child) {
-    margin-top: 0;
-  }
-  .note-read :global(.md > :last-child) {
-    margin-bottom: 0;
+  .note-read :global(ul) {
+    padding-left: 1rem;
   }
   .note :global(.toolbar) {
     padding: 0.1rem 0.3rem;

@@ -8,7 +8,8 @@ import { pinTip, tooltipSpot } from '../../../services/battleMap/pinnedTips.svel
 import { rollNow } from '../../../services/battleMap/diceTray.svelte';
 import { ruleTipMarkdown } from '../../ruleRefLinks.svelte';
 
-const DICE = /(?<![\p{L}\d])\d*[WwDd]\d+(?:\s*[+−-]\s*\d+(?![\p{L}\d]))?(?![\p{L}\d])/gu;
+/** Großes „D“ nur mit Anzahl davor — „D4“ allein ist eine Raumnummer. */
+const DICE = /(?<![\p{L}\d])(?:\d*[Ww]|\d+[Dd]|d)\d+(?:\s*[+−-]\s*\d+(?![\p{L}\d]))?(?![\p{L}\d])/gu;
 /** Nur der Bonus wird zum Verweis, geworfen wird ein W20 mit ihm. */
 const ATTACK = /(?<=(?:angriffswurf|attack roll):\s*)[+−-]\d+/giu;
 const SKIP = 'input, textarea, button, script, style, [data-no-dice-refs]';
