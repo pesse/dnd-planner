@@ -125,11 +125,20 @@
     color: var(--ink-muted);
   }
   .tools {
+    position: absolute;
+    top: 0.3rem;
+    right: 0.3rem;
     display: flex;
-    flex-direction: column;
     gap: 0.1rem;
-    padding: 0.3rem 0.3rem 0.3rem 0;
+    border-radius: 4px;
+    background: var(--surface);
     visibility: hidden;
+  }
+  .encounter.unplaced .tools {
+    background: var(--bg);
+  }
+  .encounter.hidden .open {
+    padding-right: 3.8rem;
   }
   .encounter:hover .tools,
   .encounter:focus-within .tools,
