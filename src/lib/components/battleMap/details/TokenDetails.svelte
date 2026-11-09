@@ -4,7 +4,6 @@
   import { pinnableTip } from '../tips/pinnableTip';
   import { withRule } from '../../ruleTips.svelte';
   import RichTextEditor from '../../RichTextEditor.svelte';
-  import Markdown from '../../Markdown.svelte';
   import { cockpit } from '../../../services/battleMap/cockpitTab.svelte';
   import { isFighter, type Token } from '../../../schemas/battleMap';
   import type { Encounter } from '../../../schemas/encounter';
@@ -124,7 +123,9 @@
       {/key}
     </div>
   {:else if t.note.trim()}
-    <div class="note-read"><Markdown source={t.note} /></div>
+    <div class="note read">
+      {#key t.id}<RichTextEditor value={t.note} readonly />{/key}
+    </div>
   {/if}
 </div>
 
@@ -194,19 +195,9 @@
   .note.tall {
     height: 13rem;
   }
-  .note-read {
-    margin-top: 0.3rem;
-    padding: 0.55rem 0.75rem;
-    background: var(--bg-raised);
-    border: 1px solid var(--border);
-    border-left: 3px solid var(--gold);
-    border-radius: 4px;
-    font-size: 0.85rem;
-    line-height: 1.45;
-    color: var(--ink);
-  }
-  .note-read :global(ul) {
-    padding-left: 1rem;
+  .note.read {
+    height: auto;
+    resize: none;
   }
   .note :global(.toolbar) {
     padding: 0.1rem 0.3rem;
@@ -215,6 +206,21 @@
     padding: 0.4rem 0.6rem;
     font-size: 0.85rem;
     line-height: 1.5;
+  }
+  .note :global(.ProseMirror p),
+  .note :global(.ProseMirror blockquote) {
+    margin-bottom: 0.5rem;
+  }
+  .note :global(.ProseMirror ul),
+  .note :global(.ProseMirror ol) {
+    padding-left: 1.1rem;
+    margin-bottom: 0.5rem;
+  }
+  .note :global(.ProseMirror li p) {
+    margin: 0;
+  }
+  .note :global(.ProseMirror > :last-child) {
+    margin-bottom: 0;
   }
   button {
     background: none;

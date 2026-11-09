@@ -12,11 +12,12 @@
     placeholder?: string;
     /** Werkzeugleiste eingeklappt hinter einem kleinen Knopf — für enge Notizfelder. */
     collapsedToolbar?: boolean;
+    readonly?: boolean;
   }
 
-  let { value = '', onChange, placeholder = 'Freitext …', collapsedToolbar = false }: Props = $props();
+  let { value = '', onChange, placeholder = 'Freitext …', collapsedToolbar = false, readonly = false }: Props = $props();
 
-  let toolbarOpen = $state(untrack(() => !collapsedToolbar));
+  let toolbarOpen = $state(untrack(() => !collapsedToolbar && !readonly));
 
   let editorEl: HTMLElement | null = null;
   let editor = $state<Editor | null>(null);
@@ -60,6 +61,7 @@
         Markdown.configure({ html: false, transformPastedText: true }),
       ],
       content: value,
+      editable: !readonly,
       editorProps: {
         attributes: { spellcheck: 'false' },
       },
@@ -116,7 +118,7 @@
 </script>
 
 <div class="editor-shell" class:folding={collapsedToolbar}>
-  {#if collapsedToolbar}
+  {#if collapsedToolbar && !readonly}
     <button class="tb fold" class:on={toolbarOpen} title={toolbarOpen ? 'Formatierung ausblenden' : 'Formatierung einblenden'} onclick={() => (toolbarOpen = !toolbarOpen)}>Aa</button>
   {/if}
   {#if toolbarOpen}
