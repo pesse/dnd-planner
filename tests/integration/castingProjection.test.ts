@@ -7,7 +7,6 @@
 import { describe, expect, it } from 'vitest';
 import { characterSchema, type Character } from '../../src/lib/schemas/characterSchema';
 import { testCharacter } from '../support/testCharacter';
-import { legacyFlatView } from '../../src/lib/services/spellcasting/legacy';
 import {
   contextLines,
   loadSheetSpellcasting,
@@ -111,42 +110,6 @@ describe('KI-Kontext', () => {
     expect(fairy?.abilityDe).toBe('');
     expect(fairy?.abilityOptionsDe).toEqual(['Intelligenz', 'Weisheit', 'Charisma']);
     expect(contextLines(view).some((l) => l.includes('Ability: offen'))).toBe(true);
-  });
-});
-
-describe('Übergang zum PDF-Export', () => {
-  it('liefert die flache Alt-Form aus der primären Klassen-Quelle', async () => {
-    const c = testCharacter('Prüfling Druide');
-    const { state, lookup, legacy } = await loadSpellcasting(c);
-    const flat = legacyFlatView(state, lookup, legacy);
-
-    expect(flat.spellcastingClass).toBe('Druide');
-    expect(flat.spellcastingAbility).toBe('Weisheit');
-    expect(flat.saveDC).toBe(8 + effectiveProficiencyBonus(c) + c.mods.wis);
-    expect(flat.slots[0]).toEqual({ total: 3, used: 0 });
-    expect(flat.cantrips.map((s) => s.name)).toEqual(['Flammen erzeugen', 'Donnerschlag']);
-    expect(flat.byLevel['1']).toHaveLength(6);
-    // Der Bibliotheks-Link bleibt am Eintrag, der Name ist nur die PDF-Zelle.
-    expect(flat.cantrips[0].sourceKey).toBeTruthy();
-  });
-
-  it('nimmt bei zwei Klassen die mit der höheren Stufe', async () => {
-    const c = characterSchema.parse({
-      name: 'Multi',
-      classes: [
-        { sourceKey: 'srd-2024_wizard', name: 'Magier', level: 3 },
-        { sourceKey: 'srd-2024_cleric', name: 'Kleriker', level: 5 },
-      ],
-      mods: { int: 3, wis: 2 },
-      proficiencyBonus: 4,
-    });
-    const { state, lookup, legacy } = await loadSpellcasting(c);
-    const flat = legacyFlatView(state, lookup, legacy);
-    expect(flat.spellcastingClass).toBe('Kleriker');
-    expect(flat.spellcastingAbility).toBe('Weisheit');
-    expect(flat.saveDC).toBe(8 + 4 + 2);
-    // Kombinierte Zauberwirkerstufe 8: 4/3/3/2.
-    expect(flat.slots.map((s) => s.total).slice(0, 5)).toEqual([4, 3, 3, 2, 0]);
   });
 });
 

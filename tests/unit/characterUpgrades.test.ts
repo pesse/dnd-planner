@@ -174,3 +174,32 @@ describe('Schritt 10: Fee wechselt die Herkunft', () => {
     expect(run(structuredClone(c))).toEqual(c);
   });
 });
+
+describe('Schritt 11: leerer Zauber-Altblock', () => {
+  const step11 = CHARACTER_UPGRADES.find((s) => s.to === 11)!;
+  const run = (c: Record<string, unknown>) => { step11.apply(c); return c; };
+  const block = (patch: Record<string, unknown> = {}) => ({
+    spellcastingClass: '', spellcastingAbility: '', saveDC: 0, attackBonus: 0, autoCalc: true,
+    slots: Array.from({ length: 9 }, () => ({ total: 0, used: 0 })),
+    cantrips: [], byLevel: {}, ...patch,
+  });
+
+  it('verwirft einen Block ohne Zauber, Plätze und Kopfzeile', () => {
+    expect(run({ name: 'Leer', spells: block({ saveDC: 13, byLevel: { '1': [] } }) })).toEqual({ name: 'Leer' });
+  });
+
+  it.each([
+    ['Zaubertrick', { cantrips: [{ name: 'Licht' }] }],
+    ['Zauber', { byLevel: { '1': [{ name: 'Schild', prepared: true }] } }],
+    ['Platz', { slots: [{ total: 2, used: 0 }] }],
+    ['Kopfzeile', { spellcastingClass: 'Magier' }],
+  ])('behält einen Block mit %s', (_, patch) => {
+    const c = { spells: block(patch) };
+    expect(run(structuredClone(c))).toEqual(c);
+  });
+
+  it('ist bei zweifacher Anwendung idempotent', () => {
+    const c = run({ spells: block() });
+    expect(run(structuredClone(c))).toEqual(c);
+  });
+});

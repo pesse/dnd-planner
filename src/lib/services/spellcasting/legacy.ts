@@ -1,64 +1,11 @@
 /**
- * Die zwei Übergänge zwischen alter und neuer Zauber-Persistenz: `legacyFlatView` fällt mit der
- * Neufassung des PDF-Templates, `legacySpellcasting` mit der letzten Datei, die `spells` trägt
+ * Übergang von der alten Zauber-Persistenz: fällt mit der letzten Datei, die `spells` trägt
  * (der Umzug dorthin ist `spellsFix` in `services/characterLegacyLinks.ts`).
  */
-import type { AbilityName } from '$lib/schemas/abilities';
-import { spellPools } from '../resources/project';
-import type { CharacterFeatureEntry, CharacterSpells } from '$lib/schemas/characterSchema';
+import type { CharacterSpells } from '$lib/schemas/characterSchema';
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
-import {
-  abilityDe,
-  sheetSpellcasting,
-  sourceLabel,
-  type LegacySheetInput,
-  type LooseSpell,
-  type ProjectionLookup,
-} from './project';
-import type { CastingSource } from './source';
+import type { LegacySheetInput, LooseSpell, ProjectionLookup } from './project';
 import { cloneSpellcasting } from './write';
-import type { SpellcastingState } from './state';
-
-/**
- * ÜBERGANG: die flache Alt-Form für den PDF-Export, gespeist aus der primären Quelle
- * (Klassen-Quelle mit der höchsten Klassenstufe). Fällt mit der Template-Neufassung weg —
- * keine zweite Projektion aufbauen.
- */
-export function legacyFlatView(
-  state: SpellcastingState,
-  lookup: ProjectionLookup,
-  legacy?: LegacySheetInput,
-): CharacterSpells {
-  const view = sheetSpellcasting(state, lookup, legacy);
-  const primary = [...state.sources]
-    .filter((s) => s.source.origin === 'class' || s.source.origin === 'subclass')
-    .sort((a, b) => b.source.level - a.source.level)[0];
-  const row = primary ? null : (legacy?.row ?? null);
-
-  const byLevel: CharacterSpells['byLevel'] = {};
-  for (const level of view.levels) {
-    if (level.level === 0 || !level.spells.length) continue;
-    byLevel[String(level.level)] = level.spells.map((s) => ({
-      name: s.label,
-      ...(s.key ? { sourceKey: s.key } : {}),
-      prepared: s.prepared,
-    }));
-  }
-
-  return {
-    spellcastingClass: primary ? sourceLabel(primary.source, lookup) : (row?.label ?? ''),
-    spellcastingAbility: primary ? abilityDe(primary.ability) : (row?.abilityDe ?? ''),
-    saveDC: (primary ? primary.saveDC : row?.saveDC) ?? 0,
-    attackBonus: (primary ? primary.attackBonus : row?.attackBonus) ?? 0,
-    autoCalc: true,
-    slots: spellPools(state.resources).standard.map((total) => ({ total, used: 0 })),
-    cantrips: (view.levels.find((l) => l.level === 0)?.spells ?? []).map((s) => ({
-      name: s.label,
-      ...(s.key ? { sourceKey: s.key } : {}),
-    })),
-    byLevel,
-  };
-}
 
 /**
  * ÜBERGANG für Dateien vor dem Umzug: aus dem gespeicherten `spells`-Block entstehen

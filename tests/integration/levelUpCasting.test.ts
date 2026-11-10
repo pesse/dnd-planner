@@ -52,3 +52,31 @@ describe('Zauberwirken-Delta des Aufstiegs, Stufe 1→2', () => {
     expect(delta.castingIsNew).toBe(false);
   });
 });
+
+describe('Höchster wählbarer Grad des Aufstiegs', () => {
+  it('Magier 4→5: Grad 3 nach der Klassentabelle', async () => {
+    expect((await computeLevelUpDelta(charAt('srd-2024_wizard', 'Magier', 4), 0, 5)).maxSpellLevel).toBe(3);
+  });
+
+  // Der Pakt-Vorrat wächst von 3 auf 4 nicht — der Grad stand nie im Delta allein.
+  it('Hexenmeister 3→4: Grad 2 aus der Paktmagie, ohne Platzzuwachs', async () => {
+    const delta = await computeLevelUpDelta(charAt('srd-2024_warlock', 'Hexenmeister', 3), 0, 4);
+    expect(delta.spellSlotDelta.every((n) => n === 0)).toBe(true);
+    expect(delta.maxSpellLevel).toBe(2);
+  });
+
+  it('Mehrklassen: zählt die Tabelle der aufsteigenden Klasse, nicht die geteilten Plätze', async () => {
+    const c = characterSchema.parse({
+      name: 'Multi',
+      classes: [
+        { sourceKey: 'srd-2024_cleric', name: 'Kleriker', level: 5 },
+        { sourceKey: 'srd-2024_wizard', name: 'Magier', level: 3 },
+      ],
+    });
+    expect((await computeLevelUpDelta(c, 1, 4)).maxSpellLevel).toBe(2);
+  });
+
+  it('Kämpfer: ohne Plätze kein Grad', async () => {
+    expect((await computeLevelUpDelta(charAt('srd-2024_fighter', 'Kämpfer', 1), 0, 2)).maxSpellLevel).toBe(0);
+  });
+});

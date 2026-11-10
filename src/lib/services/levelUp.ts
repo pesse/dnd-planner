@@ -15,6 +15,7 @@ import { getClasses, classDisplayName } from '$lib/classLibrary';
 import { isWeaponMasteryFeature, masteryAllowanceFor } from './weaponMastery';
 import { swapCadences } from '../schemas/casting';
 import { isSpellcastingFeature } from './declaration/casting';
+import { slotLevels } from './resources/slots';
 import { classCastingOffer, emptyClassCastingOffer, type ClassCastingOffer } from './spellcasting/classOffer';
 import { isFlowOwnedDeclaration } from './declaration/optionList';
 
@@ -45,6 +46,11 @@ export interface LevelUpDelta {
   casterType: string; // FULL/HALF/NONE/…
   casterKind: 'prepared' | 'known' | 'none'; // aus casterType + Tabellenspalte abgeleitet
   spellSlotDelta: number[]; // Länge 9, idx0 = Grad 1, negativ→0
+  /**
+   * Höchster Platz-Grad der Klasse auf `toLevel`, nach IHRER Tabelle: bei Mehrklassen zählt je
+   * Klasse, was sie allein hätte, nicht der geteilte Platz-Vorrat.
+   */
+  maxSpellLevel: number;
   castingIsNew: boolean; // ERSTMALS erlangt, nicht: ist Zauberwirker
   cantripDelta: number;
   preparedFrom: number;
@@ -156,7 +162,7 @@ function homebrewDelta(span: LevelSpan): LevelUpDelta {
     profBonusFrom: proficiencyBonus(span.oldTotal),
     profBonusTo: proficiencyBonus(span.newTotalLevel),
     hitDie: 0, casterType: 'NONE', casterKind: 'none',
-    spellSlotDelta: Array(9).fill(0), castingIsNew: false, cantripDelta: 0,
+    spellSlotDelta: Array(9).fill(0), maxSpellLevel: 0, castingIsNew: false, cantripDelta: 0,
     preparedFrom: 0, preparedTo: 0, preparedDelta: 0, spellbook: false,
     cantripTarget: null, spellTarget: null,
     masteryFrom: 0, masteryTo: 0,
@@ -168,7 +174,7 @@ function homebrewDelta(span: LevelSpan): LevelUpDelta {
   };
 }
 
-type SpellcastingDelta = Pick<LevelUpDelta, 'casterType' | 'casterKind' | 'spellSlotDelta' | 'castingIsNew' | 'cantripDelta' | 'preparedFrom' | 'preparedTo' | 'preparedDelta' | 'spellbook' | 'cantripTarget' | 'spellTarget'>;
+type SpellcastingDelta = Pick<LevelUpDelta, 'casterType' | 'casterKind' | 'spellSlotDelta' | 'maxSpellLevel' | 'castingIsNew' | 'cantripDelta' | 'preparedFrom' | 'preparedTo' | 'preparedDelta' | 'spellbook' | 'cantripTarget' | 'spellTarget'>;
 
 /**
  * Zwei Angebote (vor/nach) statt einer Absolutzahl je Grad: dasselbe `classCastingOffer`, das
@@ -201,6 +207,7 @@ async function spellcastingDelta(prog: ClassProgression, span: LevelSpan): Promi
     casterType: prog.casterType,
     casterKind: to.isCaster ? (known ? 'known' : 'prepared') : 'none',
     spellSlotDelta: slotsTo.map((n, i) => Math.max(0, n - (slotsFrom[i] ?? 0))),
+    maxSpellLevel: slotLevels(slotsTo).length,
     castingIsNew: to.isCaster && !hadCasting,
     cantripDelta: Math.max(0, (to.cantrips?.count ?? 0) - (from.cantrips?.count ?? 0)),
     preparedFrom: from.spells?.count ?? 0,

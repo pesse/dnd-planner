@@ -9,7 +9,6 @@ import { characterSchema, type Character } from '../../src/lib/schemas/character
 import { testCharacter } from '../support/testCharacter';
 import { applyChanges } from '../../src/lib/services/applyChanges';
 import { formDraftPatch, initialFormCarry, initialFormFields } from '../../src/lib/services/characterFormFields';
-import { legacyFlatView } from '../../src/lib/services/spellcasting/legacy';
 import { loadSheetSpellcasting, loadSpellcasting, openSpellChoices } from '../../src/lib/services/spellcasting/project';
 import { addExtra, cloneSpellcasting, pickedKeys, setPicks } from '../../src/lib/services/spellcasting/write';
 
@@ -133,17 +132,6 @@ describe('die migrierten Charaktere', () => {
 
     const view = await loadSheetSpellcasting(c);
     expect(view.levels.flatMap((l) => l.spells)).toHaveLength(10);
-  });
-
-  it('speist den PDF-Export weiter aus der Projektion', async () => {
-    const c = testCharacter('Prüfling Druide');
-    const { state, lookup, legacy } = await loadSpellcasting(c);
-    const flat = legacyFlatView(state, lookup, legacy);
-    expect(flat.spellcastingClass).toBe('Druide');
-    expect(flat.spellcastingAbility).toBe('Weisheit');
-    expect(flat.slots[0].total).toBe(3);
-    expect(flat.cantrips).toHaveLength(2);
-    expect(flat.byLevel['1']).toHaveLength(6);
   });
 });
 

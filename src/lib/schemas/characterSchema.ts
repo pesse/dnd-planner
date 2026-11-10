@@ -73,12 +73,6 @@ export const characterSpellsSchema = z.object({
   byLevel: z.record(z.string(), z.array(spellEntrySchema)).default({}),
 });
 
-export const emptyFlatSpells = (): CharacterSpells => ({
-  spellcastingClass: '', spellcastingAbility: '', saveDC: 0, attackBonus: 0, autoCalc: true,
-  slots: Array.from({ length: 9 }, () => ({ total: 0, used: 0 })),
-  cantrips: [], byLevel: {},
-});
-
 export const proficiencyFlagsSchema = z.object({
   simpleWeapons: z.boolean().default(false),
   martialWeapons: z.boolean().default(false),

@@ -53,15 +53,6 @@ export function createRunSteps(ctx: RunStepsDeps) {
   /** `spell.key` → Bibliotheks-Eintrag; erst nach `ensureSpellLib()` sinnvoll befüllt. */
   const spellOf = (key: string) => spellInfoByKey(st.spellLib, key);
 
-  function maxSpellLevel(): number {
-    let m = 0;
-    for (let i = 0; i < 9; i++) {
-      const total = (ctx.character.spells?.slots?.[i]?.total ?? 0) + (st.delta?.spellSlotDelta?.[i] ?? 0);
-      if (total > 0) m = i + 1;
-    }
-    return m;
-  }
-
   /** Die Charakterstufe NACH diesem Aufstieg — nicht die Klassenstufe (`delta.toLevel`). */
   const newCharLevel = (): number => totalLevel(ctx.character.classes) + (st.delta!.toLevel - st.delta!.fromLevel);
 
@@ -207,7 +198,7 @@ export function createRunSteps(ctx: RunStepsDeps) {
     if (kind === 'base') {
       st.validatedBase = validated;
       st.riders = validated.riders;
-      st.decisions = buildDecisions(st.delta!, st.riders, { maxSpellLevel: maxSpellLevel(), klasseName: st.delta!.klasseName });
+      st.decisions = buildDecisions(st.delta!, st.riders, { klasseName: st.delta!.klasseName });
       initAnswers(st.decisions);
       pushStep(st.decisions.length ? `${st.decisions.length} Entscheidung(en) vorbereitet.` : 'Keine offenen Entscheidungen.');
     } else {

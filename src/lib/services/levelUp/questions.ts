@@ -22,11 +22,10 @@ const baseQuestion = (q: Partial<LevelUpQuestion> & { id: string; type: LevelUpQ
   featureKey: '', isBuildDecision: false, ...q,
 });
 
-/** `maxSpellLevel` begrenzt die im Picker wählbaren Grade. */
 export function buildDecisions(
   delta: LevelUpDelta,
   riders: FeatureRider[],
-  opts: { maxSpellLevel: number; klasseName: string },
+  opts: { klasseName: string },
 ): LevelUpQuestion[] {
   const qs: LevelUpQuestion[] = [];
 
@@ -64,8 +63,8 @@ export function buildDecisions(
   // Zauber ERLERNEN, nicht vorbereiten: die Vorbereitung passiert täglich außerhalb des
   // Aufstiegs, immer-vorbereitete Merkmalszauber kommen separat dazu.
   const learn = learnInfo(delta, riders);
-  if (learn.learns && learn.count > 0 && opts.maxSpellLevel >= 1) {
-    const levels = Array.from({ length: opts.maxSpellLevel }, (_, i) => i + 1);
+  if (learn.learns && learn.count > 0 && delta.maxSpellLevel >= 1) {
+    const levels = Array.from({ length: delta.maxSpellLevel }, (_, i) => i + 1);
     qs.push(baseQuestion({
       id: 'learned_spells', type: 'spell-picker', prompt: `${learn.count} Zauber erlernen`,
       help: learn.spellbook

@@ -6,7 +6,7 @@ import { migrateSourceKey } from './source';
 import { parseClassLevelText } from './classLevelText';
 import { presentationFromGender } from '../domain/presentation';
 
-export const CHARACTER_VERSION = 10;
+export const CHARACTER_VERSION = 11;
 
 export interface CharacterUpgrade {
   /** Version, die dieser Schritt herstellt. */
@@ -45,6 +45,22 @@ const movedKey = (key: string): string => {
   for (const [from, to] of MOVED_KEYS) if (key === from || key.startsWith(`${from}_`)) return to + key.slice(from.length);
   return key;
 };
+
+/**
+ * Ein `spells`-Altblock, aus dem `legacySpellcasting` nichts machen würde: SG und Angriffsbonus
+ * erscheinen dort nur zusammen mit Klasse oder Attribut.
+ */
+function isEmptySpellsBlock(sp: Record<string, unknown>): boolean {
+  const text = (v: unknown): boolean => typeof v === 'string' && v.trim() !== '';
+  const nonEmpty = (v: unknown): boolean => Array.isArray(v) && v.length > 0;
+  const slots = Array.isArray(sp.slots) ? (sp.slots as { total?: unknown }[]) : [];
+  const levels = sp.byLevel && typeof sp.byLevel === 'object' ? Object.values(sp.byLevel) : [];
+  return (
+    !text(sp.spellcastingClass) && !text(sp.spellcastingAbility) &&
+    !slots.some((s) => typeof s?.total === 'number' && s.total > 0) &&
+    !nonEmpty(sp.cantrips) && !levels.some(nonEmpty)
+  );
+}
 
 /** Jedes `sourceKey` im Charakter, egal wie tief — Volk, Merkmals-Links, Wahlen. */
 function moveSourceKeys(node: unknown): void {
@@ -241,6 +257,15 @@ export const CHARACTER_UPGRADES: CharacterUpgrade[] = [
     to: 10,
     label: 'Fee: Bibliotheks-Key phb-2024_fairy → homebrew-sam_fairy (steht nicht im PHB 2024)',
     apply: (c) => moveSourceKeys(c),
+  },
+  {
+    to: 11,
+    label: 'Zauber: leeren Altblock „spells" verwerfen',
+    apply: (c) => {
+      const sp = c.spells;
+      if (sp && typeof sp === 'object' && !Array.isArray(sp) && isEmptySpellsBlock(sp as Record<string, unknown>))
+        delete c.spells;
+    },
   },
 ];
 
