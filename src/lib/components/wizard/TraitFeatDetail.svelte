@@ -2,8 +2,12 @@
   import { getFeats, type FeatEntry } from '$lib/featsLibrary';
   import { traitFeatStatus, type TraitFeatOffer } from '../../services/traitFeat';
   import FeatCardView from '../libraryView/FeatCardView.svelte';
+  import type { CharacterWizard } from '../../services/wizard/characterWizard.svelte';
+  import OwnChoices from './OwnChoices.svelte';
 
-  let { offers, focused }: { offers: TraitFeatOffer[]; focused: string } = $props();
+  let { w, offers, focused }: { w: CharacterWizard; offers: TraitFeatOffer[]; focused: string } = $props();
+
+  const choices = $derived(offers.flatMap((o) => w.choicesOf(o.featureKey)));
 
   let feats = $state<FeatEntry[]>([]);
   $effect(() => {
@@ -22,6 +26,7 @@
   });
 </script>
 
+<OwnChoices {w} {choices} />
 {#if feat}
   {#if note?.note}<p class="status" class:blocked={!note.pickable}>{note.note}</p>{/if}
   <FeatCardView {feat} />

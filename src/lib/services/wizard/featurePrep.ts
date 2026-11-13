@@ -46,6 +46,15 @@ export interface FeaturePrep {
   summaryClass: SummaryFeature[];
   summarySpecies: SummaryFeature[];
   classContext: FeatureClassContext;
+  /** Je Talent-Instanz der Schritt, in dem es gewählt wurde — dort stehen auch seine Wahlen. */
+  featOwners: FeatOwner[];
+}
+
+/** `owner`: `'background'` oder der Key des Speziesmerkmals, das das Talent wählen ließ. */
+export interface FeatOwner {
+  featureKey: string;
+  sourceId: string;
+  owner: string;
 }
 
 /**
@@ -186,11 +195,13 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
   // `nameDe`/`descDe` reisen als Quelle der Übersetzungs-Calls mit.
   const gained: GainedFeature[] = [...level1Features(prog, 'class'), ...level1Features(sub, 'subclass')];
   const places: FeatPlace[] = [];
+  const featOwners: FeatOwner[] = [];
   const fromTrait = new Set<GainedFeature>();
   const feat = originFeat(bg, feats);
   if (feat) {
     gained.push(feat);
     places.push({ sourceId: feat.key ?? '', specialisation: featSpecialisation(bg) });
+    featOwners.push({ featureKey: feat.key ?? '', sourceId: feat.key ?? '', owner: 'background' });
   }
   for (const pick of basics.traitFeats ?? []) {
     const picked = featGained(feats, pick.key);
@@ -198,7 +209,9 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
     gained.push(picked);
     fromTrait.add(picked);
     const twin = pick.key === bg?.featKey;
-    places.push({ sourceId: twin ? grantedInstanceId(pick.key, pick.grantedBy) : pick.key, specialisation: '' });
+    const sourceId = twin ? grantedInstanceId(pick.key, pick.grantedBy) : pick.key;
+    places.push({ sourceId, specialisation: '' });
+    featOwners.push({ featureKey: pick.key, sourceId, owner: pick.grantedBy });
   }
 
   const traits = traitsUpTo(spec?.traits ?? [], 1);
@@ -231,5 +244,6 @@ export async function buildFeaturePrep(basics: FeatureBasics): Promise<FeaturePr
       group: species.name,
     })),
     classContext: classContextOf(klass, prog),
+    featOwners,
   };
 }

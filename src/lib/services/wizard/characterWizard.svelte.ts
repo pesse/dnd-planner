@@ -8,7 +8,8 @@ import type { SpellAccessGrant } from '../spellcasting/access';
 import { emptySpellcasting } from '../spellcasting/write';
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
 import type { OptionPick, Presentation } from '$lib/schemas/characterSchema';
-import { buildFeaturePrep, type FeaturePrep } from './featurePrep';
+import { buildFeaturePrep, type FeatOwner, type FeaturePrep } from './featurePrep';
+import { choiceOwnerOf, type ChoiceOwner } from './choiceOwners';
 import { unredactedChoiceFeatures } from '../declaration/optionList';
 import { declarationGapLines } from '../declarationGap';
 import { declaredGrantRiders } from '../declaration/grants';
@@ -111,13 +112,14 @@ export class CharacterWizard {
   spellLib = $state<SpellInfo[]>([]);
 
   /**
-   * Die drei folgenden Felder kommen aus `buildFeaturePrep`;
+   * Die vier folgenden Felder kommen aus `buildFeaturePrep`;
    * `$state` statt Getter, weil die Aufbereitung async ist.
    */
   spellAccess = $state<SpellAccessGrant[]>([]);
   sizeChoice = $state<AnalysisChoice | null>(null);
   /** ALLE Stufe-1-Merkmale; gefiltert wird nach Deklarationsart, nie nach Herkunft. */
   declared = $state<DeclaredFeature[]>([]);
+  featOwners = $state<FeatOwner[]>([]);
   grants = $state<CollectedGrants | null>(null);
   /** Optionen der Werkzeug-Wahl, aus `items/tools/`; leer = Freitext. */
   toolLib = $state<ToolItem[]>([]);
@@ -210,10 +212,21 @@ export class CharacterWizard {
     return this.declaredChoices.filter((c) => c.type !== 'spell-pick');
   }
 
+  #ownerOf = $derived(choiceOwnerOf({
+    backgroundKey: this.background.sourceKey,
+    featOwners: this.featOwners,
+    spellAccess: this.spellAccess,
+  }));
+
+  /** Die Wahlen, die im Schritt von `owner` stehen. */
+  choicesOf(owner: ChoiceOwner) {
+    return this.plainChoices.filter((c) => this.#ownerOf(c) === owner);
+  }
+
   /** Pflicht: ohne die Antwort bliebe die Zauberliste offen und der Zauber-Schritt hätte nichts anzubieten. */
-  get plainChoicesDone(): boolean {
+  choicesDone(owner: ChoiceOwner): boolean {
     const answered = new Set(this.declaredAnswers.map((a) => a.id));
-    return this.plainChoices.every((c) => answered.has(c.id));
+    return this.choicesOf(owner).every((c) => answered.has(c.id));
   }
 
   /** Was Merkmale an Sprachen bringen, fest oder gewählt — im Sprachen-Schritt nicht noch einmal wählbar. */
@@ -259,6 +272,7 @@ export class CharacterWizard {
       this.spellAccess = prep.spellAccess;
       this.sizeChoice = prep.sizeChoice;
       this.declared = prep.declared;
+      this.featOwners = prep.featOwners;
     }, () => {});
   }
 
@@ -281,7 +295,8 @@ export class CharacterWizard {
   /**
    * Lädt alles, was aus Klasse, Volk und Hintergrund folgt — nach jeder Änderung der
    * Grundwahl neu. Abhängige Wahlen bleiben dabei stehen; was nicht mehr passt, filtern die
-   * Ableitungen heraus.
+   * Ableitungen heraus. Merkmale schon vor der Klasse: Hintergrund und Volks-Talent fragen
+   * ihre Wahlen in ihrem eigenen Schritt.
    */
   kickoff(): void {
     if (this.#loadedSig === this.originSig) return;
@@ -289,6 +304,7 @@ export class CharacterWizard {
     if (!this.toolLib.length) void getItemsByDir('tools').then((t) => { this.toolLib = t; }, () => {});
     this.#loadPrep();
     this.#loadGrants();
+    if (!this.basicsComplete) return;
 
     const pending = gatherStartingEquipment(this.klass.sourceKey, this.background.sourceKey);
     this.#equipmentLoad = pending;

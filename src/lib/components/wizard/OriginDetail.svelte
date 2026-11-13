@@ -6,6 +6,8 @@
   import ClassCardView from '../libraryView/ClassCardView.svelte';
   import SpeciesCardView from '../libraryView/SpeciesCardView.svelte';
   import BackgroundCardView from '../libraryView/BackgroundCardView.svelte';
+  import OwnChoices from './OwnChoices.svelte';
+  import { BACKGROUND_OWNER } from '../../services/wizard/choiceOwners';
 
   let { kind, w, catalog }: { kind: OriginKind; w: CharacterWizard; catalog: OriginCatalog | null } = $props();
 
@@ -32,6 +34,7 @@
   {:else if kind === 'species' && species}
     <SpeciesCardView {species} />
   {:else if kind === 'background' && background}
+    <OwnChoices {w} choices={w.choicesOf(BACKGROUND_OWNER)} />
     <BackgroundCardView {background} />
   {:else}
     <p class="note">{EMPTY[kind]}</p>

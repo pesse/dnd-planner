@@ -38,6 +38,7 @@
   import BackgroundAsiStep from './wizard/BackgroundAsiStep.svelte';
   import SkillPickStep from './wizard/SkillPickStep.svelte';
   import FeatureChoiceStep from './wizard/FeatureChoiceStep.svelte';
+  import { BACKGROUND_OWNER } from '../services/wizard/choiceOwners';
   import SpellStep from './wizard/SpellStep.svelte';
   import EquipmentChoiceStep from './wizard/EquipmentChoiceStep.svelte';
   import ReviewStep from './wizard/ReviewStep.svelte';
@@ -131,7 +132,7 @@
   // Jede Änderung der Grundwahl lädt nach; die Wahlen dahinter bleiben stehen.
   $effect(() => {
     void w.originSig;
-    if (w.basicsComplete) untrack(() => w.kickoff());
+    if (w.species.sourceKey || w.background.sourceKey) untrack(() => w.kickoff());
   });
 
   $effect(() => {
@@ -221,15 +222,15 @@
     if (blockedHint(id)) return false;
     switch (id) {
       case 'class': return !!w.klass.sourceKey;
-      case 'background': return !!w.background.sourceKey;
+      case 'background': return !!w.background.sourceKey && w.choicesDone(BACKGROUND_OWNER);
       case 'species': return !!w.species.sourceKey && !!w.presentation;
       case 'languages': return w.languages.length === STANDARD_LANGUAGE_PICKS;
       // Der Standardsatz kostet genau die 27 Punkte — dieselbe Prüfung trägt beide Methoden.
       case 'abilities': return pointBuyComplete(w.scores);
       case 'background-asi': return asiValid;
-      case 'trait-feat': return traitFeatsDone;
+      case 'trait-feat': return traitFeatsDone && traitFeatOffers.every((o) => w.choicesDone(o.featureKey));
       case 'proficiencies': return w.skillPicksDone;
-      case 'features': return w.plainChoicesDone;
+      case 'features': return w.choicesDone('');
       case 'spells': return spellValues.done;
       case 'equipment': return toolChoicesDone;
       default: return true;
@@ -282,7 +283,7 @@
 {/snippet}
 
 {#snippet traitFeatDetail()}
-  <TraitFeatDetail offers={traitFeatOffers} focused={focusedTraitFeat} />
+  <TraitFeatDetail {w} offers={traitFeatOffers} focused={focusedTraitFeat} />
 {/snippet}
 
 {#snippet characterPreview()}
@@ -391,7 +392,7 @@
     {/each}
 
   {:else if currentStep === 'features'}
-    <FeatureChoiceStep {w} bind:answers={w.choiceAnswers} />
+    <FeatureChoiceStep {w} />
 
   {:else if currentStep === 'spells'}
     <SpellStep {w} library={w.spellLib} v={spellValues} />
