@@ -167,4 +167,11 @@ describe('Fertigkeiten im gezeigten Charakter', () => {
     expect(shown(true).Auftreten.value).toBe(4);
     expect(shown(false).Akrobatik.value).toBe(2);
   });
+
+  it('rechnet die passive Wahrnehmung aus dem gerechneten Wert, +5 bei Vorteil', () => {
+    const wahr = { Wahrnehmung: row(0) };
+    const scout = { name: 'Späher', grants: featureGrantSchema.parse({ checks: [{ kind: 'advantage', skills: ['Perception'] }] }) };
+    expect(fb([cls(2)], null, null, 0, { skills: wahr, alleskoenner: true, mods: mods(0, 2) }).passivePerception).toBe('13');
+    expect(fb([cls(2)], null, [scout], 0, { skills: wahr, mods: mods(0, 2) }).passivePerception).toBe('17');
+  });
 });

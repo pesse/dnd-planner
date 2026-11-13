@@ -8,7 +8,7 @@ import { abilityRecordOf, type AbilityScores } from '../schemas/abilities';
 import { adjustmentSum, type CombatAdjustments } from '../schemas/combatAdjustment';
 import type { FeatureGrant } from '../schemas/grants';
 import type { InitiativeEffect } from '../schemas/initiative';
-import { mod } from '../domain/skills';
+import { SKILL_DEFS, mod } from '../domain/skills';
 import { armorClassDerivation, type ArmorClassFeature } from './armorClass';
 import { declaredSpeed, speedMeters } from './characterProperties';
 import { effectiveProficiencyBonus, proficiencyBonus } from './classProgression';
@@ -16,7 +16,7 @@ import { sign } from '../utils/num';
 import { featureIdOf } from '../utils/text';
 import { effectiveScores, loadWornAbilityEffects } from './effectiveAbilities';
 import { adjustmentRows } from './hitPointDerivation';
-import { checkSources, skillValues } from './abilityChecks';
+import { checkSources, skillCheckEffects, skillValues, type CheckSource } from './abilityChecks';
 import { hpBasisOf, hpMaxTotal, loadHpLibraryParts, type HpLibraryParts } from './hitPoints';
 import { loadSavingThrowInputs, resolveSaveBonus } from './savingThrows';
 import type { IdleItem, WornItem } from './wornItems';
@@ -42,6 +42,8 @@ export interface CombatFallbacks {
   initiativeAdvantage: string[];
   /** Ersetzt die Werte der Datei — `skillValues` sagt, warum. */
   skills?: Character['skills'];
+  /** 10 + Wahrnehmung, +5 bei bedingungslosem Vorteil; fehlt wie `skills`. */
+  passivePerception?: string;
 }
 
 type FallbackFeature = { key?: string; name: string; grants?: FeatureGrant };
@@ -99,11 +101,21 @@ export function combatFallbacks(input: {
     initiative: sign(initiativeRows.reduce((n, r) => n + r.value, 0)),
     initiativeRows,
     initiativeAdvantage: effects.flatMap(({ labelDe, effect }) => effect.kind === 'advantage' ? [labelDe] : []),
-    ...(input.skills ? {
-      skills: skillValues({ skills: input.skills, alleskoenner: input.alleskoenner ?? false },
-        checkSources(input.features ?? []), { mods: input.mods, profBonus }),
-    } : {}),
+    ...(input.skills ? shownSkills(input.skills, input.alleskoenner ?? false, checkSources(input.features ?? []), { mods: input.mods, profBonus }) : {}),
   };
+}
+
+const PERCEPTION = SKILL_DEFS.find((d) => d.en === 'Perception')!;
+
+function shownSkills(
+  skills: Character['skills'],
+  alleskoenner: boolean,
+  checks: readonly CheckSource[],
+  ctx: { mods: AbilityScores; profBonus: number },
+): Pick<CombatFallbacks, 'skills' | 'passivePerception'> {
+  const values = skillValues({ skills, alleskoenner }, checks, ctx);
+  const advantage = skillCheckEffects(PERCEPTION, checks, ctx).advantage;
+  return { skills: values, passivePerception: String(10 + values[PERCEPTION.key].value + (advantage ? 5 : 0)) };
 }
 
 type FallbackCharacter = Pick<Character, 'ac' | 'hpMax' | 'hpDiceTotal' | 'combatAdjustments' | 'classes' | 'proficiencyBonus' | 'skills' | 'alleskoenner'>;
@@ -139,6 +151,7 @@ export function withCombatFallbacks(c: Character, fb: CombatFallbacks): Characte
     hpCurrent: c.hpCurrent.trim() || hpMax,
     proficiencyBonus: c.proficiencyBonus ?? fb.proficiencyBonus,
     skills: fb.skills ?? c.skills,
+    passivePerception: fb.passivePerception ?? c.passivePerception,
   };
 }
 

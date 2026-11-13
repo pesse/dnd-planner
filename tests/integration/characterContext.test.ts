@@ -40,7 +40,7 @@ describe('buildCharacterContext', () => {
       - HP: 38/44 (temp 5)
       - Hit Dice: 5W10
       - Proficiency Bonus: +3
-      - Passive Perception: 11
+      - Passive Perception: 12
 
       ### Skill Proficiencies
       - Athletik: +6
