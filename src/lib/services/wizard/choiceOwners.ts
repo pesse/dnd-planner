@@ -1,6 +1,8 @@
 /** In welchem Wizard-Schritt eine Merkmalswahl steht: bei dem, was sie mitgebracht hat. */
 import type { AnalysisChoice } from '../analysis/types';
-import { spellAccessParts, spellAccessPartId, type SpellAccessGrant } from '../spellcasting/access';
+import {
+  spellAccessFacts, spellAccessParts, spellAccessPartId, type SpellAccessFact, type SpellAccessGrant,
+} from '../spellcasting/access';
 import type { FeatOwner } from './featurePrep';
 
 /** `''` = Schritt „Merkmale". */
@@ -27,4 +29,15 @@ export function choiceOwnerOf(params: {
     if (backgroundKey && choice.featureKey === backgroundKey) return BACKGROUND_OWNER;
     return featOwners.find((o) => o.featureKey === choice.featureKey)?.owner ?? '';
   };
+}
+
+/** Was die Quelle festlegt statt zu fragen (Akolyth → Klerikerliste) — sonst fehlte es im Kasten. */
+export function ownedSpellAccessFacts(
+  owner: ChoiceOwner,
+  featOwners: readonly FeatOwner[],
+  spellAccess: readonly SpellAccessGrant[],
+): (SpellAccessFact & { featureDe: string })[] {
+  return spellAccess
+    .filter((g) => featOwners.some((o) => o.sourceId === g.sourceId && o.owner === owner))
+    .flatMap((g) => spellAccessFacts(g).map((f) => ({ ...f, featureDe: g.featureDe || g.feature })));
 }

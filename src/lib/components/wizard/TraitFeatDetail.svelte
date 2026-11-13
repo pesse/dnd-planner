@@ -7,8 +7,6 @@
 
   let { w, offers, focused }: { w: CharacterWizard; offers: TraitFeatOffer[]; focused: string } = $props();
 
-  const choices = $derived(offers.flatMap((o) => w.choicesOf(o.featureKey)));
-
   let feats = $state<FeatEntry[]>([]);
   $effect(() => {
     let cancelled = false;
@@ -26,7 +24,7 @@
   });
 </script>
 
-<OwnChoices {w} {choices} />
+<OwnChoices {w} owners={offers.map((o) => o.featureKey)} />
 {#if feat}
   {#if note?.note}<p class="status" class:blocked={!note.pickable}>{note.note}</p>{/if}
   <FeatCardView {feat} />

@@ -9,7 +9,7 @@ import { emptySpellcasting } from '../spellcasting/write';
 import type { CharacterSpellcasting } from '$lib/schemas/spellcasting';
 import type { OptionPick, Presentation } from '$lib/schemas/characterSchema';
 import { buildFeaturePrep, type FeatOwner, type FeaturePrep } from './featurePrep';
-import { choiceOwnerOf, type ChoiceOwner } from './choiceOwners';
+import { choiceOwnerOf, ownedSpellAccessFacts, type ChoiceOwner } from './choiceOwners';
 import { unredactedChoiceFeatures } from '../declaration/optionList';
 import { declarationGapLines } from '../declarationGap';
 import { declaredGrantRiders } from '../declaration/grants';
@@ -221,6 +221,10 @@ export class CharacterWizard {
   /** Die Wahlen, die im Schritt von `owner` stehen. */
   choicesOf(owner: ChoiceOwner) {
     return this.plainChoices.filter((c) => this.#ownerOf(c) === owner);
+  }
+
+  factsOf(owner: ChoiceOwner) {
+    return ownedSpellAccessFacts(owner, this.featOwners, this.spellAccess);
   }
 
   /** Pflicht: ohne die Antwort bliebe die Zauberliste offen und der Zauber-Schritt hätte nichts anzubieten. */

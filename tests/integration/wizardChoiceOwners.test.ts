@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildFeaturePrep, type FeatureBasics } from '../../src/lib/services/wizard/featurePrep';
 import { wizardDeclaredChoices } from '../../src/lib/services/wizard/wizardChoices';
-import { BACKGROUND_OWNER, choiceOwnerOf } from '../../src/lib/services/wizard/choiceOwners';
+import { BACKGROUND_OWNER, choiceOwnerOf, ownedSpellAccessFacts } from '../../src/lib/services/wizard/choiceOwners';
 
 const VERSATILE = 'srd-2024_human_versatile';
 const MAGIC_INITIATE = 'srd-2024_magic-initiate';
@@ -49,5 +49,11 @@ describe('Wizard-Schritt einer Merkmalswahl', () => {
     });
     expect(o[BACKGROUND_OWNER]).toEqual(['srd-2024_soldier:Soldat: Wähle ein Werkzeug']);
     expect(o['']).toEqual(['srd-2024_human_size:Größenkategorie']);
+  });
+
+  it('nennt die Zauberliste, die der Akolyth festlegt, statt sie zu verschweigen', async () => {
+    const prep = await buildFeaturePrep({ species: human, klass: noClass, background: { sourceKey: 'srd-2024_acolyte', name: 'Akolyth' } });
+    const facts = ownedSpellAccessFacts(BACKGROUND_OWNER, prep.featOwners, prep.spellAccess);
+    expect(facts.map((f) => [f.part, f.valueDe, f.fromSource])).toEqual([['list', 'Kleriker', true]]);
   });
 });

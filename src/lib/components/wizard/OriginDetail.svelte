@@ -34,7 +34,7 @@
   {:else if kind === 'species' && species}
     <SpeciesCardView {species} />
   {:else if kind === 'background' && background}
-    <OwnChoices {w} choices={w.choicesOf(BACKGROUND_OWNER)} />
+    <OwnChoices {w} owners={[BACKGROUND_OWNER]} />
     <BackgroundCardView {background} />
   {:else}
     <p class="note">{EMPTY[kind]}</p>
