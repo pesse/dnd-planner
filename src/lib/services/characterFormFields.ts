@@ -10,7 +10,7 @@ import { effectiveProficiencyBonus } from './classProgression';
 import { attackForSave, type AttackCalcContext } from './attackCalc';
 import type { SpellAttackContext } from './spellAttackCalc';
 import type { DeclaredAttackEffects } from './attackEffects';
-import { skillCheckEffects, type CheckSource } from './abilityChecks';
+import { skillValues, type CheckSource } from './abilityChecks';
 import { effectiveMods, type WornAbilityEffect } from './effectiveAbilities';
 import {
   emptyPersonal, emptyProficiencies,
@@ -126,20 +126,11 @@ export function computeSkills(
   effects: readonly WornAbilityEffect[],
   checks: readonly CheckSource[] = [],
 ): Character['skills'] {
-  const mods = abilityMods(f, effects);
-  const pb = effectiveProficiencyBonus(f);
-  const result: Character['skills'] = {};
-  for (const def of SKILL_DEFS) {
-    const flags = f.skillFlags[def.key];
-    const base = mods[def.attr] ?? 0;
-    let value = base;
-    if (flags.exp) value = base + pb * 2;
-    else if (flags.prof) value = base + pb;
-    else if (f.alleskoenner) value = base + Math.floor(pb / 2);
-    value += skillCheckEffects(def, checks, { mods, profBonus: pb }).rows.reduce((n, r) => n + r.value, 0);
-    result[def.key] = { value, prof: flags.prof, exp: flags.exp };
-  }
-  return result;
+  const skills: Character['skills'] = {};
+  for (const def of SKILL_DEFS) skills[def.key] = { value: 0, ...f.skillFlags[def.key] };
+  return skillValues({ skills, alleskoenner: f.alleskoenner }, checks, {
+    mods: abilityMods(f, effects), profBonus: effectiveProficiencyBonus(f),
+  });
 }
 
 /**

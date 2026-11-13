@@ -147,3 +147,24 @@ describe('combatTips', () => {
     expect(combatTips(c, { ...fb, speedRows: [] }).speed).toBe('');
   });
 });
+
+describe('Fertigkeiten im gezeigten Charakter', () => {
+  const row = (value: number, prof = false, exp = false) => ({ value, prof, exp });
+  const skills = { ArkaneKunde: row(0), Auftreten: row(3, true, true), Heimlichkeit: row(0, true) };
+  const shown = (alleskoenner: boolean) => {
+    const c = { ...testCharacter('Prüfling Kämpferin'), classes: [cls(2)], proficiencyBonus: undefined, skills, alleskoenner };
+    return withCombatFallbacks(c, fb([cls(2)], null, null, 2, { skills, alleskoenner })).skills;
+  };
+
+  // Stufenaufstieg im Karte-Tab: Alleskönner gesetzt, die Datei trägt noch den alten Wert.
+  it('rechnet Alleskönner auf ungeübte Fertigkeiten, auch gegen den gespeicherten Wert', () => {
+    expect(shown(true).ArkaneKunde).toEqual(row(1, false, false));
+    expect(shown(true).Akrobatik).toEqual(row(3));
+  });
+
+  it('gibt geübten und Expertise-Fertigkeiten keinen halben Übungsbonus dazu', () => {
+    expect(shown(true).Heimlichkeit.value).toBe(4);
+    expect(shown(true).Auftreten.value).toBe(4);
+    expect(shown(false).Akrobatik.value).toBe(2);
+  });
+});

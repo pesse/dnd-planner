@@ -16,6 +16,7 @@ import { sign } from '../utils/num';
 import { featureIdOf } from '../utils/text';
 import { effectiveScores, loadWornAbilityEffects } from './effectiveAbilities';
 import { adjustmentRows } from './hitPointDerivation';
+import { checkSources, skillValues } from './abilityChecks';
 import { hpBasisOf, hpMaxTotal, loadHpLibraryParts, type HpLibraryParts } from './hitPoints';
 import { loadSavingThrowInputs, resolveSaveBonus } from './savingThrows';
 import type { IdleItem, WornItem } from './wornItems';
@@ -39,6 +40,8 @@ export interface CombatFallbacks {
   initiativeRows: { labelDe: string; value: number }[];
   /** Die Merkmale, die Vorteil auf Initiative geben. */
   initiativeAdvantage: string[];
+  /** Ersetzt die Werte der Datei — `skillValues` sagt, warum. */
+  skills?: Character['skills'];
 }
 
 type FallbackFeature = { key?: string; name: string; grants?: FeatureGrant };
@@ -66,6 +69,9 @@ export function combatFallbacks(input: {
   /** Wirksame Modifikatoren, samt Gegenständen. */
   mods: AbilityScores;
   combatAdjustments?: CombatAdjustments;
+  /** Ohne fehlt `skills` im Ergebnis; das Formular rechnet sie selbst. */
+  skills?: Character['skills'];
+  alleskoenner?: boolean;
 }): CombatFallbacks {
   const classes = [...input.classes];
   const adj = input.combatAdjustments;
@@ -93,10 +99,14 @@ export function combatFallbacks(input: {
     initiative: sign(initiativeRows.reduce((n, r) => n + r.value, 0)),
     initiativeRows,
     initiativeAdvantage: effects.flatMap(({ labelDe, effect }) => effect.kind === 'advantage' ? [labelDe] : []),
+    ...(input.skills ? {
+      skills: skillValues({ skills: input.skills, alleskoenner: input.alleskoenner ?? false },
+        checkSources(input.features ?? []), { mods: input.mods, profBonus }),
+    } : {}),
   };
 }
 
-type FallbackCharacter = Pick<Character, 'ac' | 'hpMax' | 'hpDiceTotal' | 'combatAdjustments' | 'classes' | 'proficiencyBonus'>;
+type FallbackCharacter = Pick<Character, 'ac' | 'hpMax' | 'hpDiceTotal' | 'combatAdjustments' | 'classes' | 'proficiencyBonus' | 'skills' | 'alleskoenner'>;
 
 /** Für Aufrufer, die Inventar, Merkmale und TP-Basis schon geladen haben (Druck). */
 export function combatFallbacksFrom(
@@ -128,6 +138,7 @@ export function withCombatFallbacks(c: Character, fb: CombatFallbacks): Characte
     hpMax,
     hpCurrent: c.hpCurrent.trim() || hpMax,
     proficiencyBonus: c.proficiencyBonus ?? fb.proficiencyBonus,
+    skills: fb.skills ?? c.skills,
   };
 }
 

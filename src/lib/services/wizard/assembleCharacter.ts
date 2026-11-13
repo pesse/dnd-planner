@@ -4,7 +4,7 @@
  */
 import { characterSchema, type Character } from '$lib/schemas/characterSchema';
 import { SKILL_DEFS, mod } from '$lib/domain/skills';
-import { type AbilityKey } from '$lib/schemas/abilities';
+import { abilityRecordOf, type AbilityKey } from '$lib/schemas/abilities';
 import { type SkillName } from '$lib/schemas/vocabulary';
 import { collectGrants, proficiencyGrantChanges } from '../proficiencyGrants';
 import { getSpeciesByKey } from '$lib/speciesLibrary';
@@ -17,7 +17,7 @@ import { validateRiderSpells } from '../levelUp/spells';
 import { addExtra, cloneSpellcasting, pruneSpellcasting } from '../spellcasting/write';
 import { riderGrantChanges } from '../levelUp/changes';
 import { applyChanges } from '../applyChanges';
-import { checkSources, skillCheckEffects } from '../abilityChecks';
+import { checkSources, skillValues } from '../abilityChecks';
 import { ownedGrantFeatures } from '../hitPoints';
 import { spellAccessNoteLines } from '../spellcasting/access';
 import { declaredGrantChanges } from '../declaration/grants';
@@ -106,13 +106,7 @@ async function applyProficiencies(c: Character, w: CharacterWizard, answerOf: An
 /** Braucht Ledger und Talent-Links: deklarierte Zuschläge (Thaumaturg auf Religion) hängen an ihnen. */
 async function applySkillValues(c: Character, scores: AbilityScores): Promise<void> {
   const checks = checkSources(await ownedGrantFeatures(c));
-  const pb = effectiveProficiencyBonus(c);
-  for (const def of SKILL_DEFS) {
-    const row = c.skills[def.key];
-    const attrMod = mod(scores[def.attr]);
-    const bonus = skillCheckEffects(def, checks, { mods: c.mods, profBonus: pb }).rows.reduce((n, r) => n + r.value, 0);
-    row.value = (row.prof ? attrMod + pb * (row.exp ? 2 : 1) : attrMod) + bonus;
-  }
+  c.skills = skillValues(c, checks, { mods: abilityRecordOf((k) => mod(scores[k])), profBonus: effectiveProficiencyBonus(c) });
 }
 
 /**
