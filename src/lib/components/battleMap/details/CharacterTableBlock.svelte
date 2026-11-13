@@ -11,9 +11,10 @@
 
   let { character: c, model: m }: { character: Character; model: CharacterSheetModel } = $props();
 
-  const skillValue = (key: string): number => c.skills[key]?.value ?? 0;
+  const shown = $derived(m.shown ?? c);
+  const skillValue = (key: string): number => shown.skills[key]?.value ?? 0;
   const passives = $derived([
-    { label: 'Wahrnehmung', value: Number(c.passivePerception) || 10 + skillValue('Wahrnehmung') },
+    { label: 'Wahrnehmung', value: Number(shown.passivePerception) || 10 + skillValue('Wahrnehmung') },
     { label: 'Motiv erkennen', value: 10 + skillValue('MotivErkennen') },
     { label: 'Nachforschungen', value: 10 + skillValue('Nachforschungen') },
   ]);
